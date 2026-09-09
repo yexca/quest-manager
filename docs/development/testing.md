@@ -1,0 +1,95 @@
+# Testing
+
+Choose checks for the behavior being changed. Tests should protect a user
+workflow, boundary, state transition, or regression; avoid adding tests that
+only mirror the implementation or prove that documentation text exists.
+
+## Routine Checks
+
+```powershell
+.\run-test.ps1
+```
+
+The script checks the installed environment, builds/typechecks the frontend,
+runs `cargo fmt --check`, runs Clippy for all targets with warnings denied, and
+runs locked Cargo tests. It does not enable ignored device integration tests.
+
+The unit tests cover remote path boundaries, shell quoting, directory parsing,
+Windows filenames, device/storage parsing, unsafe task requests, and progress
+parsing. Their sources are the inline test modules in
+[adb.rs](../../src-tauri/src/adb.rs) and [tasks.rs](../../src-tauri/src/tasks.rs).
+
+There is no configured JavaScript unit-test, browser E2E, or documentation-test
+runner. Do not report frontend behavior coverage from `tsc` alone. If a future
+change needs such a harness, add it deliberately with pinned dependencies and
+a documented command.
+
+| Change | Appropriate starting point |
+| --- | --- |
+| Documentation | Resolve relative links/anchors, verify commands against source, review facts, run `git diff --check` |
+| Frontend types or UI | `npm run build`; inspect affected behavior in explicit preview, and use desktop checks for native integration |
+| Rust, task, or IPC behavior | `run-test.ps1` and focused regression coverage |
+| ADB compatibility | Relevant opt-in device test within the authorized scope |
+| Bootstrap/toolchain | Install with the intended manifests, then routine checks |
+| Resource or installer layout | Relevant `run-build.ps1` mode and artifact inspection |
+
+For docs-only work, do not install dependencies, rebuild the application, or
+collect device data merely to validate Markdown. `git diff` excludes untracked
+files, so include new files in link and privacy review separately.
+
+## Preview Inspection
+
+After installation, start `npm run dev` and open
+[preview](http://127.0.0.1:1420/?preview=1). Check the changed page at supported
+desktop widths, keyboard focus, dialogs, long package/file names, errors, and
+unknown-value states as relevant. The existing preview does not simulate every
+error or a running queue. It cannot validate ADB, native pickers, or real installs.
+
+## Opt-In Device Tests
+
+```powershell
+.\run-test.ps1 -Device
+.\run-test.ps1 -DeviceWrite
+```
+
+`-Device` adds `connected_device_smoke`: discovery, metadata, third-party app
+listing, shared directory listing, application details, and rejection of a
+private-storage path. It is read-only but its failures can expose diagnostic
+device data.
+
+`-DeviceWrite` adds `connected_device_task_roundtrip` from
+[device_tests.rs](../../src-tauri/src/device_tests.rs). It uses a unique
+`/sdcard/Download/.quest-manager-test-*` folder and local `env/test-artifacts`,
+then exercises transfer round trips, unusual filenames, collision refusal,
+rename/delete, and fixture APK install/update/export/uninstall. It refuses to
+start if the fixture package already exists. This flag does not separately
+enable the read-only test; both flags can be supplied when both are needed.
+
+Both tests currently choose the first discovered model containing `Quest` and
+its first ready transport. They have no device-selector flag. Establish that
+this selects the intended authorized test device before opting in. Do not run
+all ignored tests indiscriminately or interpret USB debugging authorization as
+unlimited permission to change unrelated user data.
+
+Reuse authorization already established for the current test scope. A routine
+documentation or preview task is not a reason to run a device write test.
+Cleanup is attempted by the integration test, but interruption or a disconnected
+device can leave its scratch data. Inspect the exact failed test's paths locally
+before any cleanup; never use a broad wildcard deletion on shared storage.
+
+## Synthetic Fixture Data
+
+Use `DEMO-*`/`EXAMPLE-*` device and transport IDs, `com.example.*` packages, fixed
+synthetic timestamps, and RFC documentation addresses such as `192.0.2.10`.
+Do not copy a real device listing, application inventory, or personal filename
+into a parser test or preview.
+
+The inert `dev.questmanager.verification` APK is the deliberate package fixture.
+Its source manifest, purpose, generation tools, and checksum are documented in
+[the fixture README](../../tests/fixtures/README.md). `run-test.ps1 -DeviceWrite`
+checks its checksum before testing. Preserve this check when replacing the
+fixture; the signing private key must remain outside tracked files.
+
+Report commands and aggregate outcomes in the task response. Do not save live
+validation records to `VALIDATION.md`, docs, or a new fixture. See
+[Privacy](../../PRIVACY.md) and [Secure development](security.md).

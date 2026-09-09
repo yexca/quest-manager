@@ -1,0 +1,33 @@
+[package]
+name = "quest-manager"
+version = "0.1.0"
+description = "A local ADB companion for Meta Quest"
+edition = "2024"
+rust-version = "1.95"
+
+[lib]
+name = "quest_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-dialog = "=2.7.3"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", features = ["process", "io-util", "sync", "time", "rt-multi-thread", "macros", "fs"] }
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,16 @@
+{
+  "node": "24.19.0",
+  "npm": "11.17.0",
+  "rust": "1.95.0",
+  "rustTarget": "x86_64-pc-windows-msvc",
+  "rustup": {
+    "version": "1.29.0",
+    "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-msvc/rustup-init.exe",
+    "sha256": "86478e53f769379d7f0ebfa7c9aa97cb76ca92233f79aa2cc0dbee2efaac73c7"
+  },
+  "adb": {
+    "version": "37.0.1",
+    "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+    "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Quest Manager",
+  "version": "0.1.0",
+  "identifier": "dev.questmanager.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "title": "Quest Manager",
+      "width": 1280,
+      "height": 850,
+      "minWidth": 1000,
+      "minHeight": 680,
+      "backgroundColor": "#f5f6f3",
+      "dragDropEnabled": true
+    }],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "useLocalToolsDir": true,
+    "targets": ["nsis"],
+    "resources": { "../env/platform-tools/": "platform-tools/" },
+    "icon": ["icons/icon.ico", "icons/icon.png"]
+  }
+}

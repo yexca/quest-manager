@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.questmanager.verification"
+    android:versionCode="1"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
+    <application android:hasCode="false" android:label="Quest Manager verification" android:allowBackup="false" />
+</manifest>

@@ -1,0 +1,28 @@
+/env/
+/node_modules/
+/dist/
+/release/
+/src-tauri/target/
+/src-tauri/gen/
+*.log
+.DS_Store
+.idea/
+
+# Local validation and machine records
+/VALIDATION.md
+/validation/
+/installed-versions.json
+/build-environment.json
+
+# Local configuration and signing keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+adbkey
+adbkey.pub

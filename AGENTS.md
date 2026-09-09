@@ -34,7 +34,8 @@ Then use the smallest relevant set of documents:
 - Use the project ADB in development and the bundled ADB in production. Reuse
   the default ADB server; do not add automatic `kill-server`, root, reboot,
   pairing, or wireless-debugging setup as connection recovery.
-- Keep read queries in `adb.rs`, task orchestration in `tasks.rs`, and explicit
+- Keep device queries in `adb.rs`, metadata/cache orchestration in `metadata.rs`,
+  APK decoding in `apk.rs`, task orchestration in `tasks.rs`, and explicit
   IPC registration in `lib.rs`. Do not expose an arbitrary command executor to
   the webview.
 - General file management stays within `/sdcard`, with
@@ -47,7 +48,8 @@ Then use the smallest relevant set of documents:
   those contracts deliberately.
 - Update Rust IPC structs, `src/types.ts`, `src/api.ts`, and their consumers
   together. Keep preview data explicitly fictional and preview writes disabled.
-- Current session state is held in memory. Do not describe task persistence,
+- Session/task state is held in memory. App artwork and immutable APK metadata
+  have a bounded private local cache; see `PRIVACY.md`. Do not describe task persistence,
   reconnect resume, or automatic retry as implemented features.
 
 ## Development Workflow

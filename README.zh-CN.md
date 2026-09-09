@@ -56,7 +56,7 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 ## 功能
 
 - **Overview**：自动发现设备；按设备序列号合并 USB / 已建立的 Wi-Fi 连接；显示 Android 版本、电量和共享存储容量。
-- **Applications**：第三方 / 系统应用列表、包名搜索、版本详情；选择或拖入普通 APK 安装；兼容签名的覆盖更新；导出全部已安装 APK（包含 split）；卸载第三方应用。
+- **Applications**：第三方 / 系统应用列表、名称或包名搜索、图标、版本、APK 大小、启用状态；详情包含安装时间、SDK/ABI、权限、split、签名证书和 VR 声明；选择或拖入普通 APK 安装；兼容签名的覆盖更新；导出全部已安装 APK；卸载第三方应用。
 - **Files**：浏览共享存储；上传文件或整个目录；下载文件或目录；创建目录、重命名、删除；Downloads、Movies、OBB 快捷入口。
 - **Task queue**：后台串行执行变更任务；显示进度与实际错误；取消排队任务，以及正在进行的上传、下载和 APK 导出。
 
@@ -70,6 +70,10 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 ## 依赖版本与可复现性
 
+应用名称与位图图标通过读取 base APK 的部分数据逐步加载，并优先选择可用的英文名称。自适应、矢量或只存在于 split 的图标可能使用默认图标。APK 大小不包括应用数据、缓存或 OBB；证书指纹不验证发布者身份或 APK 完整性，VR 声明也不保证兼容性。
+
+应用元数据在本地缓存。**Clear cached artwork** 清除磁盘缓存并暂停后台读取；**Load app details** 或刷新后恢复。开发模式缓存位于 `env/cache/app-metadata`，发行版位于 `%LOCALAPPDATA%/dev.questmanager.desktop/app-metadata`。缓存与临时资源不应提交，详见[隐私说明](PRIVACY.md)。
+
 | 项目 | 固定版本 / 记录位置 |
 | --- | --- |
 | Node.js | 24.19.0，`.node-version` / `toolchain.versions.json` / `package.json` |
@@ -78,6 +82,8 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 | Rust target | `x86_64-pc-windows-msvc` |
 | rustup | 1.29.0，固定下载地址 + SHA-256 |
 | Android Platform-Tools | 37.0.1，固定下载地址 + SHA-256 |
+| Android AAPT2 | 9.4.0-15978811（2.20-15978811），固定 Maven 下载地址 + SHA-256 |
+| APK 元数据 crates | zip 4.6.1、sha2 0.10.9、base64 0.22.1；在 `Cargo.toml` 精确固定 |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
 | NSIS / nsis-tauri-utils（可选打包工具） | 3.11 / 0.5.3，由固定的 Tauri CLI 下载并校验，缓存于 `env/target/.tauri` |
@@ -117,6 +123,8 @@ env/
   node_modules/          npm 安装的全部前端依赖
   npm-cache/             npm 下载缓存
   platform-tools/        adb.exe、所需 DLL、NOTICE 等
+  aapt2/                 固定 AAPT2 可执行文件及许可证
+  cache/app-metadata/    开发模式的应用名称、图标与声明缓存
   downloads/             校验过的工具安装包
   target/                Rust 编译缓存、测试程序和构建产物
     .tauri/              NSIS 等可选安装包工具的项目内缓存
@@ -131,14 +139,14 @@ node_modules/            指向 env/node_modules 的 Windows junction
 ## 构建与测试
 
 ```powershell
-.\run-build.ps1              # 构建 release/quest-manager.exe 和随附 platform-tools
+.\run-build.ps1              # 构建 release/quest-manager.exe 和随附 platform-tools、aapt2
 .\run-build.ps1 -Installer   # 另生成 NSIS 安装包；首次可能下载打包工具
 .\run-test.ps1               # 前端构建、Rust 格式、Clippy、单元测试
 .\run-test.ps1 -Device       # 加上已授权 Quest 的只读集成测试
 .\run-test.ps1 -DeviceWrite  # 加上专用目录 + 专用测试 APK 的完整读写集成测试
 ```
 
-便携版运行 `release/quest-manager.exe`，分发时保留随附的 `platform-tools` 目录、DLL 和许可证文件，并先检查本机构建记录是否适合分享。安装包输出在 `env/target/release/bundle/nsis`；本地构建暂未配置代码签名。详见[构建与发布说明](docs/development/commit-and-release.md)。
+便携版运行 `release/quest-manager.exe`，分发时保留随附的 `platform-tools`、`aapt2` 目录、DLL 和许可证文件，并先检查本机构建记录是否适合分享。安装包输出在 `env/target/release/bundle/nsis`；本地构建暂未配置代码签名。详见[构建与发布说明](docs/development/commit-and-release.md)。
 
 `-DeviceWrite` 只在唯一的 `/sdcard/Download/.quest-manager-test-*` 目录操作，并临时安装不含代码、权限或启动入口的 `dev.questmanager.verification` 测试 APK。测试会验证字节一致、特殊文件名、覆盖拒绝、目录重命名/删除、安装/更新/导出/卸载，并清理测试内容；如果该测试包预先存在则拒绝执行。固定的测试 APK、源 manifest 和校验值位于 `tests/fixtures`。
 
@@ -149,6 +157,8 @@ node_modules/            指向 env/node_modules 的 Windows junction
 ```text
 src/                    英文 React 界面、类型、Tauri IPC 和显式预览数据
 src-tauri/src/adb.rs     设备查询、应用元数据、目录解析、路径校验
+src-tauri/src/metadata.rs 应用详情解析与本地缓存
+src-tauri/src/apk.rs     APK 分段读取、资源解析与证书指纹
 src-tauri/src/tasks.rs   后台队列、进度、取消、安装/传输/变更任务
 src-tauri/src/lib.rs     Tauri IPC 命令与启动
 src-tauri/src/device_tests.rs

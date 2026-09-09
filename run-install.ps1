@@ -62,6 +62,11 @@ if (!(Test-Path -LiteralPath $questAdbProperties) -or (Get-Content -LiteralPath 
     Expand-Archive -LiteralPath $questAdbArchive -DestinationPath $QuestEnv -Force
 }
 
+$questAaptArchive = Get-QuestDownload -Url $QuestVersions.aapt2.url -Name "aapt2-$($QuestVersions.aapt2.version)-windows.zip" -Sha256 $QuestVersions.aapt2.sha256
+Expand-Archive -LiteralPath $questAaptArchive -DestinationPath (Join-Path $QuestEnv 'aapt2') -Force
+$questAapt = Join-Path $QuestEnv 'aapt2\aapt2.exe'
+Invoke-QuestCommand -File $questAapt -Arguments @('version')
+
 if ($RefreshLocks) {
     Write-Host 'Explicitly refreshing dependency lockfiles...'
     Invoke-QuestCommand -File 'npm.cmd' -Arguments @('install', '--package-lock-only', '--ignore-scripts')
@@ -99,6 +104,8 @@ $questRecord = [ordered]@{
     rustfmt = (& $questCargo fmt --version)
     rustup = $questInstalledRustup
     adb = @(& $questAdb version)
+    aapt2 = @(& $questAapt version)
+    toolchainSha256 = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'toolchain.versions.json')).Hash
     visualStudio = @($questVs | Select-Object displayName,installationVersion)
     msvcToolsets = @(foreach ($questVsInstance in $questVs) {
         Get-ChildItem -LiteralPath (Join-Path $questVsInstance.installationPath 'VC\Tools\MSVC') -Directory | Select-Object -ExpandProperty Name

@@ -11,5 +11,8 @@ Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'release\quest-manager.e
 $questReleaseTools = Join-Path $questRelease 'platform-tools'
 New-Item -ItemType Directory -Path $questReleaseTools -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $QuestEnv 'platform-tools') | Copy-Item -Destination $questReleaseTools -Recurse -Force
+$questReleaseAapt = Join-Path $questRelease 'aapt2'
+New-Item -ItemType Directory -Path $questReleaseAapt -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $QuestEnv 'aapt2') | Copy-Item -Destination $questReleaseAapt -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $QuestEnv 'installed-versions.json') -Destination (Join-Path $questRelease 'build-environment.json') -Force
 Write-Host "Portable app: $questRelease\quest-manager.exe" -ForegroundColor Green

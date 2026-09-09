@@ -8,7 +8,7 @@ Use Windows x64 with the system Node.js and npm versions recorded in
 Microsoft Edge WebView2 Runtime. These system components are checked by the
 bootstrap script but are not installed into `env`.
 
-The first setup downloads the pinned Rust toolchain, ADB, and application
+The first setup downloads the pinned Rust toolchain, ADB, AAPT2, and application
 dependencies. Allow at least 8 GB for tools and build caches. See
 [Dependencies](development/dependencies.md) for exact version sources.
 

@@ -12,8 +12,9 @@ file, and see the result of an operation without losing their place.
   Overview summarizes the device; Applications and Files use compact tables.
 - Green is the primary action color, amber indicates attention, and red marks
   errors or destructive actions. Neutral surfaces and borders provide structure.
-- Icons come from Lucide. The headset illustration is inline SVG; application
-  tiles are generic and do not represent icons fetched from installed apps.
+- Interface icons come from Lucide and the headset illustration is inline SVG.
+  Applications display extracted raster icons, with generic tiles when artwork
+  is unavailable. Keep package IDs visible beneath readable application names.
 - Styling lives in [src/styles.css](src/styles.css). There is one light theme,
   system fonts, a visible keyboard focus style, and reduced-motion support.
 - The Tauri window defaults to 1280 by 850 and has a 1000 by 680 minimum.

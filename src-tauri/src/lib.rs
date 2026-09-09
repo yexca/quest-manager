@@ -1,7 +1,10 @@
 mod adb;
+mod apk;
+mod metadata;
 mod tasks;
 
-use adb::{Adb, AppDetails, AppPackage, Device, DeviceInfo, FileEntry};
+use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
+use metadata::{AppDetails, MetadataService};
 use tasks::{TaskManager, TaskRequest, TaskSnapshot};
 use tauri::Manager;
 
@@ -27,10 +30,16 @@ async fn list_apps(
 #[tauri::command]
 async fn app_details(
     adb: tauri::State<'_, Adb>,
+    metadata: tauri::State<'_, MetadataService>,
     device: String,
     package: String,
 ) -> Result<AppDetails, String> {
-    adb.app_details(&device, &package).await
+    metadata.details(&adb, &device, &package).await
+}
+
+#[tauri::command]
+async fn clear_metadata_cache(metadata: tauri::State<'_, MetadataService>) -> Result<(), String> {
+    metadata.clear().await
 }
 
 #[tauri::command]
@@ -74,6 +83,16 @@ pub fn run() {
                 resource_adb
             };
             app.manage(Adb::new(adb_path));
+            let (aapt, cache) = if cfg!(debug_assertions) {
+                let env = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../env");
+                (env.join("aapt2/aapt2.exe"), env.join("cache/app-metadata"))
+            } else {
+                (
+                    app.path().resource_dir()?.join("aapt2/aapt2.exe"),
+                    app.path().app_cache_dir()?.join("app-metadata"),
+                )
+            };
+            app.manage(MetadataService::new(aapt, cache));
             app.manage(TaskManager::new());
             Ok(())
         })
@@ -82,6 +101,7 @@ pub fn run() {
             device_info,
             list_apps,
             app_details,
+            clear_metadata_cache,
             list_files,
             start_task,
             list_tasks,

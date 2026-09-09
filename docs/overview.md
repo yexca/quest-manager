@@ -41,7 +41,9 @@ The desktop app performs real ADB operations. See
   supported. APK export is not a saved-game backup.
 - Tasks and selections are in memory. There is no durable queue, resume,
   automatic retry, recycle bin, or rollback after a completed destructive task.
-- App names and icons are not extracted from APKs; package IDs are shown.
+- App names and raster icons are extracted from base APK resources with a
+  bounded private cache. Adaptive/vector and split-only icons can use a generic
+  fallback. APK sizes exclude private data, cache and OBB content.
 - The repository has local build/test scripts, with no configured CI or
   automated publication pipeline.
 

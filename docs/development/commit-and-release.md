@@ -62,10 +62,11 @@ version; see [Dependencies](dependencies.md).
 .\run-build.ps1 -Installer
 ```
 
-The default build places `quest-manager.exe`, `platform-tools`, and a local
+The default build places `quest-manager.exe`, `platform-tools`, `aapt2`, and a local
 `build-environment.json` record in `release`. Release-mode code resolves ADB from
 the application resources, so a lone executable is not the complete portable
-package. Preserve the ADB DLLs and license files when preparing a distribution.
+package. Preserve the ADB DLLs, AAPT2 executable and license/NOTICE files when
+preparing a distribution. Tauri also includes both tool directories in NSIS.
 
 `-Installer` also creates an NSIS bundle under
 `env/target/release/bundle/nsis`. The pinned Tauri CLI may download its packaging

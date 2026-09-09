@@ -1,7 +1,7 @@
 # Data Model and IPC
 
 These are in-memory IPC structures, not database entities. Rust definitions in
-[adb.rs](../../src-tauri/src/adb.rs) and [tasks.rs](../../src-tauri/src/tasks.rs)
+[adb.rs](../../src-tauri/src/adb.rs), [metadata.rs](../../src-tauri/src/metadata.rs), and [tasks.rs](../../src-tauri/src/tasks.rs)
 must agree with [src/types.ts](../../src/types.ts). Serde exposes struct fields
 as camelCase; task kinds are lowercase strings.
 
@@ -13,13 +13,16 @@ as camelCase; task kinds are lowercase strings.
 | `Transport` | `serial` for command targeting, `kind` (`usb` or `wifi`), raw ADB `state` |
 | `DeviceInfo` | Model, Android version, nullable battery percentage, charging state, storage byte counts |
 | `AppPackage` | `packageName`, string `versionCode`, and `system` flag |
-| `AppDetails` | Package name, version name/code, and all installed `apkPaths` |
+| `AppDetails` | Package/version, `apkPaths`, `apkFiles` with nullable size/modified time, nullable `apkSize`, install/update times, installer, SDK/ABI, app ID, Android user, enabled state, state flags, permissions, `assets` |
+| `AppAssets` | Nullable `displayName`/`iconDataUrl`, VR declarations, signing schemes, certificate SHA-256 fingerprints and availability notes; persisted in a bounded private cache |
+| `Permission` | Permission `name`, nullable `granted` boolean and `kind` (Requested, Install, Runtime) for the selected Android user |
 | `FileEntry` | Name, remote path, kind, byte size, and `modifiedAt` as Unix epoch milliseconds |
 
 File kinds are `directory`, `file`, `symlink`, and `other`. Directory size is
-not a recursively calculated total. App names and icons are not part of the
-current package model. Version strings can be `Unknown` when parsing finds no
-value; battery level can be null.
+not a recursively calculated total. Version strings can be `Unknown` when
+parsing finds no value; metadata availability uses null instead of invented
+values. APK modified times are Unix seconds; install/update strings retain the
+headset's local time. App ID is the package app ID, not a multi-user UID.
 
 ## Commands
 
@@ -32,6 +35,7 @@ calls them through [api.ts](../../src/api.ts).
 | `device_info` | `device` | `DeviceInfo` |
 | `list_apps` | `device`, `includeSystem` | `AppPackage[]` |
 | `app_details` | `device`, `package` | `AppDetails` |
+| `clear_metadata_cache` | None | Success or error; deletes cached JSON under the service gate |
 | `list_files` | `device`, `path` | `FileEntry[]` |
 | `start_task` | `request` | Initial `TaskSnapshot` |
 | `list_tasks` | None | Current task snapshots |

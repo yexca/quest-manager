@@ -12,6 +12,8 @@ of Windows, WebView2, ADB, or the headset operating system.
 | Device serials, transport addresses, model, Android version | Discovery, selection, and command targeting | Current process and UI state |
 | Battery and shared-storage totals | Overview | Current UI state |
 | Package names, versions, and installed APK paths | Application listing, details, and export | Current UI state and task details |
+| Application labels, raster icons, signing fingerprints, VR declarations | Identify and inspect applications | Local metadata cache, bounded to 512 entries / 64 MiB |
+| Install/update times, permissions, installer, SDK/ABI, app state | Application details | Current UI state; queried again on refresh |
 | Shared filenames, paths, sizes, and timestamps | File browsing and transfer | Current UI state and task details |
 | Selected computer paths and ADB output | Task execution and error feedback | Current process and UI state |
 | Uploaded, downloaded, or exported files | Explicit user operations | Files remain at their destinations |
@@ -21,6 +23,24 @@ operation is undone when the app closes. Completed installs, uninstalls,
 renames, deletions, and transfers remain effective. Interrupted operations can
 leave temporary files. WebView2 and ADB may keep their own runtime data outside
 the application's state.
+
+Metadata extraction reads selected byte ranges of package-manager-derived APK
+paths. It temporarily stages only the manifest and resource table locally for
+AAPT2, then removes that file. A crash can leave a `resource-*.tmp` file in the
+metadata directory; it is private local output. Full game APKs are not cached.
+
+The metadata cache is `env/cache/app-metadata` in development and
+`%LOCALAPPDATA%/dev.questmanager.desktop/app-metadata` in release builds. Cache
+keys hash the transport, package/version, APK paths, sizes and modification
+times; hashed filenames do not anonymize the stored names or artwork. Older
+entries are evicted when the entry or byte limit is reached. Application
+uninstallation does not immediately remove its cached entry.
+
+**Clear cached artwork** deletes cached JSON and pauses background enrichment;
+already displayed information remains in memory. **Load app details**, refresh,
+or reopening the app resumes collection. Opening an individual detail view also
+reads and can cache that application. Cache content stays on this computer and
+must not be copied into the repository or shared as a diagnostic report.
 
 ## Network and Tooling
 

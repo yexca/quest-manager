@@ -18,6 +18,11 @@ The unit tests cover remote path boundaries, shell quoting, directory parsing,
 Windows filenames, device/storage parsing, unsafe task requests, and progress
 parsing. Their sources are the inline test modules in
 [adb.rs](../../src-tauri/src/adb.rs) and [tasks.rs](../../src-tauri/src/tasks.rs).
+Metadata coverage in [metadata.rs](../../src-tauri/src/metadata.rs) and
+[apk.rs](../../src-tauri/src/apk.rs) checks Android user isolation, absent fields,
+cache invalidation, resource size limits, image-type filtering, and real AAPT2
+label/signing parsing against the existing inert fixture. Test output remains
+synthetic; the fixture is not installed for these routine tests.
 
 There is no configured JavaScript unit-test, browser E2E, or documentation-test
 runner. Do not report frontend behavior coverage from `tsc` alone. If a future
@@ -56,6 +61,11 @@ error or a running queue. It cannot validate ADB, native pickers, or real instal
 listing, shared directory listing, application details, and rejection of a
 private-storage path. It is read-only but its failures can expose diagnostic
 device data.
+
+It also runs `connected_device_metadata`, reading the first third-party app on
+the selected Quest to exercise APK byte ranges, label/state/size extraction and
+cache round trip. Its scratch cache is under ignored `env/test-artifacts` and is
+cleared after success. No fixture is installed and no device files are changed.
 
 `-DeviceWrite` adds `connected_device_task_roundtrip` from
 [device_tests.rs](../../src-tauri/src/device_tests.rs). It uses a unique

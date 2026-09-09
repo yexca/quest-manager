@@ -18,9 +18,30 @@ measurements in desktop mode.
 
 ## Manage Applications
 
-Applications lists package names and version codes. Search filters package IDs;
-"Show system apps" includes system packages. Details display version metadata
-and installed APK paths. Generic artwork is used instead of extracted app icons.
+Applications first lists packages, then progressively reads names, raster icons,
+versions, total APK size and enabled state. Search matches names and package
+IDs; "Show system apps" includes system packages. Unknown values remain explicit,
+and an unreadable package does not stop the remaining list from loading.
+
+Details has Overview, Permissions, APK files, and Signing & VR tabs. It shows
+install/update times in headset local time, installer package, SDK levels,
+primary/secondary ABI, app ID, active Android user, state flags, requested/granted
+permissions, and every installed APK path/size. Null installer data does not
+identify a distribution source. Size is APK bytes only, excluding data/cache/OBB.
+
+Names prefer English resources, then the default label, then the package ID.
+Base APK resources are read by bounded byte ranges; large game data is not
+downloaded. Adaptive/vector, split-only, oversized or unreadable artwork uses a
+generic icon. Signing shows v2/v3/v3.1 base APK certificate SHA-256 fingerprints;
+v1-only certificates and signing lineage are not decoded. This does not validate
+APK integrity or publisher trust. VR declarations are manifest metadata, not
+verified compatibility. Details explains availability limitations.
+
+Names, artwork and immutable APK metadata use a bounded private disk cache.
+"Clear cached artwork" clears it and pauses background reads while preserving
+already displayed data. "Load app details", refresh, or restarting resumes
+loading; manually opening details can also cache that application. Device and
+permission state are queried again instead of persisted. See [Privacy](../../PRIVACY.md).
 
 "Install APK" opens a native file picker for one or more ordinary APK files.
 Dropping only APKs anywhere in the desktop window opens the same installation

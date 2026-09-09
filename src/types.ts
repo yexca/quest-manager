@@ -5,7 +5,18 @@ export interface DeviceInfo {
   storageTotal: number; storageUsed: number; storageAvailable: number;
 }
 export interface AppPackage { packageName: string; versionCode: string; system: boolean }
-export interface AppDetails { packageName: string; versionName: string; versionCode: string; apkPaths: string[] }
+export interface AppAssets {
+  displayName: string | null; iconDataUrl: string | null; vrFeatures: string[];
+  signingSchemes: string[]; certificateSha256: string[]; notes: string[];
+}
+export interface AppDetails {
+  packageName: string; versionName: string; versionCode: string; apkPaths: string[];
+  apkFiles: { path: string; size: number | null; modified: number | null }[]; apkSize: number | null;
+  firstInstallTime: string | null; lastUpdateTime: string | null; installer: string | null;
+  minSdk: string | null; targetSdk: string | null; primaryAbi: string | null; secondaryAbi: string | null;
+  uid: string | null; androidUser: number; enabled: boolean | null; stateFlags: string[];
+  permissions: { name: string; granted: boolean | null; kind: string }[]; assets: AppAssets;
+}
 export interface FileEntry { name: string; path: string; kind: 'directory' | 'file' | 'symlink' | 'other'; size: number; modifiedAt: number }
 export type TaskKind = 'install' | 'uninstall' | 'upload' | 'download' | 'export' | 'mkdir' | 'rename' | 'delete';
 export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string }

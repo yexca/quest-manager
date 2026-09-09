@@ -23,12 +23,15 @@ flowchart LR
 | --- | --- |
 | [src/main.tsx](../../src/main.tsx) | React root and stylesheet loading |
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, polling, native file pickers, drag/drop, task subscription |
+| [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
 | [src/api.ts](../../src/api.ts) | Typed IPC calls and explicit fictional browser preview |
 | [src/types.ts](../../src/types.ts) | Frontend data and task contracts |
 | [src/styles.css](../../src/styles.css) | Shared layout and interface styling |
 | [src-tauri/src/main.rs](../../src-tauri/src/main.rs) | Windows application entry |
 | [src-tauri/src/lib.rs](../../src-tauri/src/lib.rs) | Tauri setup, ADB location, managed state, and command registration |
 | [src-tauri/src/adb.rs](../../src-tauri/src/adb.rs) | Read queries, parsing, path checks, quoting, ADB process construction |
+| [src-tauri/src/metadata.rs](../../src-tauri/src/metadata.rs) | Package dump parsing, metadata IPC models, extraction gate and bounded cache |
+| [src-tauri/src/apk.rs](../../src-tauri/src/apk.rs) | APK byte-range reader, ZIP limits, AAPT2 resource decoding, raster icons and signing-block fingerprints |
 | [src-tauri/src/tasks.rs](../../src-tauri/src/tasks.rs) | Task validation, global queue, mutations, transfers, cancellation, cleanup |
 | [src-tauri/src/device_tests.rs](../../src-tauri/src/device_tests.rs) | Opt-in fixture-based device integration test |
 | [scripts/Environment.ps1](../../scripts/Environment.ps1) | Process-local tool paths and installed-environment checks |
@@ -62,6 +65,17 @@ ADB is located from `env/platform-tools` in debug builds and Tauri's resource
 directory in release builds. Child processes receive separate argument values,
 have no interactive stdin, and use hidden process creation on Windows. Shell
 fragments run on Android and require separate quoting and path validation.
+
+Application enrichment uses a separate single-permit gate, shared with cache
+clearing. The UI schedules one list enrichment request at a time and shares an
+in-flight request with an open details dialog. Leaving the page or changing
+transport stops scheduling and discards stale responses; one bounded active
+read can finish. This does not acquire or change the mutation queue.
+
+APK extraction uses a blocking worker with bounded ADB reads and a bundled
+AAPT2 subprocess. Only a temporary manifest/resource-table ZIP is staged;
+immutable presentation metadata is cached. Live state/grants are read afresh.
+See [ADR-0004](../decisions/ADR-0004-application-metadata.md).
 
 ## Contracts to Read Next
 

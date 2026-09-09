@@ -27,7 +27,7 @@
     "active": true,
     "useLocalToolsDir": true,
     "targets": ["nsis"],
-    "resources": { "../env/platform-tools/": "platform-tools/" },
+    "resources": { "../env/platform-tools/": "platform-tools/", "../env/aapt2/": "aapt2/" },
     "icon": ["icons/icon.ico", "icons/icon.png"]
   }
 }

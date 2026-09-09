@@ -7,6 +7,7 @@ Invoke-QuestCommand -File 'cargo.exe' -Arguments @('clippy', '--locked', '--mani
 Invoke-QuestCommand -File 'cargo.exe' -Arguments @('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml')
 if ($Device) {
     Invoke-QuestCommand -File 'cargo.exe' -Arguments @('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', 'connected_device_smoke', '--', '--ignored', '--nocapture')
+    Invoke-QuestCommand -File 'cargo.exe' -Arguments @('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', 'connected_device_metadata', '--', '--ignored', '--nocapture')
 }
 if ($DeviceWrite) {
     $questFixtureHash = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'tests\fixtures\verification.apk') -Algorithm SHA256).Hash

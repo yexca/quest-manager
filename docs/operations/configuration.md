@@ -54,6 +54,15 @@ dialog permissions are declared in
 
 ## Runtime Limits and Records
 
+AAPT2 is resolved from `env/aapt2` in development and the `aapt2` resource
+directory in release. Metadata uses a 64 MiB read budget, 256 KiB range pages,
+8 MiB central-directory limit, 32 MiB resource-table limit and 2 MiB icon limit.
+ZIP64 metadata is not supported. Range reading checks a 90-second deadline
+between reads (an active ADB read can take another 30 seconds); each AAPT2 call
+times out after 15 seconds. Fallbacks preserve the rest of the application list.
+The cache is bounded to 512 JSON entries / 64 MiB; locations and clearing are
+documented in [Privacy](../../PRIVACY.md).
+
 Read helpers have a 30-second timeout; streamed task subprocesses have a
 one-hour timeout per subprocess. These limits are currently source constants,
 not user settings. Queue state is in memory and has no startup recovery.

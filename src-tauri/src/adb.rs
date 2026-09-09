@@ -1,3 +1,4 @@
+use crate::metadata::{ApkFile, AppDetails, parse_details};
 use serde::Serialize;
 use std::{collections::BTreeMap, path::PathBuf, process::Stdio, time::Duration};
 use tokio::process::Command;
@@ -41,15 +42,6 @@ pub struct AppPackage {
     pub package_name: String,
     pub version_code: String,
     pub system: bool,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppDetails {
-    pub package_name: String,
-    pub version_name: String,
-    pub version_code: String,
-    pub apk_paths: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -214,26 +206,57 @@ impl Adb {
     pub async fn app_details(&self, device: &str, package: &str) -> Result<AppDetails, String> {
         validate_package(package)?;
         let dump_command = format!("dumpsys package {}", shell_quote(package));
-        let (paths, dump) = tokio::try_join!(
+        let (paths, dump, user) = tokio::try_join!(
             self.apk_paths(device, package),
-            self.shell(device, &dump_command)
+            self.shell(device, &dump_command),
+            self.shell(device, "am get-current-user")
         )?;
-        let value = |key: &str| {
-            dump.lines()
-                .find_map(|l| {
-                    l.trim()
-                        .strip_prefix(key)
-                        .and_then(|v| v.split_whitespace().next())
-                        .map(str::to_string)
-                })
-                .unwrap_or_else(|| "Unknown".into())
-        };
-        Ok(AppDetails {
-            package_name: package.into(),
-            version_name: value("versionName="),
-            version_code: value("versionCode="),
-            apk_paths: paths,
-        })
+        let user = user
+            .parse::<u32>()
+            .map_err(|_| "Could not determine the active Android user.")?;
+        let mut details = parse_details(package, &dump, user);
+        if details.enabled.is_none() {
+            details.enabled = self
+                .shell(
+                    device,
+                    &format!("pm list packages -e --user {user} {}", shell_quote(package)),
+                )
+                .await
+                .ok()
+                .map(|output| {
+                    parse_packages(&output, false)
+                        .iter()
+                        .any(|app| app.package_name == package)
+                });
+        }
+        let quoted_paths = paths
+            .iter()
+            .map(|p| shell_quote(p))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let stats = self
+            .shell(device, &format!("stat -c '%s %Y' -- {quoted_paths}"))
+            .await
+            .ok();
+        let stats: Vec<_> = stats.as_deref().unwrap_or("").lines().collect();
+        details.apk_files = paths
+            .iter()
+            .enumerate()
+            .map(|(index, path)| {
+                let mut fields = stats.get(index).copied().unwrap_or("").split_whitespace();
+                ApkFile {
+                    path: path.clone(),
+                    size: fields.next().and_then(|v| v.parse().ok()),
+                    modified: fields.next().and_then(|v| v.parse().ok()),
+                }
+            })
+            .collect();
+        details.apk_size = details
+            .apk_files
+            .iter()
+            .try_fold(0u64, |total, file| total.checked_add(file.size?));
+        details.apk_paths = paths;
+        Ok(details)
     }
 
     // Resolve symlinks on the device as well as validating the lexical path.

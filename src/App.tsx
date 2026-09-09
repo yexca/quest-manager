@@ -4,6 +4,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, Gamepad2, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
 import { api, isDesktop, isPreview } from './api';
+import { AppIcon, ApplicationDetails, formatBytes } from './AppMetadata';
 import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
 
 type Page = 'overview' | 'apps' | 'files';
@@ -105,6 +106,15 @@ export default function App() {
   const [confirming, setConfirming] = useState(false);
   const [nameAction, setNameAction] = useState<NameAction | null>(null);
   const [details, setDetails] = useState<AppDetails | null>(null);
+  const [inspecting, setInspecting] = useState<AppPackage | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [appMetadata, setAppMetadata] = useState<Record<string, AppDetails>>({});
+  const [metadataErrors, setMetadataErrors] = useState<Record<string, string>>({});
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
+  const [metadataPaused, setMetadataPaused] = useState(false);
+  const [clearingMetadata, setClearingMetadata] = useState(false);
+  const detailsRequest = useRef(0);
+  const appListTransport = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [loadingDevices, setLoadingDevices] = useState(true);
@@ -120,7 +130,7 @@ export default function App() {
   const running = tasks.filter(active).length;
   const orderedTasks = useMemo(() => [...tasks].sort((a, b) => b.createdAt - a.createdAt), [tasks]);
   const userApps = apps.filter(app => !app.system);
-  const visibleApps = apps.filter(app => app.packageName.toLowerCase().includes(query.toLowerCase()));
+  const visibleApps = apps.filter(app => `${app.packageName} ${appMetadata[app.packageName]?.assets.displayName ?? ''}`.toLowerCase().includes(query.toLowerCase()));
   const visibleFiles = files.filter(file => file.name.toLowerCase().includes(fileQuery.toLowerCase()));
   const chosenFiles = files.filter(file => selected.has(file.path));
   const fail = useCallback((cause: unknown) => setError(errorText(cause)), []);
@@ -152,11 +162,31 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     setApps([]);
+    appListTransport.current = '';
+    setAppMetadata({}); setMetadataErrors({}); setMetadataPaused(false);
+    setInspecting(null); setDetails(null); detailsRequest.current += 1;
     if (!serial) return;
     setLoadingApps(true);
-    void api.apps(serial, includeSystem).then(value => { if (alive) setApps(value); }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingApps(false); });
+    void api.apps(serial, includeSystem).then(value => { if (alive) { appListTransport.current = serial; setApps(value); } }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingApps(false); });
     return () => { alive = false; };
   }, [serial, includeSystem, refreshToken, fail]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!serial || appListTransport.current !== serial || page !== 'apps' || metadataPaused || !apps.length) { setLoadingMetadata(false); return; }
+    setLoadingMetadata(true);
+    const load = async () => {
+      for (const app of apps) {
+        if (!alive) return;
+        try {
+          const data = await api.details(serial, app.packageName);
+          if (alive) { setAppMetadata(current => ({ ...current, [app.packageName]: data })); setMetadataErrors(current => { const next = { ...current }; delete next[app.packageName]; return next; }); }
+        } catch (cause) { if (alive) setMetadataErrors(current => ({ ...current, [app.packageName]: errorText(cause) })); }
+      }
+    };
+    void load().finally(() => { if (alive) setLoadingMetadata(false); });
+    return () => { alive = false; };
+  }, [serial, page, apps, metadataPaused]);
 
   useEffect(() => {
     let alive = true;
@@ -224,11 +254,17 @@ export default function App() {
   };
 
   const inspectApp = async (app: AppPackage) => {
-    setDetails({ packageName: app.packageName, versionName: 'Loading…', versionCode: app.versionCode, apkPaths: [] });
+    const request = ++detailsRequest.current;
+    setInspecting(app); setDetails(appMetadata[app.packageName] ?? null); setDetailsError(null);
     try {
       const result = await api.details(serial, app.packageName);
-      setDetails(current => current?.packageName === result.packageName ? result : current);
-    } catch (cause) { setDetails(null); fail(cause); }
+      if (request === detailsRequest.current) { setDetails(result); setAppMetadata(current => ({ ...current, [app.packageName]: result })); setMetadataErrors(current => { const next = { ...current }; delete next[app.packageName]; return next; }); }
+    } catch (cause) { if (request === detailsRequest.current) setDetailsError(errorText(cause)); }
+  };
+
+  const clearMetadata = async () => {
+    setMetadataPaused(true); setClearingMetadata(true);
+    try { await api.clearMetadataCache(); } catch (cause) { fail(cause); } finally { setClearingMetadata(false); }
   };
 
   const requestDelete = (entries: FileEntry[]) => {
@@ -294,7 +330,18 @@ export default function App() {
             <section className="activity card"><div className="section-heading"><h2><Activity size={18} />Recent activity</h2><button className="text-button" onClick={() => setShowTasks(true)}>View all<ArrowRight size={14} /></button></div>{orderedTasks.length ? orderedTasks.slice(0, 3).map(task => <TaskRow key={task.id} task={task} cancel={cancelTask} />) : <div className="activity-empty"><span><Check size={18} /></span><div><strong>All clear. Ready when you are.</strong><p>Your installs and transfers will appear here.</p></div><span className="quiet-label">A fresh start</span></div>}</section>
           </>}
 
-          {page === 'apps' && <section className="card list-card"><div className="list-toolbar"><div className="search-field"><Search size={17} /><input aria-label="Search applications" placeholder="Search by package name…" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="checkbox-label"><input type="checkbox" checked={includeSystem} onChange={e => setIncludeSystem(e.target.checked)} />Show system apps</label><span className="result-count">{visibleApps.length} applications</span></div><div className="table-scroll"><table className="app-table"><thead><tr><th>APPLICATION PACKAGE</th><th>VERSION CODE</th><th>TYPE</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{visibleApps.map((app, index) => <tr key={app.packageName}><td><div className="app-cell"><span className={`app-tile tile-${index % 5}`}><Gamepad2 size={21} /></span><div><button className="package-button" onClick={() => void inspectApp(app)}>{app.packageName}</button><small>Android application</small></div></div></td><td className="mono muted">{app.versionCode}</td><td><span className={`type-badge ${app.system ? 'system' : ''}`}>{app.system ? 'System' : 'Installed'}</span></td><td><div className="row-actions"><IconButton label={`Details for ${app.packageName}`} onClick={() => void inspectApp(app)}><Info size={16} /></IconButton><IconButton label={`Export ${app.packageName}`} disabled={!canWrite} onClick={() => void exportApp(app)}><Download size={16} /></IconButton><IconButton label={`Uninstall ${app.packageName}`} disabled={!canWrite || app.system} onClick={() => { const target = serial; setConfirmAction({ title: 'Uninstall application?', description: `${app.packageName} and its local app data will be removed from the headset.`, action: 'Uninstall', danger: true, run: () => queue({ kind: 'uninstall', packageName: app.packageName }, target) }); }}><Trash2 size={16} /></IconButton></div></td></tr>)}</tbody></table></div>{!visibleApps.length && <div className="list-empty">{loadingApps ? <><LoaderCircle className="spin" size={24} /><p>Reading installed applications…</p></> : <><Search size={28} /><p>No applications found.</p></>}</div>}<div className="list-footer"><Info size={14} /><span>Package IDs identify apps precisely. Export includes all installed split APKs.</span></div></section>}
+          {page === 'apps' && <section className="card list-card">
+            <div className="list-toolbar"><div className="search-field"><Search size={17} /><input aria-label="Search applications" placeholder="Search by app name or package…" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="checkbox-label"><input type="checkbox" checked={includeSystem} onChange={e => setIncludeSystem(e.target.checked)} />Show system apps</label><span className="result-count">{visibleApps.length} applications</span></div>
+            <div className="table-scroll"><table className="app-table"><thead><tr><th>APPLICATION</th><th>VERSION</th><th>APK SIZE</th><th>TYPE / STATE</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{visibleApps.map((app, index) => {
+              const data = appMetadata[app.packageName];
+              return <tr key={app.packageName}><td><div className="app-cell"><AppIcon data={data} index={index} /><div><button className="package-button" onClick={() => void inspectApp(app)}>{data?.assets.displayName ?? app.packageName}</button><small className="app-package-id">{app.packageName}</small>{metadataErrors[app.packageName] && <small className="metadata-row-error">Details unavailable · click to retry</small>}</div></div></td>
+                <td className="muted version-cell"><span>{data?.versionName ?? '—'}</span><small className="mono">{app.versionCode}</small></td><td className="muted tabular apk-size-cell">{formatBytes(data?.apkSize)}</td>
+                <td><span className={app.system ? 'type-badge system' : 'type-badge'}>{app.system ? 'System' : 'Installed'}</span><small className={data?.enabled === false ? 'app-state disabled' : 'app-state'}>{!data ? '—' : data.enabled == null ? 'State unavailable' : data.enabled ? 'Enabled' : 'Disabled'}</small></td>
+                <td><div className="row-actions"><IconButton label={'Details for ' + app.packageName} onClick={() => void inspectApp(app)}><Info size={16} /></IconButton><IconButton label={'Export ' + app.packageName} disabled={!canWrite} onClick={() => void exportApp(app)}><Download size={16} /></IconButton><IconButton label={'Uninstall ' + app.packageName} disabled={!canWrite || app.system} onClick={() => { const target = serial; setConfirmAction({ title: 'Uninstall application?', description: app.packageName + ' and its local app data will be removed from the headset.', action: 'Uninstall', danger: true, run: () => queue({ kind: 'uninstall', packageName: app.packageName }, target) }); }}><Trash2 size={16} /></IconButton></div></td></tr>;
+            })}</tbody></table></div>
+            {!visibleApps.length && <div className="list-empty">{loadingApps ? <><LoaderCircle className="spin" size={24} /><p>Reading installed applications…</p></> : <><Search size={28} /><p>No applications found.</p></>}</div>}
+            <div className="list-footer metadata-footer">{loadingMetadata ? <LoaderCircle size={14} className="spin" /> : <Info size={14} />}<span>{loadingMetadata ? 'Reading app details · ' + (Object.keys(appMetadata).length + Object.keys(metadataErrors).length) + '/' + apps.length : 'APK size excludes app data, cache and OBB files.'}</span><button className="text-button" disabled={clearingMetadata} onClick={() => metadataPaused ? setMetadataPaused(false) : void clearMetadata()}>{clearingMetadata ? 'Clearing…' : metadataPaused ? 'Load app details' : 'Clear cached artwork'}</button></div>
+          </section>}
 
           {page === 'files' && <>
             <div className="folder-shortcuts">{[{ name: 'Shared storage', path: '/sdcard', icon: HardDrive }, { name: 'Downloads', path: '/sdcard/Download', icon: ArrowDownToLine }, { name: 'Movies', path: '/sdcard/Movies', icon: Film }, { name: 'OBB files', path: '/sdcard/Android/obb', icon: Box }].map(shortcut => <button key={shortcut.path} className={path === shortcut.path ? 'selected' : ''} onClick={() => goToFolder(shortcut.path)}><shortcut.icon size={17} />{shortcut.name}</button>)}</div>
@@ -313,7 +360,7 @@ export default function App() {
     {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }}><p className="modal-description">Install on <strong>{selectedDevice?.model}</strong>. Compatible updates keep existing app data.</p><div className="install-list">{installPaths.map((item, index) => <div key={`${item}-${index}`}><span className="quick-icon"><Package size={21} /></span><div><strong>{basename(item)}</strong><small title={item}>{item}</small></div><IconButton label={`Remove ${basename(item)}`} disabled={installing} onClick={() => setInstallPaths(current => current?.filter((_, i) => i !== index) ?? null)}><X size={16} /></IconButton></div>)}</div><p className="inline-note"><Info size={15} />Supports regular .apk files. Split-APK installers and XAPK archives are not supported yet.</p><div className="modal-actions"><button className="button secondary" disabled={installing} onClick={() => setInstallPaths(null)}>Cancel</button><button className="button primary" disabled={!canWrite || installing || installPaths.length === 0} onClick={() => { setInstalling(true); void (async () => { try { for (const source of installPaths) await queue({ kind: 'install', source }); setInstallPaths(null); } catch (cause) { fail(cause); } finally { setInstalling(false); } })(); }}><Package size={16} />{installing ? 'Queuing…' : `Install ${installPaths.length > 1 ? `${installPaths.length} APKs` : 'APK'}`}</button></div></Modal>}
     {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}><p className="modal-description preserve-lines">{confirmAction.description}</p><div className="modal-actions"><button className="button secondary" disabled={confirming} onClick={() => setConfirmAction(null)}>Cancel</button><button className={`button ${confirmAction.danger ? 'danger' : 'primary'}`} disabled={confirming} onClick={() => { setConfirming(true); void confirmAction.run().then(() => setConfirmAction(null)).catch(fail).finally(() => setConfirming(false)); }}>{confirming ? 'Queuing…' : confirmAction.action}</button></div></Modal>}
     {nameAction && <NameDialog action={nameAction} onClose={() => setNameAction(null)} onError={fail} />}
-    {details && <Modal title="Application details" onClose={() => setDetails(null)}><div className="app-detail-heading"><span className="quick-icon"><Gamepad2 size={25} /></span><strong>{details.packageName}</strong></div><dl className="details-list"><div><dt>Version</dt><dd>{details.versionName}</dd></div><div><dt>Version code</dt><dd>{details.versionCode}</dd></div><div><dt>APK files</dt><dd>{details.apkPaths.length || '—'}</dd></div></dl>{details.apkPaths.map(item => <code className="apk-path" key={item}>{item}</code>)}<p className="inline-note">APK exports contain the installed application files. Private app data and saved games are not included.</p></Modal>}
+    {inspecting && <Modal title="Application details" wide onClose={() => { setInspecting(null); setDetails(null); detailsRequest.current += 1; }}><ApplicationDetails key={inspecting.packageName} app={inspecting} data={details} error={detailsError} onRetry={() => void inspectApp(inspecting)} /></Modal>}
     {showHelp && <Modal title="A little help getting connected" onClose={() => setShowHelp(false)}><div className="help-section"><Usb size={21} /><div><h3>Connect your headset</h3><p>Enable developer mode for your Quest. Connect a USB data cable, put on the headset and allow USB debugging.</p></div></div><div className="help-section"><Wifi size={21} /><div><h3>Already connected over Wi-Fi?</h3><p>Existing ADB Wi-Fi connections appear automatically. When both connections are available, USB is selected by default.</p></div></div><div className="help-section"><HardDrive size={21} /><div><h3>Know your storage</h3><p>Files manages shared storage, including accessible Android/data and Android/obb folders. Access depends on the headset's permissions.</p></div></div><div className="help-section"><Package size={21} /><div><h3>Install and transfer</h3><p>Drop APK files into this window to install them. Other files and folders can be dropped into File explorer. Existing files are never silently replaced.</p></div></div><div className="about-footer">Quest Manager 0.1.0<span>Tauri 2 · Local ADB connection</span></div></Modal>}
     {dragging && <div className="drop-overlay"><div><ArrowUpFromLine size={45} /><h2>Drop it here</h2><p>APKs install on your headset. Other files upload to the open folder.</p></div></div>}
     {running > 0 && !showTasks && <button className="floating-queue" onClick={() => setShowTasks(true)}><LoaderCircle size={17} className="spin" />{running} task{running > 1 ? 's' : ''} in progress<ChevronRight size={16} /></button>}

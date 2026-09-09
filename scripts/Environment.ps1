@@ -28,6 +28,9 @@ function Assert-QuestInstalled {
         throw "Use system Node $($script:QuestVersions.node) / npm $($script:QuestVersions.npm) as recorded in toolchain.versions.json."
     }
     $questInstalledRecord = Get-Content -LiteralPath (Join-Path $script:QuestEnv 'installed-versions.json') -Raw | ConvertFrom-Json
+    if (!($questInstalledRecord.PSObject.Properties.Name -contains 'toolchainSha256') -or $questInstalledRecord.toolchainSha256 -ne (Get-FileHash -LiteralPath (Join-Path $script:QuestRoot 'toolchain.versions.json')).Hash -or !(Test-Path -LiteralPath (Join-Path $script:QuestEnv 'aapt2\aapt2.exe'))) {
+        throw 'Tool versions changed. Run .\run-install.ps1 again before building.'
+    }
     $questNpmLockHash = (Get-FileHash -LiteralPath (Join-Path $script:QuestRoot 'package-lock.json') -Algorithm SHA256).Hash
     $questCargoLockHash = (Get-FileHash -LiteralPath (Join-Path $script:QuestRoot 'src-tauri\Cargo.lock') -Algorithm SHA256).Hash
     if ($questNpmLockHash -ne $questInstalledRecord.npmLockSha256 -or $questCargoLockHash -ne $questInstalledRecord.cargoLockSha256 -or (Get-FileHash -LiteralPath (Join-Path $script:QuestRoot 'package.json')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $script:QuestEnv 'package.json')).Hash) {

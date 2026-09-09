@@ -18,6 +18,8 @@ package names, and personal paths. Use synthetic reproductions in public docs.
 | Port 1420 is occupied | Stop the known previous Vite/Tauri dev instance or identify the conflicting process before taking action |
 | Browser reports that the desktop app is required | Use `run-dev.ps1` for real devices, or explicit `?preview=1` for fictional UI preview |
 | Portable app cannot start ADB | Restore the matching `platform-tools` resource folder, DLLs, and files alongside the executable |
+| Names or artwork remain unavailable | Keep the matching `aapt2` resource directory alongside the app; reconnect and refresh. Some adaptive/vector or split-only resources use a generic fallback |
+| Cached artwork needs to be read again | Choose Clear cached artwork, then Load app details; state and permission data are always queried again |
 
 Do not delete an unknown directory or kill unrelated processes to make a setup
 error disappear. See [Local development](../development/local-dev.md).

@@ -32,8 +32,10 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
   available, with USB preferred by default.
 - **Install from your computer.** Select or drop ordinary APK files, review the
   target headset, and queue installations or compatible updates.
-- **Application management.** Search package IDs, inspect versions, export all
-  installed APK files including splits, and uninstall third-party apps.
+- **Application management.** Search app names or package IDs, view icons,
+  versions, APK sizes and enabled state. Inspect install times, SDK/ABI,
+  permissions, splits, signing certificates and VR declarations; export APKs
+  or uninstall third-party apps.
 - **Shared file management.** Browse, upload, and download files or folders;
   create directories, rename items, and delete selected content.
 - **Visible background work.** Follow a serial task queue with ADB progress and
@@ -113,14 +115,23 @@ and descendant symbolic links. Interrupted transfers can leave a reported
 for the current session, with no automatic retry, restart resume, or recycle bin.
 See [Product Workflows](docs/product/workflows.md) for the complete behavior.
 
+App names and raster icons load progressively from bounded reads of the base
+APK. English labels are preferred when available. Adaptive/vector icons and
+resources stored only in splits can use a generic fallback. APK size excludes
+data, cache and OBB files. Certificate fingerprints do not verify publisher
+identity or APK integrity; VR declarations do not guarantee compatibility.
+Artwork metadata is cached locally; **Clear cached artwork** removes the disk
+cache and pauses background reads until **Load app details** or refresh.
+See [Privacy](PRIVACY.md) for cache locations and retention.
+
 ## Local Files
 
 | Project path | Purpose |
 | --- | --- |
-| `env/` | Rust and ADB tools, npm packages, caches, build output, and local installation records |
+| `env/` | Rust, ADB and AAPT2 tools, npm packages, caches, build output, and local installation records |
 | `node_modules/` | Windows junction pointing to `env/node_modules` |
 | `dist/` | Built frontend assets |
-| `release/` | Portable executable, Platform-Tools, and local build environment record |
+| `release/` | Portable executable, Platform-Tools, AAPT2, and local build environment record |
 | `src-tauri/gen/` | Generated Tauri schemas |
 
 These generated locations are ignored by Git. Source code, version manifests,
@@ -136,6 +147,8 @@ layout and [Privacy](PRIVACY.md) before sharing local records.
 | Rust / target | 1.95.0 / `x86_64-pc-windows-msvc`; `rust-toolchain.toml` |
 | rustup | 1.29.0; fixed archive URL and SHA-256 |
 | Android Platform-Tools | 37.0.1; fixed archive URL and SHA-256 |
+| Android AAPT2 | 9.4.0-15978811 (2.20-15978811); fixed Maven archive URL and SHA-256 |
+| APK metadata crates | zip 4.6.1, sha2 0.10.9, base64 0.22.1; exact versions in `Cargo.toml` |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
 | JavaScript dependency tree | Exact direct versions and `package-lock.json` |
@@ -162,7 +175,7 @@ changing versions.
 ```
 
 The portable executable is `release/quest-manager.exe`. Keep its
-`platform-tools` directory, DLLs, and license files with it. The optional NSIS
+`platform-tools` and `aapt2` directories, DLLs, and license files with it. The optional NSIS
 installer is written under `env/target/release/bundle/nsis`.
 
 Review local environment records before distributing build output. See

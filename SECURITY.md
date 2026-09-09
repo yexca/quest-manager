@@ -12,7 +12,8 @@ headset.
 - Host ADB arguments are passed separately. Values inserted into device shell
   commands must use the shared validation and quoting helpers.
 - General file management is limited to Android shared storage. Installed APK
-  export reads package-manager-reported files as a separate operation.
+  export and metadata extraction read package-manager-reported APK files as
+  dedicated operations. Metadata uses bounded ZIP resource and byte-range reads.
 - Task execution protects storage roots, refuses ordinary transfer collisions,
   and stages transfers before publishing their final names.
 - System applications cannot be uninstalled through the task API. Root access,

@@ -43,8 +43,15 @@ Uninstallation checks the current third-party package list in the backend.
 Hiding a button for system apps is not the only protection.
 
 APK export obtains paths through `pm path` and pulls all returned APK files.
-Those paths can lie outside `/sdcard`. This is a dedicated package export path,
-not permission for arbitrary remote paths or saved-game extraction.
+Those paths can lie outside `/sdcard`. Application metadata also reads bounded
+byte ranges from these package-manager-derived paths. Neither operation accepts
+arbitrary remote paths from the webview or grants saved-game access.
+
+Metadata decoding accepts bounded ZIP resources and raster artwork. Render
+labels and manifest data as text; do not expose resource XML as web markup.
+The cache is private local data. It must not hold full APKs, persisted permission
+state, diagnostics, or task history. Resource parsing failures preserve package
+details and use explicit unknown values/fallback artwork.
 
 ## Task and Transfer Semantics
 

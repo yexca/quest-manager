@@ -299,6 +299,8 @@ tbody tr:hover { background: #fcfdf9; }
 .app-detail-heading strong { font-size: 17px; }
 .app-detail-heading small { display: block; color: #809375; margin-top: 6px; overflow-wrap: anywhere; }
 .app-detail-heading > .type-badge { margin-left: auto; }
+.uninstall-summary { padding: 16px; margin: 16px 0; border-radius: 10px; background: #f4f6f0; align-items: flex-start; }
+.uninstall-summary .app-tile { width: 64px; height: 64px; flex-shrink: 0; }
 .detail-tabs { display: flex; gap: 5px; border-bottom: 1px solid #e7ecdf; margin-top: 20px; }
 .detail-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: #7b8e6e; font-size: 12px; padding: 11px 12px; }
 .detail-tabs button[aria-selected="true"] { color: #2d5942; border-bottom-color: #5f8151; font-weight: 600; }

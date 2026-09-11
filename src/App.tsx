@@ -4,7 +4,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
 import { api, isDesktop, isPreview } from './api';
-import { AppIcon, ApplicationDetails, formatBytes } from './AppMetadata';
+import { AppIcon, ApplicationDetails, UninstallSummary, formatBytes, type UninstallSelection } from './AppMetadata';
 import { InstallReview } from './InstallReview';
 import { About, appVersion } from './About';
 import { useDeviceDiscovery } from './useDeviceDiscovery';
@@ -16,7 +16,7 @@ import appLogo from '../src-tauri/icons/icon.png';
 import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
 
 type Page = 'overview' | 'apps' | 'files' | 'about';
-type ConfirmAction = { title: string; description: string; action: string; danger?: boolean; run: () => Promise<void> };
+type ConfirmAction = { title: string; description: string; action: string; danger?: boolean; uninstall?: UninstallSelection; run: () => Promise<void> };
 type NameAction = { title: string; initial: string; run: (name: string) => Promise<void> };
 const pageNames: Record<Page, string> = { overview: 'Overview', apps: 'Applications', files: 'Files', about: 'About' };
 const ErrorContext = createContext<string | null>(null);
@@ -128,6 +128,7 @@ export default function App() {
   const serial = transport?.serial ?? '';
   const ready = Boolean(serial);
   const canWrite = ready && isDesktop;
+  const uninstallReady = !confirmAction?.uninstall || (isDesktop && devices.some(device => device.transports.some(item => item.serial === confirmAction.uninstall?.device && item.state === 'device')));
   const { tasks, appMutations, versions, start: startTask, clearCompleted, clearing } = useTaskQueue(selectedDevice?.transports.map(transport => transport.serial) ?? [], fail);
   const { apps, metadata: appMetadata, errors: metadataErrors, sources, loadingApps, loadingMetadata, metadataPaused, setMetadataPaused, resumeMetadata, readDetails } = useApplications(
     serial, selectedDevice?.transports.map(item => item.serial) ?? [], page === 'apps', includeSystem, refreshToken, versions.apps, appMutations, fail,
@@ -192,6 +193,18 @@ export default function App() {
     if (!target) throw new Error('Connect and authorize a headset first.');
     await startTask({ ...request, device: target });
     setShowTasks(true);
+  };
+
+  const reviewUninstall = (app: AppPackage) => {
+    if (app.system || !serial || (!canWrite && !isPreview)) return;
+    // Capture display data and the exact operation target together.
+    const target = serial;
+    setConfirmAction({
+      title: 'Uninstall application?', description: 'This application and its local app data will be removed from the headset.',
+      action: 'Uninstall', danger: true,
+      uninstall: { app, data: appMetadata[app.packageName], device: target, targetLabel: `${selectedDevice?.model || 'Headset'} · ${transport?.kind === 'usb' ? 'USB' : 'Wi-Fi'}` },
+      run: () => queue({ kind: 'uninstall', packageName: app.packageName }, target),
+    });
   };
 
   const goToFolder = (nextPath: string) => {
@@ -318,7 +331,7 @@ export default function App() {
                 <td className="muted version-cell"><span>{data?.versionName ?? '—'}</span><small className="mono">{app.versionCode}</small></td><td className="muted tabular apk-size-cell">{formatBytes(data?.apkSize)}</td>
                 <td><span className={app.system ? 'type-badge system' : 'type-badge'}>{app.system ? 'System' : 'Installed'}</span><small className={data?.enabled === false ? 'app-state disabled' : 'app-state'}>{!data ? '—' : data.enabled == null ? 'State unavailable' : data.enabled ? 'Enabled' : 'Disabled'}</small></td>
                 <td className="app-source" title={`Reported installer: ${app.installer ?? 'Unavailable'}. Source is not proof of ownership or publisher identity.`}>{sourceLabels[sources[app.packageName] ?? installSource(app)]}</td>
-                <td><div className="row-actions"><IconButton label={'Details for ' + app.packageName} onClick={() => void inspectApp(app)}><Info size={16} /></IconButton><IconButton label={'Export ' + app.packageName} disabled={!canWrite} onClick={() => void exportApp(app)}><Download size={16} /></IconButton><IconButton label={'Uninstall ' + app.packageName} disabled={!canWrite || app.system} onClick={() => { const target = serial; setConfirmAction({ title: 'Uninstall application?', description: app.packageName + ' and its local app data will be removed from the headset.', action: 'Uninstall', danger: true, run: () => queue({ kind: 'uninstall', packageName: app.packageName }, target) }); }}><Trash2 size={16} /></IconButton></div></td></tr>;
+                <td><div className="row-actions"><IconButton label={'Details for ' + app.packageName} onClick={() => void inspectApp(app)}><Info size={16} /></IconButton><IconButton label={'Export ' + app.packageName} disabled={!canWrite} onClick={() => void exportApp(app)}><Download size={16} /></IconButton><IconButton label={'Uninstall ' + app.packageName} disabled={(!canWrite && !isPreview) || app.system} onClick={() => reviewUninstall(app)}><Trash2 size={16} /></IconButton></div></td></tr>;
             })}</tbody></table></div>
             {!visibleApps.length && <div className="list-empty">{loadingApps ? <><LoaderCircle className="spin" size={24} /><p>Reading installed applications…</p></> : <><Search size={28} /><p>No applications found.</p></>}</div>}
             <div className="list-footer metadata-footer">{loadingMetadata || loadingApps ? <LoaderCircle size={14} className="spin" /> : <Info size={14} />}<span>{loadingApps ? 'Refreshing application list…' : loadingMetadata ? 'Loading new or changed app details…' : 'APK size excludes app data, cache and OBB files.'}</span><button className="text-button" disabled={clearingMetadata} onClick={() => metadataPaused ? resumeMetadata() : void clearMetadata()}>{clearingMetadata ? 'Clearing…' : metadataPaused ? 'Load app details' : 'Clear cached artwork'}</button></div>
@@ -339,7 +352,12 @@ export default function App() {
 
     {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="queue-toolbar"><button className="button secondary small" disabled={!isDesktop || clearing || !tasks.some(task => !active(task))} onClick={() => void clearCompleted()}>{clearing ? 'Clearing…' : 'Clear completed'}</button></div><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}
     {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} device={serial} appRevision={`${refreshToken}:${versions.apps}`} canInstall={canWrite} onQueue={queue} onClose={() => setInstallPaths(null)} onBusy={setInstalling} /></Modal>}
-    {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}><p className="modal-description preserve-lines">{confirmAction.description}</p><div className="modal-actions"><button className="button secondary" disabled={confirming} onClick={() => setConfirmAction(null)}>Cancel</button><button className={`button ${confirmAction.danger ? 'danger' : 'primary'}`} disabled={confirming} onClick={() => { setConfirming(true); void confirmAction.run().then(() => setConfirmAction(null)).catch(fail).finally(() => setConfirming(false)); }}>{confirming ? 'Queuing…' : confirmAction.action}</button></div></Modal>}
+    {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}>
+      {confirmAction.uninstall && <UninstallSummary selection={confirmAction.uninstall} />}
+      <p className="modal-description preserve-lines">{confirmAction.description}</p>
+      {!uninstallReady && <p className="inline-note">{isPreview ? 'Preview only. Uninstallation is disabled.' : 'The original headset connection is unavailable. Reconnect it to uninstall.'}</p>}
+      <div className="modal-actions"><button className="button secondary" disabled={confirming} onClick={() => setConfirmAction(null)}>Cancel</button><button className={`button ${confirmAction.danger ? 'danger' : 'primary'}`} disabled={confirming || !uninstallReady} onClick={() => { setConfirming(true); void confirmAction.run().then(() => setConfirmAction(null)).catch(fail).finally(() => setConfirming(false)); }}>{confirming ? 'Queuing…' : confirmAction.action}</button></div>
+    </Modal>}
     {nameAction && <NameDialog action={nameAction} onClose={() => setNameAction(null)} onError={fail} />}
     {inspecting && <Modal title="Application details" wide onClose={() => { setInspecting(null); setDetails(null); detailsRequest.current += 1; }}><ApplicationDetails key={inspecting.packageName} app={inspecting} source={sources[inspecting.packageName]} data={details} error={detailsError} onRetry={() => void inspectApp(inspecting)} /></Modal>}
     {showHelp && <Modal title="A little help getting connected" onClose={() => setShowHelp(false)}><div className="help-section"><Usb size={21} /><div><h3>Connect your headset</h3><p>Enable developer mode for your Quest. Connect a USB data cable, put on the headset and allow USB debugging.</p></div></div><div className="help-section"><Wifi size={21} /><div><h3>Already connected over Wi-Fi?</h3><p>Existing ADB Wi-Fi connections appear automatically. When both connections are available, USB is selected by default.</p></div></div><div className="help-section"><HardDrive size={21} /><div><h3>Know your storage</h3><p>Files manages shared storage, including accessible Android/data and Android/obb folders. Access depends on the headset's permissions.</p></div></div><div className="help-section"><Package size={21} /><div><h3>Install and transfer</h3><p>Drop APK files into this window to install them. Other files and folders can be dropped into File explorer. Existing files are never silently replaced.</p></div></div><div className="help-section"><ShieldCheck size={21} /><div><h3>Local APK signing keys</h3><p>Modified APKs use a stable key for each application. Back up the entire signing-keys folder, including its password files. In development it is in env/local-data/apk-install; in the installed app it is in %LOCALAPPDATA%/dev.questmanager.desktop/apk-install. Keep backups private. Clearing artwork does not delete keys. Restoring the same keys allows compatible modified updates; losing them can prevent updates without reinstalling.</p></div></div><div className="about-footer">Quest Manager {appVersion}<span>Tauri 2 · Local ADB connection</span></div></Modal>}

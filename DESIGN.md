@@ -65,7 +65,10 @@ Status checks are advisory and retryable; do not add a confirmation modal.
 
 File deletion and application uninstallation show an explicit destructive
 confirmation. A directory deletion includes its contents; uninstallation
-removes app data. File picker cancellation must not create a task.
+removes app data. The uninstall confirmation uses a compact application card
+with cached artwork, name, package/version and the captured target connection.
+Keep missing metadata explicit and the target stable while the dialog is open.
+File picker cancellation must not create a task.
 
 Keep the queue available across page navigation. Indeterminate progress is
 appropriate when ADB has no percentage; do not invent elapsed-time progress.

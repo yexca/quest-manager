@@ -131,6 +131,12 @@ new package/task-named directory. System packages can also be exported when
 readable. Exports do not include private app data or saved games.
 
 Uninstall requires confirmation and removes a third-party app and its app data.
+The confirmation shows the cached icon, display name, package ID and version,
+plus the target headset and connection captured when it opened. Missing metadata
+uses a generic icon and package ID without rereading the application list.
+Changing the selected connection cannot retarget this confirmation; its action
+is disabled while the original connection is unavailable. The fictional browser
+preview allows opening the confirmation but keeps uninstallation disabled.
 System-app uninstall is disabled in the UI and rejected by the backend.
 
 ## Manage Files

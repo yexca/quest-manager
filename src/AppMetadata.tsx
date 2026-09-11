@@ -20,6 +20,21 @@ export function AppIcon({ data, index = 0 }: { data?: AppDetails | null; index?:
 
 const state = (enabled: boolean | null | undefined) => enabled == null ? 'Unavailable' : enabled ? 'Enabled' : 'Disabled';
 
+export type UninstallSelection = { app: AppPackage; data?: AppDetails; device: string; targetLabel: string };
+
+export function UninstallSummary({ selection }: { selection: UninstallSelection }) {
+  const { app, data, device, targetLabel } = selection;
+  return <>
+    <div className="uninstall-summary app-detail-heading">
+      <AppIcon data={data} />
+      <div><strong>{data?.assets.displayName || app.packageName}</strong><small className="mono">{app.packageName}</small>
+        <small>Version {data?.versionName || 'Unknown'} · Version code {app.versionCode || 'Unknown'}</small></div>
+    </div>
+    {(!data?.assets.displayName || !data?.assets.iconDataUrl) && <p className="inline-note">Some app details are unavailable. Check the package ID before uninstalling.</p>}
+    <p className="modal-description">Uninstall from <strong>{targetLabel}</strong><br /><span className="mono">{device}</span></p>
+  </>;
+}
+
 export function ApplicationDetails({ app, source, data, error, onRetry }: { app: AppPackage; source?: InstallSource; data: AppDetails | null; error: string | null; onRetry: () => void }) {
   const [tab, setTab] = useState('overview');
   const [permissionQuery, setPermissionQuery] = useState('');

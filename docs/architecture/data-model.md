@@ -25,6 +25,14 @@ parsing finds no value; metadata availability uses null instead of invented
 values. APK modified times are Unix seconds; install/update strings retain the
 headset's local time. App ID is the package app ID, not a multi-user UID.
 
+`LocalApk.versionCode` is a decimal string containing the combined
+`versionCodeMajor` and `versionCode` manifest integers, read through AAPT2's
+manifest tree because badging omits the high bits. A failed or invalid version
+read returns an empty string and prevents version comparison. The installation
+review compares complete numeric strings with `BigInt`, without converting IPC
+values to JavaScript numbers. Installed status uses fresh `list_apps` data with
+`includeSystem: true`; no new IPC command or persistent cache is involved.
+
 ## Commands
 
 Registered commands live in [lib.rs](../../src-tauri/src/lib.rs), and the frontend

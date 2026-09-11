@@ -227,7 +227,7 @@ export default function App() {
   };
 
   const selectApks = async () => {
-    if (isPreview) { setInstallPaths(['C:\\Example\\Orbit Adventures.apk', 'C:\\Example\\Unknown app.apk']); return; }
+    if (isPreview) { setInstallPaths(['Orbit Adventures.apk', 'Orbit Adventures update.apk', 'Orbit Adventures older.apk', 'Unknown app.apk', 'System Shell.apk'].map(name => `C:\\Example\\${name}`)); return; }
     try {
       const paths = await open({ multiple: true, title: 'Choose APK files', filters: [{ name: 'Android application', extensions: ['apk'] }] });
       if (paths) setInstallPaths(Array.isArray(paths) ? paths : [paths]);
@@ -364,7 +364,7 @@ export default function App() {
     </div>
 
     {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="queue-toolbar"><button className="button secondary small" disabled={!isDesktop || clearing || !tasks.some(task => !active(task))} onClick={() => void clearCompleted()}>{clearing ? 'Clearing…' : 'Clear completed'}</button></div><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}
-    {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} canInstall={canWrite} onQueue={request => queue(request, serial)} onClose={() => setInstallPaths(null)} onBusy={setInstalling} /></Modal>}
+    {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} device={serial} appRevision={`${refreshToken}:${versions.apps}`} canInstall={canWrite} onQueue={queue} onClose={() => setInstallPaths(null)} onBusy={setInstalling} /></Modal>}
     {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}><p className="modal-description preserve-lines">{confirmAction.description}</p><div className="modal-actions"><button className="button secondary" disabled={confirming} onClick={() => setConfirmAction(null)}>Cancel</button><button className={`button ${confirmAction.danger ? 'danger' : 'primary'}`} disabled={confirming} onClick={() => { setConfirming(true); void confirmAction.run().then(() => setConfirmAction(null)).catch(fail).finally(() => setConfirming(false)); }}>{confirming ? 'Queuing…' : confirmAction.action}</button></div></Modal>}
     {nameAction && <NameDialog action={nameAction} onClose={() => setNameAction(null)} onError={fail} />}
     {inspecting && <Modal title="Application details" wide onClose={() => { setInspecting(null); setDetails(null); detailsRequest.current += 1; }}><ApplicationDetails key={inspecting.packageName} app={inspecting} data={details} error={detailsError} onRetry={() => void inspectApp(inspecting)} /></Modal>}

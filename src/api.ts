@@ -62,8 +62,11 @@ export const api = {
   inspectApk: (source: string): Promise<LocalApk> => {
     if (!isPreview) return call('inspect_apk', { source });
     const unknown = source.includes('Unknown');
-    return Promise.resolve({ packageName: unknown ? 'com.example.unknown' : 'com.example.orbit', versionName: '1.2.0', versionCode: '100', size: (unknown ? 0.15 : 2.94) * gib, sourceStamp: 'DEMO-APK-STAMP', split: false, veritySigning: !unknown,
-      assets: { ...previewDetails(unknown ? 'com.example.explorer' : 'com.example.orbit').assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
+    const system = source.includes('System Shell');
+    const versionCode = system ? '' : source.includes('update') ? '110' : source.includes('older') ? '90' : '100';
+    const packageName = system ? 'com.example.systemshell' : unknown ? 'com.example.unknown' : 'com.example.orbit';
+    return Promise.resolve({ packageName, versionName: system ? '' : versionCode === '110' ? '1.3.0' : versionCode === '90' ? '1.1.0' : '1.2.0', versionCode, size: (unknown || system ? 0.15 : 2.94) * gib, sourceStamp: 'DEMO-APK-STAMP', split: false, veritySigning: !unknown && !system,
+      assets: { ...previewDetails(unknown ? 'com.example.explorer' : packageName).assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
   },
   devices: (): Promise<Device[]> => isPreview ? Promise.resolve([{ id: 'DEMO-DEVICE-001', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }] }]) : call('list_devices'),
   info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),

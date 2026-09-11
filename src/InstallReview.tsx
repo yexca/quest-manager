@@ -2,20 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Gamepad2, ImagePlus, Info, LoaderCircle, Package, RotateCcw, X } from 'lucide-react';
 import { api, isPreview } from './api';
 import type { InstallOptions, LocalApk, TaskRequest } from './types';
+import { duplicatePackages, installationStatus, observeInstalledApps, type InstalledSnapshot } from './installState';
 
 type Item = { source: string; details?: LocalApk; error?: string; enabled: boolean; name: string; icon: string | null; compatibility: boolean };
 const basename = (path: string) => path.split(/[\\/]/).pop() || path;
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const sizeText = (size: number) => size >= 1024 ** 3 ? `${(size / 1024 ** 3).toFixed(2)} GiB` : `${(size / 1024 ** 2).toFixed(1)} MiB`;
 
-export function InstallReview({ paths, target, canInstall, onQueue, onClose, onBusy }: {
-  paths: string[]; target: string | undefined; canInstall: boolean;
-  onQueue: (request: Omit<TaskRequest, 'device'>) => Promise<void>; onClose: () => void; onBusy: (busy: boolean) => void;
+export function InstallReview({ paths, target, device, appRevision, canInstall, onQueue, onClose, onBusy }: {
+  paths: string[]; target: string | undefined; device: string; appRevision: string; canInstall: boolean;
+  onQueue: (request: Omit<TaskRequest, 'device'>, device: string) => Promise<void>; onClose: () => void; onBusy: (busy: boolean) => void;
 }) {
   const [items, setItems] = useState<Item[]>(() => [...new Set(paths)].map(source => ({ source, enabled: false, name: '', icon: null, compatibility: false })));
   const [selected, setSelected] = useState(paths[0]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [installed, setInstalled] = useState<InstalledSnapshot | null>(null);
+  const [checkRevision, setCheckRevision] = useState(0);
+  const checkKey = JSON.stringify([device, appRevision, checkRevision]);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -24,6 +28,14 @@ export function InstallReview({ paths, target, canInstall, onQueue, onClose, onB
   const imageRequest = useRef(0);
   const item = items.find(row => row.source === selected) ?? items[0];
   const source = item?.source;
+  const duplicates = duplicatePackages(items);
+  const statusFor = (row: Item) => installationStatus(row.details?.packageName, row.details?.versionCode ?? '', device, checkKey, installed);
+  const status = item ? statusFor(item) : null;
+
+  useEffect(() => {
+    if (!device) { setInstalled(null); return; }
+    return observeInstalledApps(checkKey, device, api.apps, setInstalled);
+  }, [device, checkKey]);
 
   useEffect(() => {
     let disposed = false;
@@ -84,10 +96,12 @@ export function InstallReview({ paths, target, canInstall, onQueue, onClose, onB
   };
 
   const submit = async () => {
+    if (!canInstall || !device || busy) return;
+    const capturedDevice = device;
     setBusy(true); onBusy(true); setError(null);
     try {
       for (const row of items) {
-        await onQueue({ kind: 'install', source: row.source, installOptions: optionsFor(row) });
+        await onQueue({ kind: 'install', source: row.source, installOptions: optionsFor(row) }, capturedDevice);
         // Remove queued rows immediately so a partial failure cannot queue them twice.
         setItems(rows => rows.filter(candidate => candidate.source !== row.source));
       }
@@ -97,18 +111,30 @@ export function InstallReview({ paths, target, canInstall, onQueue, onClose, onB
   };
 
   return <>
-    <p className="modal-description">Install on <strong>{target || 'No headset connected'}</strong>. Review each APK before adding it to the queue.</p>
+    <p className="modal-description">Install on <strong>{device ? target || device : 'No headset connected'}</strong>. Review each APK before adding it to the queue.</p>
     {isPreview && <p className="install-notice">Preview · fictional APKs. Installation is disabled.</p>}
     {error && <p className="dialog-error" role="alert">{error}</p>}
     <div className="install-review">
       <nav className="apk-picker" aria-label="Selected APKs">{items.map(row => <div className={row.source === source ? 'selected' : ''} key={row.source}>
-        <button className="apk-select" disabled={busy} onClick={() => { setSelected(row.source); setError(null); }}><Package size={17} /><span>{basename(row.source)}<small>{row.details ? sizeText(row.details.size) : row.error ? 'Preview unavailable' : 'Reading APK…'}</small></span>{row.enabled && <span className="modified-dot" aria-label="Modified installation" />}</button>
+        <button className="apk-select" disabled={busy} onClick={() => { setSelected(row.source); setError(null); }}><Package size={17} /><span>{basename(row.source)}<small>{row.details ? sizeText(row.details.size) : row.error ? 'Preview unavailable' : 'Reading APK…'}</small>{row.details && <small className={statusFor(row).attention ? 'apk-attention' : ''}>{statusFor(row).label}</small>}{row.details && duplicates.has(row.details.packageName) && <small className="apk-attention">Duplicate package selected</small>}</span>{row.enabled && <span className="modified-dot" aria-label="Modified installation" />}</button>
         <button className="icon-button" title="Remove APK" aria-label={`Remove ${basename(row.source)}`} disabled={busy} onClick={() => setItems(rows => rows.filter(candidate => candidate.source !== row.source))}><X size={14} /></button>
       </div>)}</nav>
       {item ? <section className="apk-editor" aria-label="APK review">
-        <div className="apk-preview"><div className="apk-art">{icon ? <img src={icon} alt="APK icon preview" /> : <Gamepad2 size={34} />}</div><div><span className="eyebrow">{item.enabled && editing ? 'MODIFIED PREVIEW' : 'APK PREVIEW'}</span><h3>{title || 'Name unavailable'}</h3><code>{item.details?.packageName ?? basename(item.source)}</code><p>{item.details && `Version ${item.details.versionName || item.details.versionCode} · ${sizeText(item.details.size)}`}</p></div></div>
+        <div className="apk-preview"><div className="apk-art">{icon ? <img src={icon} alt="APK icon preview" /> : <Gamepad2 size={34} />}</div><div><span className="eyebrow">{item.enabled && editing ? 'MODIFIED PREVIEW' : 'APK PREVIEW'}</span><h3>{title || 'Name unavailable'}</h3><code>{item.details?.packageName ?? basename(item.source)}</code><p>{item.details && `Version ${item.details.versionName || item.details.versionCode || 'Unknown'} · ${sizeText(item.details.size)}`}</p></div></div>
         {!item.details && !item.error && <p className="inline-note"><LoaderCircle className="spin" size={15} />Reading application resources…</p>}
         {item.error && <p className="install-notice">{item.error} You can still try installing the original APK.</p>}
+        {status && <div className={`apk-install-status ${status.attention ? 'attention' : ''}`} aria-label="Headset installation status">
+          <div className="apk-status-heading"><strong role="status">{status.label}</strong>{device && <button className="button secondary" disabled={busy || (installed?.key === checkKey && installed.status === 'loading')} onClick={() => setCheckRevision(value => value + 1)}>Check again</button>}</div>
+          {status.installed && <>
+            <p>Version code: <strong>{status.installed.versionCode || 'Unknown'}</strong> on headset → <strong>{item.details?.versionCode || 'Unknown'}</strong> in APK{status.installed.system ? ' · System application' : ''}</p>
+            {status.comparison === 'same' && <p>This will attempt to replace the installed app. Matching version codes do not mean the APK files are identical.</p>}
+            {status.comparison === 'older' && <p>Android normally refuses lower version codes. This installer does not force downgrades.</p>}
+            <p>{item.enabled ? 'This package is already installed. Re-signing may prevent updating it with this copy. Existing apps are never uninstalled automatically.' : 'Updating requires a compatible signature and must pass Android installation checks.'}</p>
+          </>}
+          {device && installed?.key === checkKey && installed.status === 'error' && <p>{installed.error} You can check again or still try installing.</p>}
+          {device && installed?.key === checkKey && installed.status === 'ready' && <p className="apk-note">Status reflects the last check. Other installations or queued tasks may change it.</p>}
+        </div>}
+        {item.details && duplicates.has(item.details.packageName) && <p className="install-notice">Multiple selected APKs use this package name. Each will be queued in list order and may replace the previous installation. Remove any copies you do not intend to install.</p>}
         {item.details && !icon && <p className="inline-note">Icon preview is unavailable. The APK may use an adaptive or vector icon.</p>}
         {item.details?.assets.notes.map(note => <p className="apk-note" key={note}>{note}</p>)}
         {item.details?.split && <p className="install-notice">This package requires a split APK installation flow, which is not supported here.</p>}

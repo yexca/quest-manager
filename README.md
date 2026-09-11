@@ -38,8 +38,9 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
   storage. Group USB and existing Wi-Fi connections when device identity is
   available, with USB preferred by default.
 - **Install from your computer.** Select or drop ordinary APK files, review the
-  expected name/icon and target headset, and queue installations or compatible
-  updates. Optionally customize the display name/icon or try compatibility signing.
+  expected name/icon, target headset and installed-version comparison, and queue
+  installations or compatible updates. Optionally customize the display name/icon
+  or try compatibility signing.
 - **Application management.** Search app names or package IDs, view icons,
   versions, APK sizes and enabled state. Inspect install times, SDK/ABI,
   permissions, splits, signing certificates and VR declarations; export APKs

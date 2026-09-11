@@ -200,6 +200,13 @@ tbody tr:hover { background: #fcfdf9; }
 .apk-select small { display: block; color: #73836a; font-size: 10px; margin-top: 5px; }
 .modified-dot { width: 6px; height: 6px; background: #49753a; border-radius: 50%; flex-shrink: 0; }
 .apk-editor { min-width: 0; }
+.apk-install-status { border: 1px solid #dfe7d5; border-radius: 8px; padding: 12px; margin: 12px 0; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; background: #f7f9f3; }
+.apk-install-status.attention { border-color: #e6d5a4; background: #fff9e8; color: #7d642c; }
+.apk-status-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.apk-status-heading > strong { flex: 1; min-width: 150px; }
+.apk-status-heading .button { padding: 5px 9px; font-size: 11px; }
+.apk-install-status p { margin: 7px 0 0; }
+.apk-select small.apk-attention { color: #7d642c; }
 .apk-preview { display: flex; align-items: center; gap: 17px; padding: 15px; border-radius: 10px; background: #f4f6f0; margin-bottom: 13px; }
 .apk-preview > div:last-child { min-width: 0; }
 .apk-preview h3 { margin: 5px 0; font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }

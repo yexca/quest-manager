@@ -20,7 +20,9 @@ export interface AppDetails {
 export interface FileEntry { name: string; path: string; kind: 'directory' | 'file' | 'symlink' | 'other'; size: number; modifiedAt: number }
 export type TaskKind = 'install' | 'uninstall' | 'upload' | 'download' | 'export' | 'mkdir' | 'rename' | 'delete';
 export interface LocalApk {
-  packageName: string; versionName: string; versionCode: string; size: number;
+  packageName: string; versionName: string;
+  /** Full manifest version code as decimal text, or empty when unavailable. */
+  versionCode: string; size: number;
   sourceStamp: string; assets: AppAssets; split: boolean; veritySigning: boolean | null;
 }
 export interface InstallOptions {

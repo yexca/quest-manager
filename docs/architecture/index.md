@@ -27,6 +27,7 @@ flowchart LR
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
 | [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
+| [src/installState.ts](../../src/installState.ts) | Review package checks, stale-response disposal, numeric version comparison and duplicate detection |
 | [src/About.tsx](../../src/About.tsx) | Offline project credits/license, manifest-derived dependencies and repository link |
 | [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
 | [src/api.ts](../../src/api.ts) | Typed IPC calls and explicit fictional browser preview |

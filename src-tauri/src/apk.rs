@@ -65,6 +65,21 @@ pub fn inspect_local(path: &Path, aapt: &Path, cache: &Path) -> Result<LocalApk,
         .ok_or("This file does not contain a readable Android package.")?;
     let package_name = attribute(package, "name").ok_or("APK package name is unavailable.")?;
     crate::adb::validate_package(&package_name)?;
+    // Badging omits versionCodeMajor. Read the manifest tree for a comparable
+    // long version; a failed read stays unknown instead of using only low bits.
+    let version_code = tool(
+        aapt,
+        vec![
+            "dump".into(),
+            "xmltree".into(),
+            "--file".into(),
+            "AndroidManifest.xml".into(),
+            path.to_string_lossy().into_owned(),
+        ],
+    )
+    .ok()
+    .and_then(|tree| long_version_code(&tree))
+    .unwrap_or_default();
     let mut assets = extract(
         fs::File::open(path).map_err(|e| e.to_string())?,
         aapt,
@@ -108,7 +123,7 @@ pub fn inspect_local(path: &Path, aapt: &Path, cache: &Path) -> Result<LocalApk,
     Ok(LocalApk {
         package_name,
         version_name: attribute(package, "versionName").unwrap_or_default(),
-        version_code: attribute(package, "versionCode").unwrap_or_default(),
+        version_code,
         size: fs::metadata(path).map_err(|e| e.to_string())?.len(),
         source_stamp: stamp,
         verity_signing,
@@ -414,6 +429,44 @@ fn unescape_badging(value: &str) -> String {
     }
     output
 }
+// Match the package manager's long version code, keeping IPC lossless as text.
+fn long_version_code(tree: &str) -> Option<String> {
+    let mut lines = tree.lines();
+    lines.find(|line| line.trim_start().starts_with("E: manifest ("))?;
+    let mut minor = None;
+    let mut major = 0;
+    for line in lines {
+        let line = line.trim_start();
+        if line.starts_with("E:") || line.starts_with("N:") {
+            break;
+        }
+        let Some(attribute) = line.strip_prefix("A: http://schemas.android.com/apk/res/android:")
+        else {
+            continue;
+        };
+        let target = if attribute.starts_with("versionCode(") {
+            &mut minor
+        } else if attribute.starts_with("versionCodeMajor(") {
+            let value = manifest_version_integer(attribute)?;
+            major = value;
+            continue;
+        } else {
+            continue;
+        };
+        *target = Some(manifest_version_integer(attribute)?);
+    }
+    let minor = minor?;
+    Some(((u64::from(major) << 32) | u64::from(minor)).to_string())
+}
+
+fn manifest_version_integer(attribute: &str) -> Option<u32> {
+    let value = attribute.split_once(")=")?.1.trim();
+    match value.strip_prefix("0x") {
+        Some(hex) => u32::from_str_radix(hex, 16).ok(),
+        None => value.parse().ok(),
+    }
+}
+
 fn attribute(line: &str, key: &str) -> Option<String> {
     let value = line.split_once(&format!("{key}='"))?.1;
     // Find an unescaped quote so apostrophes in labels stay intact.
@@ -626,6 +679,36 @@ mod tests {
     use super::*;
     use std::io::Cursor;
     #[test]
+    fn local_version_codes_match_package_manager_long_versions() {
+        let tree = |minor: &str, major: Option<&str>| {
+            let mut xml = format!(
+                "N: android=http://schemas.android.com/apk/res/android\n  E: manifest (line=1)\n    A: http://schemas.android.com/apk/res/android:versionCode(0x0101021b)={minor}\n"
+            );
+            if let Some(major) = major {
+                xml.push_str(&format!("    A: http://schemas.android.com/apk/res/android:versionCodeMajor(0x01010576)={major}\n"));
+            }
+            // Child attributes must never be interpreted as package versions.
+            xml.push_str("      E: application (line=2)\n        A: http://schemas.android.com/apk/res/android:versionCodeMajor(0x01010576)=9\n");
+            xml
+        };
+        assert_eq!(long_version_code(&tree("100", None)), Some("100".into()));
+        assert_eq!(long_version_code(&tree("0", None)), Some("0".into()));
+        assert_eq!(
+            long_version_code(&tree("9", Some("1"))),
+            Some("4294967305".into())
+        );
+        assert_eq!(
+            long_version_code(&tree("0x1", Some("0x200000"))),
+            Some("9007199254740993".into())
+        );
+        for invalid in ["", "Unknown", "-1", "4294967296", "\"1\"", "@0x7f010001"] {
+            assert_eq!(long_version_code(&tree(invalid, None)), None);
+            assert_eq!(long_version_code(&tree("1", Some(invalid))), None);
+        }
+        assert_eq!(long_version_code(""), None);
+    }
+
+    #[test]
     fn labels_prefer_english_and_xml_is_not_image_content() {
         let assets = parse_badging(
             "application-label:'Default'\napplication-label-fr:'Exemple'\napplication-label-en:'Example game'\n",
@@ -681,6 +764,13 @@ mod tests {
             assert!(assets.icon_data_url.is_none());
             assert!(assets.signing_schemes.contains(&"v2".to_string()));
             assert!(!assets.certificate_sha256.is_empty());
+            let local = inspect_local(
+                &root.join("tests/fixtures/verification.apk"),
+                &root.join("env/aapt2/aapt2.exe"),
+                &root.join("env/test-artifacts/metadata"),
+            )
+            .unwrap();
+            assert_eq!(local.version_code, "1");
         })
         .await
         .unwrap();

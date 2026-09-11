@@ -60,6 +60,24 @@ of missing artwork; device language and launcher behavior can differ. The user
 reviews the files and target, then queues an independent installation for each
 file. Each file has its own disabled-by-default Modify and re-sign APK switch.
 
+The review checks the selected connection's complete package list, including
+system apps, independently of the Applications filter. Each APK shows whether
+its exact package name is installed and compares numeric version codes: newer,
+same, older, or unavailable. Installed and selected version codes appear together;
+version names are display labels, not comparison keys. Older versions show an
+attention notice, and same-version replacements remain available. These checks
+are advisory and never guarantee a compatible update or force a downgrade.
+
+Check again retries the device query. Missing devices, unreadable APK identity,
+and failed queries remain unavailable rather than reporting absence. Local
+previews and attempts to install original APKs remain available after a query
+failure. Changing connections or completing relevant install/uninstall tasks
+refreshes the check and discards obsolete responses. Results are snapshots;
+queued work or external changes can alter the installed version before execution.
+Each submitted batch captures one transport. Multiple selected files with the
+same package name are marked and retain their list order; users can remove
+unwanted copies. Re-signing an already installed package adds an update warning.
+
 When enabled, the user can enter one display name across languages and choose a
 PNG/JPEG/WebP image (up to 8 MiB), crop/position/zoom it to a 512-pixel square, or
 reset the appearance. Name/icon changes rebuild resources and include compatible

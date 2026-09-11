@@ -25,12 +25,20 @@ label/signing parsing against the existing inert fixture. Test output remains
 synthetic; the fixture is not installed for these routine tests.
 
 Frontend logic regressions use the pinned system Node's built-in test runner,
-without additional dependencies: `node --test tests/frontend/taskState.test.ts`.
+without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts`.
 They cover stream registration/disposal, overlapping events and snapshots,
 revision ordering, clearing, device changes and batched refresh policy. Rust
 tests cover the authoritative exit guard, terminal-only clearing and revisions.
 There is no browser E2E or documentation-test runner. These logic tests do not
 replace rendered React or native-window inspection; `tsc` alone is not behavior coverage.
+
+Install review tests cover lossless numeric version ordering, unknown/error
+states, exact package matching, system apps, obsolete query disposal, retry and
+duplicate removal. Rust tests check complete manifest version codes and the
+bundled AAPT2 output. Preview APKs demonstrate newer, same, older, absent and
+unknown-version system packages, plus duplicate package selection. Inspect the
+inline comparison, retry, removal and re-signing warning at supported widths;
+preview installation remains disabled.
 
 | Change | Appropriate starting point |
 | --- | --- |

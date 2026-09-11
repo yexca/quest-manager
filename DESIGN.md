@@ -47,8 +47,16 @@ name, package/version and target headset before queuing. Keep each file's edit
 and compatibility options independent and off by default. Label unavailable
 previews honestly. Show signature/update consequences when preparation is enabled;
 name/icon changes include compatibility signing. Local review works offline,
-while installation still requires a ready device and the desktop runtime. File
-deletion and application uninstallation show an explicit destructive
+while installation still requires a ready device and the desktop runtime.
+
+Place the headset installation status inside the APK review with a compact
+per-file summary. Show installed and selected version codes together, use amber
+for older APKs, and keep unknown/loading/failed checks distinct from absence.
+Checks include system packages and follow the selected transport. Duplicate
+package selections and re-signing an installed package receive inline notices.
+Status checks are advisory and retryable; do not add a confirmation modal.
+
+File deletion and application uninstallation show an explicit destructive
 confirmation. A directory deletion includes its contents; uninstallation
 removes app data. File picker cancellation must not create a task.
 

@@ -58,6 +58,15 @@ version; see [Dependencies](dependencies.md).
 
 ## Local Packaging
 
+Application artwork comes from the [Mint Pilot source](../../assets/branding/README.md).
+After changing that source, run `.\scripts\generate-icon.ps1` before building.
+Review the generated PNG, multi-resolution ICO and browser favicon together;
+the sidebar, About page and both READMEs share the generated PNG.
+The Rust build script watches both icon files so incremental builds refresh
+embedded Windows resources. After replacing artwork, verify the EXE's embedded
+icon frames against the generated ICO; a successful build alone does not prove
+that the resource changed, and Explorer may also retain a cached icon.
+
 ```powershell
 .\run-build.ps1
 .\run-build.ps1 -Installer

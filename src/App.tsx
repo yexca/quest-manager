@@ -2,11 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, Gamepad2, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
+import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
 import { api, isDesktop, isPreview } from './api';
 import { AppIcon, ApplicationDetails, formatBytes } from './AppMetadata';
 import { InstallReview } from './InstallReview';
 import { About, appVersion } from './About';
+import appLogo from '../src-tauri/icons/icon.png';
 import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
 
 type Page = 'overview' | 'apps' | 'files' | 'about';
@@ -304,7 +305,7 @@ export default function App() {
 
   return <ErrorContext.Provider value={error}><div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="#" onClick={e => { e.preventDefault(); choosePage('overview'); }}><span className="brand-icon"><Gamepad2 size={25} /></span><span>quest<span className="brand-secondary">manager</span></span></a>
+      <a className="brand" href="#" onClick={e => { e.preventDefault(); choosePage('overview'); }}><span className="brand-icon"><img src={appLogo} alt="" width="39" height="39" /></span><span>quest<span className="brand-secondary">manager</span></span></a>
       <div className="sidebar-label">YOUR WORKSPACE</div>
       <nav aria-label="Main navigation">
         {([{ id: 'overview', icon: LayoutDashboard }, { id: 'apps', icon: AppWindow }, { id: 'files', icon: FolderOpen }] as const).map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => choosePage(item.id)}><item.icon size={19} /><span>{pageNames[item.id]}</span>{item.id === 'apps' && ready && <span className="nav-count">{userApps.length}</span>}</button>)}

@@ -26,6 +26,12 @@ its initial product target. It combines an English interface with native file
 pickers, background tasks, and the official Android Platform-Tools ADB client.
 The stack is **Tauri 2 + React + TypeScript + Rust**.
 
+<p align="center">
+  <img src="docs/assets/quest-manager-showcase.png" width="1200" alt="Quest Manager overview rendering with a green sidebar, headset illustration, storage and battery cards, and anonymized activity rows">
+  <br>
+  <sub>Illustrative rendering based on fictional preview data. Device details and activity content are shown as placeholders.</sub>
+</p>
+
 ## Key Features
 
 - **Device overview.** Inspect the model, Android version, battery, and shared

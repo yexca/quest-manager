@@ -21,6 +21,12 @@
 
 用于管理 Meta Quest 的本地 Windows 桌面应用，使用 **Tauri 2 + React + TypeScript + Rust + 官方 ADB**。界面为英文，暂不引入 i18n。当前优先支持 Windows x64。
 
+<p align="center">
+  <img src="docs/assets/quest-manager-showcase.png" width="1200" alt="Quest Manager 总览渲染图，展示绿色侧栏、头显插画、存储与电量卡片，以及匿名化的活动列表">
+  <br>
+  <sub>基于虚构预览数据制作的示意渲染图，设备详情与活动内容以占位条呈现。</sub>
+</p>
+
 ## 项目文档
 
 - [AGENTS.md](AGENTS.md)：供 agent 使用的阅读顺序、实现边界和工作约定。

@@ -26,6 +26,14 @@ renames, deletions, and transfers remain effective. Interrupted operations can
 leave temporary files. WebView2 and ADB may keep their own runtime data outside
 the application's state.
 
+Applications retains the selected transport's complete package list and loaded
+details in memory across filters and ordinary task refreshes. Removed entries
+are pruned; changing connections discards this view cache. Installer-derived
+source labels and successful-install source hints are session-only data and
+are not written into the artwork cache. Opening details or explicitly refreshing
+revalidates live values. Package mutation hints stay in process memory to refresh
+the correct applications and are not a persistent installation history.
+
 Metadata extraction reads selected byte ranges of package-manager-derived APK
 paths. It temporarily stages only the manifest and resource table locally for
 AAPT2, then removes that file. A crash can leave a `resource-*.tmp` file in the

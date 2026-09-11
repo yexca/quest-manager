@@ -3,9 +3,11 @@ import { listen } from '@tauri-apps/api/event';
 import { api, isDesktop, isPreview } from './api';
 import { connectTaskStream, createRefreshBatcher, createTaskStore, refreshForTransports } from './taskState';
 import type { Task, TaskRequest } from './types';
+import type { AppMutation } from './applicationState';
 
 export function useTaskQueue(transports: string[], fail: (error: unknown) => void) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [appMutations, setAppMutations] = useState<AppMutation[]>([]);
   const [versions, setVersions] = useState({ info: 0, apps: 0, files: 0 });
   const [clearing, setClearing] = useState(false);
   const currentTransports = useRef(transports);
@@ -16,7 +18,12 @@ export function useTaskQueue(transports: string[], fail: (error: unknown) => voi
       info: current.info + Number(areas.info), apps: current.apps + Number(areas.apps), files: current.files + Number(areas.files),
     }));
   }));
-  const [store] = useState(() => createTaskStore(setTasks, task => batcher.add(task)));
+  const [store] = useState(() => createTaskStore(setTasks, task => {
+    if (task.kind === 'install' || task.kind === 'uninstall') setAppMutations(current => [...current, {
+      id: task.id, device: task.device, kind: task.kind, status: task.status, packageName: task.packageName,
+    }]);
+    batcher.add(task);
+  }));
 
   useEffect(() => {
     if (!isDesktop && !isPreview) return;
@@ -38,5 +45,5 @@ export function useTaskQueue(transports: string[], fail: (error: unknown) => voi
     catch (error) { fail(error); }
     finally { setClearing(false); }
   };
-  return { tasks, versions, start, clearCompleted, clearing };
+  return { tasks, appMutations, versions, start, clearCompleted, clearing };
 }

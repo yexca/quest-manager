@@ -42,6 +42,8 @@ pub struct AppPackage {
     pub package_name: String,
     pub version_code: String,
     pub system: bool,
+    pub installer: Option<String>,
+    pub apk_path: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,13 +171,13 @@ impl Adb {
         include_system: bool,
     ) -> Result<Vec<AppPackage>, String> {
         let user = self
-            .shell(device, "pm list packages -3 --show-versioncode")
+            .shell(device, "pm list packages -3 -f -i --show-versioncode")
             .await?;
         let mut apps = parse_packages(&user, false);
         if include_system {
             apps.extend(parse_packages(
                 &self
-                    .shell(device, "pm list packages -s --show-versioncode")
+                    .shell(device, "pm list packages -s -f -i --show-versioncode")
                     .await?,
                 true,
             ));
@@ -475,13 +477,27 @@ fn parse_packages(raw: &str, system: bool) -> Vec<AppPackage> {
     raw.lines()
         .filter_map(|line| {
             let mut words = line.strip_prefix("package:")?.split_whitespace();
+            let identity = words.next()?;
+            // APK paths may contain '=' in Android's randomized directory names.
+            let (apk_path, package_name) = match identity.rsplit_once('=') {
+                Some((path, package)) => (Some(path.to_string()), package),
+                None => (None, identity),
+            };
+            let fields: Vec<_> = words.collect();
             Some(AppPackage {
-                package_name: words.next()?.to_string(),
-                version_code: words
+                package_name: package_name.to_string(),
+                version_code: fields
+                    .iter()
                     .find_map(|s| s.strip_prefix("versionCode:"))
                     .unwrap_or("Unknown")
                     .to_string(),
                 system,
+                installer: fields
+                    .iter()
+                    .find_map(|s| s.strip_prefix("installer="))
+                    .filter(|value| !value.is_empty() && *value != "null")
+                    .map(str::to_string),
+                apk_path,
             })
         })
         .collect()
@@ -573,6 +589,31 @@ mod tests {
         assert_eq!(shell_quote("a'b;$(id)"), "'a'\"'\"'b;$(id)'");
         assert!(validate_package("com.game;id").is_err());
         assert!(validate_package("jp.co.game_2").is_ok());
+    }
+
+    #[test]
+    fn package_listing_preserves_installer_and_apk_identity() {
+        let apps = parse_packages(
+            "package:/data/app/~~EXAMPLE==/com.example.game-EXAMPLE==/base.apk=com.example.game installer=com.oculus.ocms versionCode:100\npackage:com.example.other versionCode:5 installer=null\npackage:com.example.unknown\n",
+            false,
+        );
+        assert_eq!(apps[0].package_name, "com.example.game");
+        assert_eq!(apps[0].version_code, "100");
+        assert_eq!(apps[0].installer.as_deref(), Some("com.oculus.ocms"));
+        assert_eq!(
+            apps[0].apk_path.as_deref(),
+            Some("/data/app/~~EXAMPLE==/com.example.game-EXAMPLE==/base.apk")
+        );
+        assert_eq!(apps[1].installer, None);
+        assert_eq!(apps[1].apk_path, None);
+        assert_eq!(apps[2].version_code, "Unknown");
+        assert!(
+            parse_packages(
+                "package:com.example.system installer=com.android.shell versionCode:9",
+                true
+            )[0]
+            .system
+        );
     }
 
     #[test]

@@ -42,6 +42,13 @@ Distinguish disconnected, authorization-required, loading, empty, and failed
 states. A failed live query must not turn the desktop app into a preview or
 display fictional values as device data. Unknown values should remain unknown.
 
+Applications keeps system type separate from installation source. Source labels
+are explicitly inferred and unknown installer records stay unknown. Source and
+system filters operate on the session inventory without clearing names/icons.
+Refresh changed entries in place, keep existing artwork while revalidating, and
+load newly revealed system entries progressively. Display a lightweight refresh
+indicator instead of replacing a populated list with an empty loading screen.
+
 Installation shows selected APKs and their expected default launcher artwork,
 name, package/version and target headset before queuing. Keep each file's edit
 and compatibility options independent and off by default. Label unavailable

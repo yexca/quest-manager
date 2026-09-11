@@ -4,7 +4,7 @@ export interface DeviceInfo {
   model: string; androidVersion: string; batteryLevel: number | null; charging: boolean;
   storageTotal: number; storageUsed: number; storageAvailable: number;
 }
-export interface AppPackage { packageName: string; versionCode: string; system: boolean }
+export interface AppPackage { packageName: string; versionCode: string; system: boolean; installer: string | null; apkPath: string | null }
 export interface AppAssets {
   displayName: string | null; iconDataUrl: string | null; vrFeatures: string[];
   signingSchemes: string[]; certificateSha256: string[]; notes: string[];
@@ -30,6 +30,8 @@ export interface InstallOptions {
 }
 export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string; installOptions?: InstallOptions }
 export interface Task {
+  /** Optional package refresh hint; never an installation target. */
+  packageName?: string | null;
   id: string; revision: number; device: string; kind: TaskKind; label: string;
   status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
   detail: string; progress: number | null; createdAt: number;

@@ -42,7 +42,9 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
   installations or compatible updates. Optionally customize the display name/icon
   or try compatibility signing.
 - **Application management.** Search app names or package IDs, view icons,
-  versions, APK sizes and enabled state. Inspect install times, SDK/ABI,
+  versions, APK sizes and enabled state; filter inferred Meta Store/sideload
+  sources. Session caching preserves names/icons across filters and app removal.
+  Inspect install times, SDK/ABI,
   permissions, splits, signing certificates and VR declarations; export APKs
   or uninstall third-party apps.
 - **Shared file management.** Browse, upload, and download files or folders;

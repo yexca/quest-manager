@@ -32,6 +32,29 @@ versions, total APK size and enabled state. Search matches names and package
 IDs; "Show system apps" includes system packages. Unknown values remain explicit,
 and an unreadable package does not stop the remaining list from loading.
 
+Install source is a separate column and filter: Meta Store (inferred), Sideloaded
+(inferred), Other installer, and Unknown source. The reported installer
+`com.oculus.ocms` is treated as a Meta distribution hint and `com.android.shell`
+as an ADB hint. Exact installer identities are used, never the application's
+name or package prefix. A successful installation with a known package through
+Quest Manager also marks that package as sideloaded in the current transport's
+session cache. This hint expires when the package identity changes or the
+connection selection changes. Empty installer records stay unknown; some ADB
+installs have no installer record. These labels do not prove store purchases,
+publisher identity, or match every Horizon OS distribution channel/version.
+
+The selected connection's full application list and loaded details stay in
+memory while browsing. System/source filters are local; revealing system apps
+loads only their missing details. Successful installs/uninstalls refresh the
+lightweight list, prune removed packages and reload affected packages while
+preserving other names and icons. Same-version installs carry a package refresh
+hint; if it is unavailable, all details are revalidated without blanking artwork.
+Version, installed APK path or installer changes also invalidate an entry.
+Explicit refresh revalidates all entries while keeping the displayed artwork.
+Opening details reads live information again. A connection change starts a fresh
+session cache; the private disk artwork cache remains available. Lists and
+source hints are not persisted across launches.
+
 Details has Overview, Permissions, APK files, and Signing & VR tabs. It shows
 install/update times in headset local time, installer package, SDK levels,
 primary/secondary ABI, app ID, active Android user, state flags, requested/granted

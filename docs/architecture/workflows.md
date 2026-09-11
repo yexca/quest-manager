@@ -10,7 +10,8 @@ Ready connections sort ahead of unavailable ones, with USB preferred.
 The UI keeps a physical selection and optional preferred transport. It uses a
 ready preferred transport when present, then another ready transport for future
 queries. Device information is queried on selection/refresh and every 30
-seconds. Apps reload on selection, system-filter change, or refresh; files load
+seconds. The complete app list reloads on connection selection or refresh;
+system/source filters operate on the in-memory list. Files load
 when the Files page is active and its path/selection/refresh changes.
 
 Queries use the 30-second timeout in `Adb::run`. Metadata and directory output
@@ -35,6 +36,17 @@ newlines in supported UTF-8 names do not become record boundaries.
    refresh files and device information. Download/export do not refresh device
    data. These automatic reads preserve displayed lists and open app details;
    device discovery is unaffected. Explicit refresh still reloads all areas.
+
+`useApplications` owns the current transport's session cache. Lightweight package
+queries include installer and base APK path (`pm list packages -f -i`) along
+with version codes. Reconciliation prunes removals and retains unchanged entry
+objects. Background enrichment reads missing/stale visible-type entries only;
+cached system entries survive hiding/showing them. Explicit refresh invalidates
+all entries; install/uninstall completions invalidate their package hints,
+including same-version installs. A missing hint invalidates all details. Cached
+artwork remains visible during revalidation. Replaced entries discard obsolete
+in-flight results, and list/dialog reads share a pending request only within the
+same current entry. Detail dialogs request fresh data on opening.
 
 The one-hour limit applies per subprocess, not to the whole queue or necessarily
 to a multi-file export. Output readers retain a bounded tail, while snapshot

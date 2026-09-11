@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Gamepad2, Info, LoaderCircle, ShieldCheck } from 'lucide-react';
 import type { AppDetails, AppPackage } from './types';
+import { installSource, sourceLabels, type InstallSource } from './applicationState';
 
 export function formatBytes(value: number | null | undefined) {
   if (value == null) return '—';
@@ -19,12 +20,13 @@ export function AppIcon({ data, index = 0 }: { data?: AppDetails | null; index?:
 
 const state = (enabled: boolean | null | undefined) => enabled == null ? 'Unavailable' : enabled ? 'Enabled' : 'Disabled';
 
-export function ApplicationDetails({ app, data, error, onRetry }: { app: AppPackage; data: AppDetails | null; error: string | null; onRetry: () => void }) {
+export function ApplicationDetails({ app, source, data, error, onRetry }: { app: AppPackage; source?: InstallSource; data: AppDetails | null; error: string | null; onRetry: () => void }) {
   const [tab, setTab] = useState('overview');
   const [permissionQuery, setPermissionQuery] = useState('');
   const rows = data ? [
     ['Version', data.versionName], ['Version code', data.versionCode], ['APK size', formatBytes(data.apkSize)],
     ['Application type', app.system ? 'System' : 'Third-party'], ['State', state(data.enabled)],
+    ['Install source', sourceLabels[source ?? installSource(app)]],
     ['First installed', data.firstInstallTime], ['Last updated', data.lastUpdateTime], ['Installer package', data.installer],
     ['Minimum SDK', data.minSdk], ['Target SDK', data.targetSdk], ['Primary ABI', data.primaryAbi], ['Secondary ABI', data.secondaryAbi],
     ['App ID', data.uid], ['Android user', String(data.androidUser)], ['State flags', data.stateFlags.length ? data.stateFlags.join(', ') : 'None reported'],

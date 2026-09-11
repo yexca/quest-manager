@@ -101,7 +101,7 @@ export function InstallReview({ paths, target, device, appRevision, canInstall, 
     setBusy(true); onBusy(true); setError(null);
     try {
       for (const row of items) {
-        await onQueue({ kind: 'install', source: row.source, installOptions: optionsFor(row) }, capturedDevice);
+        await onQueue({ kind: 'install', source: row.source, packageName: row.details?.packageName, installOptions: optionsFor(row) }, capturedDevice);
         // Remove queued rows immediately so a partial failure cannot queue them twice.
         setItems(rows => rows.filter(candidate => candidate.source !== row.source));
       }

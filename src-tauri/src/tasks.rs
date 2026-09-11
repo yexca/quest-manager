@@ -50,6 +50,8 @@ pub struct TaskSnapshot {
     pub revision: u64,
     pub device: String,
     pub kind: TaskKind,
+    // An optional refresh hint. Installation still targets only the local APK.
+    pub package_name: Option<String>,
     pub label: String,
     pub status: String,
     pub detail: String,
@@ -202,6 +204,7 @@ impl TaskManager {
             revision: 0,
             device: request.device.clone(),
             kind: request.kind,
+            package_name: request.package_name.clone(),
             label,
             status: "queued".into(),
             detail: "Waiting for the previous task".into(),
@@ -719,6 +722,9 @@ fn validate_request(request: &TaskRequest) -> Result<(), String> {
     match request.kind {
         TaskKind::Install => {
             local_source(source)?;
+            if let Some(package) = &request.package_name {
+                validate_package(package)?;
+            }
         }
         TaskKind::Upload => {
             local_source(source)?;
@@ -780,6 +786,7 @@ mod tests {
                     revision: 0,
                     device: "DEMO-USB-001".into(),
                     kind: TaskKind::Upload,
+                    package_name: None,
                     label: "Upload example.txt".into(),
                     status: status.into(),
                     detail: String::new(),

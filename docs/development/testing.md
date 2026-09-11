@@ -25,7 +25,7 @@ label/signing parsing against the existing inert fixture. Test output remains
 synthetic; the fixture is not installed for these routine tests.
 
 Frontend logic regressions use the pinned system Node's built-in test runner,
-without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts`.
+without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts tests/frontend/applicationState.test.ts`.
 They cover stream registration/disposal, overlapping events and snapshots,
 revision ordering, clearing, device changes and batched refresh policy. Rust
 tests cover the authoritative exit guard, terminal-only clearing and revisions.
@@ -39,6 +39,14 @@ bundled AAPT2 output. Preview APKs demonstrate newer, same, older, absent and
 unknown-version system packages, plus duplicate package selection. Inspect the
 inline comparison, retry, removal and re-signing warning at supported widths;
 preview installation remains disabled.
+
+Application cache regressions check that deleting one package and toggling
+system visibility do not reread unrelated metadata. They also cover same-version
+replacement, APK path/installer changes, obsolete pending results, detail request
+deduplication, explicit refresh, source inference and unknown source fallback.
+Preview the source filter together with search/system visibility, cached icons,
+detail dialogs, empty matches, and narrow layouts. Device source classification
+remains best effort; fixture tests do not verify every Horizon OS installer.
 
 | Change | Appropriate starting point |
 | --- | --- |

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { compareVersions, duplicatePackages, installationStatus, observeInstalledApps, type InstalledSnapshot } from '../../src/installState.ts';
 import type { AppPackage } from '../../src/types.ts';
 
-const app: AppPackage = { packageName: 'com.example.game', versionCode: '100', system: false };
+const app: AppPackage = { packageName: 'com.example.game', versionCode: '100', system: false, installer: null, apkPath: null };
 const ready: InstalledSnapshot = { key: 'EXAMPLE-CHECK-1', status: 'ready', apps: [app] };
 const status = (snapshot: InstalledSnapshot | null, packageName: string | undefined = app.packageName, device = 'DEMO-USB-001') => installationStatus(packageName, '101', device, ready.key, snapshot);
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));

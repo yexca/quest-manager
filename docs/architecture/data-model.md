@@ -12,7 +12,7 @@ as camelCase; task kinds are lowercase strings.
 | `Device` | `id`, `model`, and `transports`; grouping of discovered connections |
 | `Transport` | `serial` for command targeting, `kind` (`usb` or `wifi`), raw ADB `state` |
 | `DeviceInfo` | Model, Android version, nullable battery percentage, charging state, storage byte counts |
-| `AppPackage` | `packageName`, string `versionCode`, and `system` flag |
+| `AppPackage` | `packageName`, string `versionCode`, `system` flag, nullable `installer` and `apkPath` |
 | `AppDetails` | Package/version, `apkPaths`, `apkFiles` with nullable size/modified time, nullable `apkSize`, install/update times, installer, SDK/ABI, app ID, Android user, enabled state, state flags, permissions, `assets` |
 | `AppAssets` | Nullable `displayName`/`iconDataUrl`, VR declarations, signing schemes, certificate SHA-256 fingerprints and availability notes; persisted in a bounded private cache |
 | `Permission` | Permission `name`, nullable `granted` boolean and `kind` (Requested, Install, Runtime) for the selected Android user |
@@ -66,7 +66,7 @@ kind-specific meaning:
 
 | Kind | `source` | `destination` | `packageName` |
 | --- | --- | --- | --- |
-| `install` | Absolute local APK path | Unused | Unused |
+| `install` | Absolute local APK path | Unused | Optional validated package refresh hint from preview; never used to target installation |
 | `uninstall` | Unused | Unused | Installed third-party package |
 | `upload` | Absolute local file/folder | Existing remote parent directory | Unused |
 | `download` | Remote file/folder | Existing local parent directory | Unused |
@@ -89,7 +89,8 @@ do not pass a full path from a new caller.
 ## Task Snapshots and Events
 
 `TaskSnapshot` is called `Task` in TypeScript. It contains `id`, captured
-transport `device`, monotonic per-task `revision`, `kind`, `label`, `status`, `detail`, nullable `progress`, and
+transport `device`, monotonic per-task `revision`, `kind`, nullable `packageName`
+refresh hint, `label`, `status`, `detail`, nullable `progress`, and
 `createdAt` in epoch milliseconds. IDs combine an epoch timestamp with a
 process-local counter; they are not durable identities across installations.
 

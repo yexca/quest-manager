@@ -25,6 +25,8 @@ flowchart LR
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, data reads, native file pickers and drag/drop |
 | [src/useDeviceDiscovery.ts](../../src/useDeviceDiscovery.ts) | Device polling and its lifetime guard |
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
+| [src/useApplications.ts](../../src/useApplications.ts) | Complete package inventory, session cache lifecycle and incremental enrichment |
+| [src/applicationState.ts](../../src/applicationState.ts) | Installer classification, package invalidation and cache reconciliation |
 | [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
 | [src/installState.ts](../../src/installState.ts) | Review package checks, stale-response disposal, numeric version comparison and duplicate detection |
@@ -74,7 +76,7 @@ directory in release builds. Child processes receive separate argument values,
 have no interactive stdin, and use hidden process creation on Windows. Shell
 fragments run on Android and require separate quoting and path validation.
 
-Application enrichment uses a separate single-permit gate, shared with cache
+Application enrichment uses a separate backend single-permit gate, shared with cache
 clearing. The UI schedules one list enrichment request at a time and shares an
 in-flight request with an open details dialog. Leaving the page or changing
 transport stops scheduling and discards stale responses; one bounded active

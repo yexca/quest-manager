@@ -2410,6 +2410,9 @@ name = "quest-manager"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "getrandom 0.3.4",
+ "png 0.18.1",
+ "quick-xml",
  "serde",
  "serde_json",
  "sha2",

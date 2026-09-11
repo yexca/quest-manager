@@ -48,6 +48,17 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
+## APK Preparation
+
+`inspect_apk` serializes local previews separately from the mutation queue.
+Read-only previews do not create signing keys. An install with options checks the
+preview stamp, stages a private copy and optionally rebuilds its resources with
+Apktool/AAPT2. It aligns, signs with a per-package key and verity disabled, verifies
+with apksigner, and rereads the output before `adb install -r`. Java temporary
+files stay in that task directory. Normal success/failure removes staging; a
+cleanup error reports the exact path. No existing app is uninstalled to resolve
+a signature conflict. See [ADR-0005](../decisions/ADR-0005-local-apk-preparation.md).
+
 ## Staged Transfers
 
 Upload validates the local source and remote parent, checks that final and

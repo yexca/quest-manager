@@ -1,5 +1,7 @@
 mod adb;
 mod apk;
+mod apk_edit;
+mod apk_install;
 mod metadata;
 mod tasks;
 
@@ -7,6 +9,44 @@ use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
 use metadata::{AppDetails, MetadataService};
 use tasks::{TaskManager, TaskRequest, TaskSnapshot};
 use tauri::Manager;
+
+#[tauri::command]
+async fn open_project_repository() -> Result<(), String> {
+    // Fixed destination: the webview cannot supply URLs, paths or shell arguments.
+    let powershell = std::path::PathBuf::from(
+        std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()),
+    )
+    .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        Adb::new(powershell)
+            .command(&[
+                "-NoProfile".into(),
+                "-NonInteractive".into(),
+                "-Command".into(),
+                "$ErrorActionPreference='Stop'; Start-Process -FilePath 'https://github.com/yexca/quest-manager'".into(),
+            ])
+            .output(),
+    )
+    .await
+    .map_err(|_| "Opening the project repository timed out.".to_string())?
+    .map_err(|e| format!("Could not open the project repository: {e}"))?;
+    if !output.status.success() {
+        return Err(
+            "Could not open your browser. Visit https://github.com/yexca/quest-manager manually."
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn inspect_apk(
+    installer: tauri::State<'_, apk_install::Installer>,
+    source: String,
+) -> Result<apk::LocalApk, String> {
+    installer.inspect(source).await
+}
 
 #[tauri::command]
 async fn list_devices(adb: tauri::State<'_, Adb>) -> Result<Vec<Device>, String> {
@@ -92,16 +132,29 @@ pub fn run() {
                     app.path().app_cache_dir()?.join("app-metadata"),
                 )
             };
+            let (apk_tools, apk_storage) = if cfg!(debug_assertions) {
+                let env = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../env");
+                (env.join("apk-tools"), env.join("local-data/apk-install"))
+            } else {
+                (
+                    app.path().resource_dir()?.join("apk-tools"),
+                    app.path().app_local_data_dir()?.join("apk-install"),
+                )
+            };
+            let installer = apk_install::Installer::new(apk_tools, aapt.clone(), apk_storage);
             app.manage(MetadataService::new(aapt, cache));
-            app.manage(TaskManager::new());
+            app.manage(TaskManager::with_installer(installer.clone()));
+            app.manage(installer);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            open_project_repository,
             list_devices,
             device_info,
             list_apps,
             app_details,
             clear_metadata_cache,
+            inspect_apk,
             list_files,
             start_task,
             list_tasks,

@@ -11,7 +11,7 @@ versions, packaging metadata, or code-signing environments.
 | System Node and npm | [toolchain.versions.json](../../toolchain.versions.json), [package.json](../../package.json), [.node-version](../../.node-version) for Node |
 | Rust toolchain and target | [rust-toolchain.toml](../../rust-toolchain.toml), `toolchain.versions.json` |
 | Rust minimum language version and crate dependencies | [Cargo.toml](../../src-tauri/Cargo.toml) |
-| rustup, Android Platform-Tools and AAPT2 archives | Fixed URLs and SHA-256 values in `toolchain.versions.json` |
+| rustup, Android Platform-Tools, AAPT2 and APK preparation archives | Fixed URLs and SHA-256 values in `toolchain.versions.json` |
 | JavaScript dependencies | Exact versions in `package.json`, resolved tree in [package-lock.json](../../package-lock.json) |
 | Rust dependencies | Exact direct versions in `Cargo.toml`, resolved tree in [Cargo.lock](../../src-tauri/Cargo.lock) |
 | Tauri packaging tools | Resolution and checksums supplied by the pinned Tauri CLI |
@@ -32,6 +32,8 @@ do not force them to share a patch number.
 | `env/node_modules` | Installed npm packages |
 | `env/npm-cache` | npm download cache |
 | `env/platform-tools` | Official ADB executable, DLLs, and licenses |
+| `env/apk-tools` | Pinned Apktool, official apksigner/zipalign, notices and private Temurin JRE |
+| `env/local-data/apk-install` | Private development APK staging and persistent local signing keys; never distribute |
 | `env/aapt2` | AAPT2 9.4.0-15978811 executable (2.20-15978811) and notices, extracted from the official Maven Windows JAR; no Java runtime needed |
 | `env/cache/app-metadata` | Private development artwork/metadata cache, not dependency input |
 | `env/downloads` | Downloaded tool archives verified by checksum |
@@ -50,7 +52,8 @@ direct development commands must select the project toolchain environment.
 ## Normal Installation
 
 `run-install.ps1` checks the required Node/npm and system prerequisites, verifies
-downloaded rustup/ADB/AAPT2 archives, installs the pinned Rust components, and uses
+downloaded rustup, ADB, AAPT2, Apktool, JRE and Build Tools archives, installs the
+pinned Rust components, and uses
 `npm ci` under `env` plus `cargo fetch --locked`. It refuses an unexpected root
 `node_modules` directory instead of deleting it. Resolve that conflict locally
 before retrying, preserving any user data and verifying junction targets.
@@ -73,8 +76,13 @@ updates as substitutes for the bootstrap.
 The fixture APK's generation tools are described separately in
 [tests/fixtures/README.md](../../tests/fixtures/README.md). External Android
 SDK and Java tools are not required to build the application or use that
-checked-in fixture. The project-managed AAPT2 executable is now a runtime and
-resource-parser test dependency; no external Android SDK is searched.
+checked-in fixture. The project-managed AAPT2 executable is a runtime/resource-parser test dependency.
+APK preparation additionally bundles Apktool 3.0.3, Build Tools 37.0.0 signing and
+alignment tools, and Temurin JRE 21.0.12.1+1, fixed by URL/SHA-256. Archives expand
+under `env`; the bootstrap copies runtime contents into `env/apk-tools`. This
+includes Java license/notices and Android NOTICE.txt; Apktool retains its JAR
+notices. No external Android SDK or global Java is searched. Rust XML/PNG/random
+crates are pinned to 0.42.0/0.18.1/0.3.4 respectively.
 
 ## Local Records
 

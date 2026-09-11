@@ -24,10 +24,11 @@
     }
   },
   "bundle": {
+    "license": "AGPL-3.0-only",
     "active": true,
     "useLocalToolsDir": true,
     "targets": ["nsis"],
-    "resources": { "../env/platform-tools/": "platform-tools/", "../env/aapt2/": "aapt2/" },
+    "resources": { "../env/platform-tools/": "platform-tools/", "../env/aapt2/": "aapt2/", "../env/apk-tools/": "apk-tools/", "../LICENSE": "LICENSE" },
     "icon": ["icons/icon.ico", "icons/icon.png"]
   }
 }

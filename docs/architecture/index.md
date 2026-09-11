@@ -23,6 +23,8 @@ flowchart LR
 | --- | --- |
 | [src/main.tsx](../../src/main.tsx) | React root and stylesheet loading |
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, polling, native file pickers, drag/drop, task subscription |
+| [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
+| [src/About.tsx](../../src/About.tsx) | Offline project credits/license, manifest-derived dependencies and repository link |
 | [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
 | [src/api.ts](../../src/api.ts) | Typed IPC calls and explicit fictional browser preview |
 | [src/types.ts](../../src/types.ts) | Frontend data and task contracts |
@@ -32,6 +34,8 @@ flowchart LR
 | [src-tauri/src/adb.rs](../../src-tauri/src/adb.rs) | Read queries, parsing, path checks, quoting, ADB process construction |
 | [src-tauri/src/metadata.rs](../../src-tauri/src/metadata.rs) | Package dump parsing, metadata IPC models, extraction gate and bounded cache |
 | [src-tauri/src/apk.rs](../../src-tauri/src/apk.rs) | APK byte-range reader, ZIP limits, AAPT2 resource decoding, raster icons and signing-block fingerprints |
+| [src-tauri/src/apk_edit.rs](../../src-tauri/src/apk_edit.rs) | Resource staging, manifest editing and compressed game-payload preservation |
+| [src-tauri/src/apk_install.rs](../../src-tauri/src/apk_install.rs) | Local preview/preparation, private signing keys and output verification |
 | [src-tauri/src/tasks.rs](../../src-tauri/src/tasks.rs) | Task validation, global queue, mutations, transfers, cancellation, cleanup |
 | [src-tauri/src/device_tests.rs](../../src-tauri/src/device_tests.rs) | Opt-in fixture-based device integration test |
 | [scripts/Environment.ps1](../../scripts/Environment.ps1) | Process-local tool paths and installed-environment checks |

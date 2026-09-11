@@ -1,5 +1,14 @@
 # Product Workflows
 
+## About and Help
+
+The sidebar's About page works without a headset and displays the project
+introduction, yexca/Codex development credit, GPT-6-Astra model attribution,
+core dependency versions, source repository and AGPLv3 license. Its full license
+is embedded for offline reading. The repository link opens the default browser
+in the desktop app or a new browser tab in preview. No device task is created.
+Help remains a separate dialog for connection, transfer and signing-key guidance.
+
 ## Connect and Inspect
 
 Overview shows the selected headset, connection method, Android version,
@@ -45,8 +54,29 @@ permission state are queried again instead of persisted. See [Privacy](../../PRI
 
 "Install APK" opens a native file picker for one or more ordinary APK files.
 Dropping only APKs anywhere in the desktop window opens the same installation
-review. The user reviews the files and target, then queues an independent
-installation for each file. Removing an item from the review does not delete
+review. Local APK previews work without a headset. The review shows the default launcher
+name/icon, package, version and size for each file. Unknown artwork is not proof
+of missing artwork; device language and launcher behavior can differ. The user
+reviews the files and target, then queues an independent installation for each
+file. Each file has its own disabled-by-default Modify and re-sign APK switch.
+
+When enabled, the user can enter one display name across languages and choose a
+PNG/JPEG/WebP image (up to 8 MiB), crop/position/zoom it to a 512-pixel square, or
+reset the appearance. Name/icon changes rebuild resources and include compatible
+signing. Compatibility install can also be enabled without appearance changes;
+it re-signs with verity disabled to address some large-APK signature overflows.
+It does not guarantee successful installation or game behavior. Preparation
+verifies the generated package/version, requested name/icon, payload metadata
+and signature before invoking ADB. Ordinary installs remain available when
+artwork preview fails; recognized split APKs are refused by this review.
+
+New signatures usually cannot update an original installation. Subsequent modified
+updates need the same stable local key. Help explains private key backup/restore;
+artwork clearing never removes keys. Existing apps are not automatically
+uninstalled. Prepared copies are temporary; originals remain unchanged.
+Preparation remains part of the serial install task and cannot be cancelled once
+running. Free local space must cover four APK sizes plus 512 MiB. Editing rejects
+multiple launcher entries, shared-user packages and resources over 128 MiB. Removing an item from the review does not delete
 the original file.
 
 Compatible updates use Android's replace-install behavior and normally retain

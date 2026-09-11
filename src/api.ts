@@ -1,5 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
+import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, LocalApk, Task, TaskRequest } from './types';
 
 export const isDesktop = isTauri();
 export const isPreview = !isDesktop && new URLSearchParams(location.search).get('preview') === '1';
@@ -52,6 +52,13 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const api = {
+  openProjectRepository: (): Promise<void> => call('open_project_repository'),
+  inspectApk: (source: string): Promise<LocalApk> => {
+    if (!isPreview) return call('inspect_apk', { source });
+    const unknown = source.includes('Unknown');
+    return Promise.resolve({ packageName: unknown ? 'com.example.unknown' : 'com.example.orbit', versionName: '1.2.0', versionCode: '100', size: (unknown ? 0.15 : 2.94) * gib, sourceStamp: 'DEMO-APK-STAMP', split: false, veritySigning: !unknown,
+      assets: { ...previewDetails(unknown ? 'com.example.explorer' : 'com.example.orbit').assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
+  },
   devices: (): Promise<Device[]> => isPreview ? Promise.resolve([{ id: 'DEMO-DEVICE-001', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }] }]) : call('list_devices'),
   info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),
   apps: (device: string, includeSystem: boolean): Promise<AppPackage[]> => isPreview ? Promise.resolve(includeSystem ? [...previewApps, { packageName: 'com.example.systemshell', versionCode: '100', system: true }] : previewApps) : call('list_apps', { device, includeSystem }),

@@ -1,5 +1,6 @@
 //! Opt-in integration test: touches only a unique scratch folder and an inert test package.
 use super::*;
+use base64::{Engine, engine::general_purpose::STANDARD};
 
 async fn finish(
     manager: &TaskManager,
@@ -84,7 +85,12 @@ async fn connected_device_task_roundtrip() {
     std::fs::write(upload.join("Sub folder/nested.txt"), b"nested file payload").unwrap();
     let apk = local.join("Verification 日本語.apk");
     std::fs::copy(root.join("tests/fixtures/verification.apk"), &apk).unwrap();
-    let manager = TaskManager::new();
+    let installer = Installer::new(
+        root.join("env/apk-tools"),
+        root.join("env/aapt2/aapt2.exe"),
+        local.join("apk-install"),
+    );
+    let manager = TaskManager::with_installer(installer.clone());
     let request = |kind,
                    source: Option<String>,
                    destination: Option<String>,
@@ -94,6 +100,7 @@ async fn connected_device_task_roundtrip() {
         source,
         destination,
         package_name,
+        install_options: None,
     };
 
     let result: Result<(), String> = async {
@@ -238,6 +245,76 @@ async fn connected_device_task_roundtrip() {
             request(TaskKind::Uninstall, None, None, Some(package.into())),
         )
         .await?;
+
+        // These prepared installs touch only the fixture that was absent at entry.
+        let source = apk.to_string_lossy().into_owned();
+        let preview = installer.inspect(source.clone()).await?;
+        let icon = STANDARD.encode(include_bytes!("../icons/icon.png"));
+        let mut prepared = request(TaskKind::Install, Some(source), None, None);
+        prepared.install_options = Some(InstallOptions {
+            source_stamp: preview.source_stamp,
+            display_name: Some("Example modified verification".into()),
+            icon_png: Some(icon.clone()),
+            compatibility: true,
+        });
+        successful(&manager, &adb, prepared.clone()).await?;
+        successful(&manager, &adb, prepared).await?;
+        let conflict = finish(
+            &manager,
+            &adb,
+            request(
+                TaskKind::Install,
+                Some(apk.to_string_lossy().into()),
+                None,
+                None,
+            ),
+        )
+        .await?;
+        if conflict.status != "failed"
+            || !conflict
+                .detail
+                .contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE")
+        {
+            return Err("A conflicting signature did not refuse the update".into());
+        }
+        // Export after the refusal to check that the modified installation survived.
+        let modified_export = local.join("modified-exports");
+        std::fs::create_dir(&modified_export).map_err(|e| e.to_string())?;
+        successful(
+            &manager,
+            &adb,
+            request(
+                TaskKind::Export,
+                None,
+                Some(modified_export.to_string_lossy().into()),
+                Some(package.into()),
+            ),
+        )
+        .await?;
+        let exported = std::fs::read_dir(modified_export)
+            .map_err(|e| e.to_string())?
+            .next()
+            .ok_or("Modified APK export folder is empty")?
+            .map_err(|e| e.to_string())?
+            .path()
+            .join("base.apk");
+        let after = installer.inspect(exported.to_string_lossy().into()).await?;
+        if after.assets.display_name.as_deref() != Some("Example modified verification")
+            || after.assets.icon_data_url.as_deref()
+                != Some(&format!("data:image/png;base64,{icon}"))
+            || after.verity_signing != Some(false)
+        {
+            return Err(
+                "The prepared installation did not retain its name, icon or compatible signature"
+                    .into(),
+            );
+        }
+        successful(
+            &manager,
+            &adb,
+            request(TaskKind::Uninstall, None, None, Some(package.into())),
+        )
+        .await?;
         Ok(())
     }
     .await;
@@ -272,6 +349,6 @@ async fn connected_device_task_roundtrip() {
     std::fs::remove_dir_all(&local).unwrap();
     result.unwrap();
     println!(
-        "Device task round-trip passed: folder upload/download, nested bytes, Unicode/quotes/shell metacharacters, duplicate refusal, rename, deletion, APK install/update/export/uninstall. Test data cleaned up."
+        "Device task round-trip passed: transfers, unusual filenames, collision refusal, original and modified APK install/update/export/uninstall, and signature conflict preservation. Test data and disposable signing keys cleaned up."
     );
 }

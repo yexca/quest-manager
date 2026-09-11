@@ -7,7 +7,7 @@ file, and see the result of an operation without losing their place.
 ## Current Interface
 
 - A dark green sidebar holds Overview, Applications, Files, the installation
-  entry, Task queue, and Help & about.
+  entry, Task queue, Help, and About.
 - A light workspace contains the connection status, page heading, and content.
   Overview summarizes the device; Applications and Files use compact tables.
 - Green is the primary action color, amber indicates attention, and red marks
@@ -22,6 +22,12 @@ file, and see the result of an operation without losing their place.
 
 ## Interaction Contract
 
+About is a full page available without a connected headset. It presents project
+credits, manifest-derived core dependency versions, the public source repository
+and an expandable offline license. Its repository link opens the default browser;
+it never navigates the management webview away from the app. Help retains the
+connection, transfer and local signing-key guidance.
+
 Keep interface text and errors in English. Use concrete names such as
 "Install APK", "Upload files", and "Download". Explain the effect of an action
 in user terms; toolchain details belong in developer documentation.
@@ -34,7 +40,12 @@ Distinguish disconnected, authorization-required, loading, empty, and failed
 states. A failed live query must not turn the desktop app into a preview or
 display fictional values as device data. Unknown values should remain unknown.
 
-Installation shows the selected APKs and target headset before queuing. File
+Installation shows selected APKs and their expected default launcher artwork,
+name, package/version and target headset before queuing. Keep each file's edit
+and compatibility options independent and off by default. Label unavailable
+previews honestly. Show signature/update consequences when preparation is enabled;
+name/icon changes include compatibility signing. Local review works offline,
+while installation still requires a ready device and the desktop runtime. File
 deletion and application uninstallation show an explicit destructive
 confirmation. A directory deletion includes its contents; uninstallation
 removes app data. File picker cancellation must not create a task.

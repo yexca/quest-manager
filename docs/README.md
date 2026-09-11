@@ -9,6 +9,8 @@ source files and version manifests remain authoritative when details change.
 - [Overview](overview.md): goals, implemented features, and current limits.
 - [Getting started](getting-started.md): installation, desktop use, and preview.
 - [Agent guide](../AGENTS.md): reading paths and repository rules.
+- [Contributing](../CONTRIBUTING.md): issues, pull requests and validation.
+- [Security reporting](../SECURITY.md): private vulnerability reports and support scope.
 
 ## By Area
 
@@ -57,4 +59,5 @@ guidance. ADRs explain durable decisions rather than repeating module reference.
 Do not store live validation results or machine records in documentation.
 
 Related root documents: [Contributing](../CONTRIBUTING.md),
-[Design](../DESIGN.md), [Security](../SECURITY.md), and [Privacy](../PRIVACY.md).
+[Design](../DESIGN.md), [Security](../SECURITY.md), [Privacy](../PRIVACY.md),
+[Code of Conduct](../CODE_OF_CONDUCT.md), and [Third-party components](../THIRD_PARTY.md).

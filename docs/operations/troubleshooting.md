@@ -55,6 +55,24 @@ Check available space and device ABI for the corresponding errors. A missing
 split error means the package needs an installation flow this version does not
 provide. Several selected APKs are separate installs, not a split session.
 
+`INSTALL_PARSE_FAILED_NO_CERTIFICATES` with `integer overflow` can occur when
+verity verification uses an overflowing offset in a large APK. In the review,
+enable **Modify and re-sign APK**, then **Compatibility install**. This replaces
+the signature and normally cannot update an existing app signed by another key.
+It is not a general fix for malformed packages, missing splits or ABI problems.
+
+For a preparation error, inspect its stage in Task queue. Resource-free packages
+are supported; multiple launcher entries, shared-user packages, resource path
+collisions and resources over 128 MiB are rejected for editing. Compatibility-only
+installation avoids resource rebuilding. Unknown/adaptive artwork can be displayed
+as unavailable without preventing installation of the original.
+
+Free local space must cover four APK sizes plus 512 MiB. Restore `apk-tools` if
+Java/signing tools cannot start. Back up/restore signing keys as described in
+[Privacy](../../PRIVACY.md); never generate replacement keys just to suppress an
+update conflict. Cleanup failures identify task-owned staging files; preserve
+keys and original APKs when cleaning up.
+
 ## Files and Transfers
 
 Permission errors in `Android/data` or `Android/obb` can reflect headset OS

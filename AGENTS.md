@@ -51,6 +51,10 @@ Then use the smallest relevant set of documents:
 - Session/task state is held in memory. App artwork and immutable APK metadata
   have a bounded private local cache; see `PRIVACY.md`. Do not describe task persistence,
   reconnect resume, or automatic retry as implemented features.
+- Keep APK resource rebuilding in `apk_edit.rs`, local preparation/signing in
+  `apk_install.rs`, and installation orchestration in `tasks.rs`. Preparation is
+  opt-in. Preserve original APKs and persistent private per-package signing keys;
+  never remove keys during artwork or temporary-file cleanup.
 
 ## Development Workflow
 

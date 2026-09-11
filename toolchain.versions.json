@@ -13,6 +13,22 @@
     "url": "https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/9.4.0-15978811/aapt2-9.4.0-15978811-windows.jar",
     "sha256": "5fe3c8ee5c6b3f47efd1fced1d6418084037f54f13290816c5db717e6b5c92aa"
   },
+  "apktool": {
+    "version": "3.0.3",
+    "url": "https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar",
+    "sha256": "dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423"
+  },
+  "jre": {
+    "version": "21.0.12.1+1",
+    "directory": "jdk-21.0.12.1+1-jre",
+    "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+    "sha256": "d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636"
+  },
+  "buildTools": {
+    "version": "37.0.0",
+    "url": "https://dl.google.com/android/repository/build-tools_r37_windows.zip",
+    "sha256": "68075aa319ed8a01cf1a565ed1e61a3c1a801dd49191c35851248dc293c33b1a"
+  },
   "adb": {
     "version": "37.0.1",
     "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",

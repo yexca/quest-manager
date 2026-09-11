@@ -16,6 +16,7 @@ as camelCase; task kinds are lowercase strings.
 | `AppDetails` | Package/version, `apkPaths`, `apkFiles` with nullable size/modified time, nullable `apkSize`, install/update times, installer, SDK/ABI, app ID, Android user, enabled state, state flags, permissions, `assets` |
 | `AppAssets` | Nullable `displayName`/`iconDataUrl`, VR declarations, signing schemes, certificate SHA-256 fingerprints and availability notes; persisted in a bounded private cache |
 | `Permission` | Permission `name`, nullable `granted` boolean and `kind` (Requested, Install, Runtime) for the selected Android user |
+| `LocalApk` | Package/version, byte size, source size/mtime stamp, default launcher assets, split flag and nullable verity-signature presence |
 | `FileEntry` | Name, remote path, kind, byte size, and `modifiedAt` as Unix epoch milliseconds |
 
 File kinds are `directory`, `file`, `symlink`, and `other`. Directory size is
@@ -36,10 +37,15 @@ calls them through [api.ts](../../src/api.ts).
 | `list_apps` | `device`, `includeSystem` | `AppPackage[]` |
 | `app_details` | `device`, `package` | `AppDetails` |
 | `clear_metadata_cache` | None | Success or error; deletes cached JSON under the service gate |
+| `inspect_apk` | `source` (absolute local APK path) | `LocalApk`; no device needed |
 | `list_files` | `device`, `path` | `FileEntry[]` |
 | `start_task` | `request` | Initial `TaskSnapshot` |
 | `list_tasks` | None | Current task snapshots |
 | `cancel_task` | `id` | Success or error |
+| `open_project_repository` | None | Opens the fixed public GitHub repository in the default browser; success or error |
+
+The repository command accepts no URL, path or command arguments. It opens only
+`https://github.com/yexca/quest-manager` through Windows and does not use ADB.
 
 Every `device` argument is an ADB transport serial, including
 `TaskRequest.device`. It is not the grouped `Device.id`. Errors are strings;
@@ -60,6 +66,12 @@ kind-specific meaning:
 | `mkdir` | Existing remote parent directory | New basename, not a path | Unused |
 | `rename` | Existing remote item | New basename, not a path | Unused |
 | `delete` | Existing remote item | Unused | Unused |
+
+Installation optionally accepts `installOptions`: `sourceStamp`, nullable
+`displayName` and base64 `iconPng`, and a `compatibility` boolean. Presence is the
+explicit opt-in to local preparation. Appearance edits always include compatible
+signing; without appearance changes, `compatibility` must be true. Other task
+kinds reject these options. A changed source stamp rejects preparation.
 
 Local destinations are folders, not the final output filename. Upload/download
 preserve the source basename. Export creates a folder named from the package

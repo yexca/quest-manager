@@ -2,6 +2,7 @@ use crate::adb::{
     Adb, friendly_error, normalize_remote, shell_quote, validate_device, validate_filename,
     validate_package, validate_windows_filename,
 };
+use crate::apk_install::{InstallOptions, Installer, cleanup_result};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -39,6 +40,7 @@ pub struct TaskRequest {
     pub source: Option<String>,
     pub destination: Option<String>,
     pub package_name: Option<String>,
+    pub install_options: Option<InstallOptions>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -68,11 +70,19 @@ struct Inner {
 #[derive(Clone)]
 pub struct TaskManager {
     inner: Arc<Inner>,
+    installer: Option<Installer>,
 }
 
 impl TaskManager {
+    pub fn with_installer(installer: Installer) -> Self {
+        Self {
+            installer: Some(installer),
+            ..Self::new()
+        }
+    }
     pub fn new() -> Self {
         Self {
+            installer: None,
             inner: Arc::new(Inner {
                 records: Mutex::new(BTreeMap::new()),
                 queue: Arc::new(Semaphore::new(1)),
@@ -287,6 +297,34 @@ impl Context {
                         .is_some_and(|e| e.eq_ignore_ascii_case("apk"))
                 {
                     return Err("Select a single .apk file to install.".into());
+                }
+                if let Some(options) = &request.install_options {
+                    let installer = self
+                        .manager
+                        .installer
+                        .as_ref()
+                        .ok_or("APK preparation is unavailable.")?;
+                    let prepared = installer
+                        .prepare(&apk, options, &self.id, &|message| {
+                            self.report(None, message, None)
+                        })
+                        .await?;
+                    self.report(
+                        None,
+                        &format!(
+                            "Verified {}. Installing the prepared APK…",
+                            prepared
+                                .preview
+                                .assets
+                                .display_name
+                                .as_deref()
+                                .unwrap_or(&prepared.preview.package_name)
+                        ),
+                        None,
+                    );
+                    let result = self.process(vec!["install".into(), "-r".into(), prepared.path.to_string_lossy().into_owned()], false).await
+                        .map(|_| "Application installed with a local compatibility signature. Keep the signing-key backup for future updates.".into());
+                    return cleanup_result(&prepared.directory, result).await;
                 }
                 self.report(
                     None,
@@ -646,6 +684,12 @@ fn ensure_local_missing(path: &Path) -> Result<(), String> {
 }
 
 fn validate_request(request: &TaskRequest) -> Result<(), String> {
+    if let Some(options) = &request.install_options {
+        if request.kind != TaskKind::Install {
+            return Err("APK preparation options only apply to installation.".into());
+        }
+        options.validate()?;
+    }
     let source = request.source.as_deref().unwrap_or("");
     let destination = request.destination.as_deref().unwrap_or("");
     match request.kind {
@@ -718,6 +762,7 @@ mod tests {
             source: Some("/data/data".into()),
             destination: None,
             package_name: None,
+            install_options: None,
         };
         assert!(validate_request(&request).is_err());
         request.kind = TaskKind::Rename;

@@ -16,6 +16,8 @@ of Windows, WebView2, ADB, or the headset operating system.
 | Install/update times, permissions, installer, SDK/ABI, app state | Application details | Current UI state; queried again on refresh |
 | Shared filenames, paths, sizes, and timestamps | File browsing and transfer | Current UI state and task details |
 | Selected computer paths and ADB output | Task execution and error feedback | Current process and UI state |
+| Local APKs and selected icon images | Optional rebuilding, signing and installation | Task-owned temporary copies; cleanup attempted on completion/failure |
+| Per-package signing keys and password files | Allow subsequent locally signed updates | Persistent private local storage; user-managed backup/removal |
 | Uploaded, downloaded, or exported files | Explicit user operations | Files remain at their destinations |
 
 There is no app database or persisted task history. This does not mean an
@@ -42,7 +44,33 @@ or reopening the app resumes collection. Opening an individual detail view also
 reads and can cache that application. Cache content stays on this computer and
 must not be copied into the repository or shared as a diagnostic report.
 
+## APK Preparation Storage
+
+Preparation uses `env/local-data/apk-install` in development and
+`%LOCALAPPDATA%/dev.questmanager.desktop/apk-install` in release builds. Its
+`preview` folder holds temporary manifest/resources, `staging` holds complete
+task-owned APK copies and decoded resources, and `signing-keys` holds a stable
+key/password pair per package (directory names hash the package ID).
+
+Original APKs are not overwritten. Temporary files are removed on normal
+completion/failure; cleanup failures report their paths. Crashes may leave
+private staging files. Remove only known inactive task directories, not keys.
+
+Signing keys persist across launches, uninstall operations and artwork clearing.
+They allow compatible updates signed by this installation. Back up the entire
+`signing-keys` folder privately, including password files, and restore it to the
+same location before using a replacement installation. Do not share or commit
+these files; possession allows signing as that local identity. Windows ACLs limit
+new key directories to the current user; this does not protect against code
+already running as that user. Backups need equivalent protection. Losing keys can
+prevent updates without a reinstall; uninstalling may lose game data. There is
+no automatic key synchronization, import wizard or cloud backup.
+
 ## Network and Tooling
+
+About is local content. Selecting its source repository link explicitly opens
+the public GitHub repository in the user's browser, where browser/GitHub network
+and privacy behavior apply. The link contains no device identifiers or paths.
 
 The app starts a local ADB client and reuses the default ADB server. The server
 can communicate with a device over USB or an already established Wi-Fi

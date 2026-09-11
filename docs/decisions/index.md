@@ -7,6 +7,7 @@ are not device validation records or a claim about a published release.
 - [ADR-0002: Pinned tools and project-local dependencies](ADR-0002-project-local-toolchains.md)
 - [ADR-0003: Serial task execution and staged transfers](ADR-0003-serial-staged-tasks.md)
 - [ADR-0004: Local APK metadata and artwork cache](ADR-0004-application-metadata.md)
+- [ADR-0005: Local APK preparation and signing](ADR-0005-local-apk-preparation.md)
 
 Add an ADR when a change alters a long-lived boundary such as process topology,
 device identity, storage scope, task persistence, dependency management, or

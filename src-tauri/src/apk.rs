@@ -5,6 +5,7 @@ use crate::{
     metadata::{ApkFile, AppAssets},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     fs,
@@ -20,6 +21,104 @@ const READ_BUDGET: u64 = 64 * 1024 * 1024;
 const RESOURCE_LIMIT: u64 = 32 * 1024 * 1024;
 const ICON_LIMIT: u64 = 2 * 1024 * 1024;
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalApk {
+    pub package_name: String,
+    pub version_name: String,
+    pub version_code: String,
+    pub size: u64,
+    pub source_stamp: String,
+    pub assets: AppAssets,
+    pub split: bool,
+    pub verity_signing: Option<bool>,
+}
+
+pub fn source_stamp(path: &Path) -> Result<String, String> {
+    let meta = fs::metadata(path).map_err(|e| e.to_string())?;
+    if !meta.is_file() {
+        return Err("Select a regular APK file.".into());
+    }
+    let modified = meta
+        .modified()
+        .map_err(|e| e.to_string())?
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    Ok(format!("{}:{modified}", meta.len()))
+}
+
+pub fn inspect_local(path: &Path, aapt: &Path, cache: &Path) -> Result<LocalApk, String> {
+    let stamp = source_stamp(path)?;
+    let badging = tool(
+        aapt,
+        vec![
+            "dump".into(),
+            "badging".into(),
+            path.to_string_lossy().into_owned(),
+        ],
+    )?;
+    let package = badging
+        .lines()
+        .find(|l| l.starts_with("package:"))
+        .ok_or("This file does not contain a readable Android package.")?;
+    let package_name = attribute(package, "name").ok_or("APK package name is unavailable.")?;
+    crate::adb::validate_package(&package_name)?;
+    let mut assets = extract(
+        fs::File::open(path).map_err(|e| e.to_string())?,
+        aapt,
+        cache,
+    )
+    .unwrap_or_else(|error| AppAssets {
+        notes: vec![format!("APK artwork could not be previewed: {error}")],
+        ..Default::default()
+    });
+    if let Some(launch) = badging
+        .lines()
+        .find(|l| l.starts_with("launchable-activity:"))
+    {
+        if let Some(label) = attribute(launch, "label").filter(|s| !s.is_empty()) {
+            assets.display_name = Some(label);
+        }
+        if let Some(icon) = attribute(launch, "icon").filter(|s| !s.is_empty()) {
+            let mut archive = ZipArchive::new(fs::File::open(path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+            assets.icon_data_url = entry(&mut archive, &icon, ICON_LIMIT)
+                .ok()
+                .and_then(|data| raster_data_url(&data));
+        }
+    } else {
+        assets
+            .notes
+            .push("No standard launcher activity was found.".into());
+    }
+    assets.notes.push("Preview uses APK default launcher resources. Quest language, launcher artwork and adaptive icons may differ.".into());
+    if source_stamp(path)? != stamp {
+        return Err("The APK changed while it was being read. Select it again.".into());
+    }
+    let verity_signing = (|| {
+        let archive = ZipArchive::new(fs::File::open(path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        let offset = archive.central_directory_start();
+        let mut file = archive.into_inner();
+        signing(&mut file, offset).map(|info| info.2)
+    })()
+    .ok();
+    Ok(LocalApk {
+        package_name,
+        version_name: attribute(package, "versionName").unwrap_or_default(),
+        version_code: attribute(package, "versionCode").unwrap_or_default(),
+        size: fs::metadata(path).map_err(|e| e.to_string())?.len(),
+        source_stamp: stamp,
+        verity_signing,
+        assets,
+        split: attribute(package, "split").is_some()
+            || badging
+                .lines()
+                .any(|l| l.starts_with("uses-split:") || l.contains("isSplitRequired='true'")),
+    })
+}
 
 struct RemoteApk {
     adb: Adb,
@@ -265,7 +364,7 @@ fn extract<R: Read + Seek>(mut reader: R, aapt: &Path, cache: &Path) -> Result<A
     let directory = archive.central_directory_start();
     let mut reader = archive.into_inner();
     match signing(&mut reader, directory) {
-        Ok((schemes, certificates)) => {
+        Ok((schemes, certificates, _)) => {
             assets.signing_schemes = schemes;
             assets.certificate_sha256 = certificates;
         }
@@ -283,16 +382,54 @@ fn extract<R: Read + Seek>(mut reader: R, aapt: &Path, cache: &Path) -> Result<A
 }
 
 fn unquote(value: &str) -> String {
-    value.trim().trim_matches('\'').replace("\\'", "'")
+    let value = value.trim();
+    unescape_badging(
+        value
+            .strip_prefix('\'')
+            .and_then(|v| v.strip_suffix('\''))
+            .unwrap_or(value),
+    )
+}
+fn unescape_badging(value: &str) -> String {
+    let mut output = String::new();
+    let mut chars = value.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            output.push(ch);
+            continue;
+        }
+        match chars.next() {
+            Some('\\') => output.push('\\'),
+            Some('\'') => output.push('\''),
+            Some('"') => output.push('"'),
+            Some('n') => output.push('\n'),
+            Some('r') => output.push('\r'),
+            Some('t') => output.push('\t'),
+            Some(other) => {
+                output.push('\\');
+                output.push(other);
+            }
+            None => output.push('\\'),
+        }
+    }
+    output
 }
 fn attribute(line: &str, key: &str) -> Option<String> {
     let value = line.split_once(&format!("{key}='"))?.1;
     // Find an unescaped quote so apostrophes in labels stay intact.
-    let end = value
-        .char_indices()
-        .find(|(i, ch)| *ch == '\'' && (*i == 0 || value.as_bytes()[i - 1] != b'\\'))?
-        .0;
-    Some(value[..end].replace("\\'", "'"))
+    let mut escaped = false;
+    for (i, ch) in value.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if ch == '\\' {
+            escaped = true;
+        } else if ch == '\'' {
+            return Some(unescape_badging(&value[..i]));
+        }
+    }
+    None
 }
 
 fn parse_badging(raw: &str) -> AppAssets {
@@ -401,9 +538,9 @@ fn take_length<'a>(input: &mut &'a [u8]) -> Result<&'a [u8], String> {
 fn signing<R: Read + Seek>(
     reader: &mut R,
     directory: u64,
-) -> Result<(Vec<String>, Vec<String>), String> {
+) -> Result<(Vec<String>, Vec<String>, bool), String> {
     if directory < 24 {
-        return Ok((vec![], vec![]));
+        return Ok((vec![], vec![], false));
     }
     reader
         .seek(SeekFrom::Start(directory - 24))
@@ -411,7 +548,7 @@ fn signing<R: Read + Seek>(
     let mut footer = [0; 24];
     reader.read_exact(&mut footer).map_err(|e| e.to_string())?;
     if &footer[8..] != b"APK Sig Block 42" {
-        return Ok((vec![], vec![]));
+        return Ok((vec![], vec![], false));
     }
     let length = u64::from_le_bytes(footer[..8].try_into().unwrap());
     if !(24..=4 * 1024 * 1024).contains(&length) || length + 8 > directory {
@@ -428,6 +565,7 @@ fn signing<R: Read + Seek>(
     let mut records = &data[8..data.len() - 24];
     let mut schemes = Vec::new();
     let mut certificates = Vec::new();
+    let mut verity = false;
     while !records.is_empty() {
         if records.len() < 12 {
             return Err("Truncated signing block.".into());
@@ -451,7 +589,18 @@ fn signing<R: Read + Seek>(
         while !signers.is_empty() {
             let mut signer = take_length(&mut signers)?;
             let mut signed = take_length(&mut signer)?;
-            let _digests = take_length(&mut signed)?;
+            let mut digests = take_length(&mut signed)?;
+            while !digests.is_empty() {
+                let digest = take_length(&mut digests)?;
+                let id = u32::from_le_bytes(
+                    digest
+                        .get(..4)
+                        .ok_or("Truncated signature digest.")?
+                        .try_into()
+                        .unwrap(),
+                );
+                verity |= matches!(id, 0x421..=0x423);
+            }
             let mut certs = take_length(&mut signed)?;
             // Only the first certificate is the signer; remaining certificates
             // are chain entries, not additional signers.
@@ -469,7 +618,7 @@ fn signing<R: Read + Seek>(
             }
         }
     }
-    Ok((schemes, certificates))
+    Ok((schemes, certificates, verity))
 }
 
 #[cfg(test)]
@@ -482,6 +631,8 @@ mod tests {
             "application-label:'Default'\napplication-label-fr:'Exemple'\napplication-label-en:'Example game'\n",
         );
         assert_eq!(assets.display_name.as_deref(), Some("Example game"));
+        assert_eq!(unquote(r"'Players\''"), "Players'");
+        assert_eq!(unquote(r"'Path\\'"), "Path\\");
         assert_eq!(
             attribute(
                 "application: label='Player\\'s game' icon='res/icon.png'",

@@ -63,6 +63,14 @@ times out after 15 seconds. Fallbacks preserve the rest of the application list.
 The cache is bounded to 512 JSON entries / 64 MiB; locations and clearing are
 documented in [Privacy](../../PRIVACY.md).
 
+APK preparation resolves its Java, Apktool, apksigner and zipalign tools from
+`env/apk-tools` in development and the `apk-tools` resource directory in release.
+It does not search for system Java or Android SDK installations. Preparation
+requires approximately four APK sizes plus 512 MiB of free local space; resource
+editing accepts at most 128 MiB of uncompressed resources. Working copies and
+persistent signing keys use the separate locations described in
+[Privacy](../../PRIVACY.md#apk-preparation-storage).
+
 Read helpers have a 30-second timeout; streamed task subprocesses have a
 one-hour timeout per subprocess. These limits are currently source constants,
 not user settings. Queue state is in memory and has no startup recovery.

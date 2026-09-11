@@ -404,7 +404,11 @@ pub fn friendly_error(raw: &str) -> String {
     {
         "The device is disconnected. Reconnect it and refresh."
     } else if raw.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
-        "The installed app and this APK have different signatures."
+        "The installed app and this APK have different signatures. A re-signed APK cannot normally update an original installation. Nothing was uninstalled. Keep the same local signing key for subsequent modified updates."
+    } else if raw.contains("INSTALL_PARSE_FAILED_NO_CERTIFICATES")
+        && raw.contains("integer overflow")
+    {
+        "Android could not verify this APK because of a signature integer overflow. Try Modify and re-sign APK > Compatibility install. This changes the signing identity."
     } else if raw.contains("INSTALL_FAILED_VERSION_DOWNGRADE") {
         "This APK is older than the installed version."
     } else if raw.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE") || raw.contains("No space left") {

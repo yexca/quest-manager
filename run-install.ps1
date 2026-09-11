@@ -67,6 +67,24 @@ Expand-Archive -LiteralPath $questAaptArchive -DestinationPath (Join-Path $Quest
 $questAapt = Join-Path $QuestEnv 'aapt2\aapt2.exe'
 Invoke-QuestCommand -File $questAapt -Arguments @('version')
 
+# APK preparation tools stay private to this project, including Java.
+$questApkTools = Join-Path $QuestEnv 'apk-tools'
+New-Item -ItemType Directory -Path $questApkTools -Force | Out-Null
+$questApktoolArchive = Get-QuestDownload -Url $QuestVersions.apktool.url -Name "apktool-$($QuestVersions.apktool.version).jar" -Sha256 $QuestVersions.apktool.sha256
+Copy-Item -LiteralPath $questApktoolArchive -Destination (Join-Path $questApkTools 'apktool.jar') -Force
+$questJavaArchive = Get-QuestDownload -Url $QuestVersions.jre.url -Name "jre-$($QuestVersions.jre.version).zip" -Sha256 $QuestVersions.jre.sha256
+Expand-Archive -LiteralPath $questJavaArchive -DestinationPath (Join-Path $QuestEnv 'java') -Force
+$questJavaRoot = Join-Path (Join-Path $QuestEnv 'java') $QuestVersions.jre.directory
+New-Item -ItemType Directory -Path (Join-Path $questApkTools 'jre') -Force | Out-Null
+Get-ChildItem -LiteralPath $questJavaRoot | Copy-Item -Destination (Join-Path $questApkTools 'jre') -Recurse -Force
+$questBuildToolsArchive = Get-QuestDownload -Url $QuestVersions.buildTools.url -Name 'build-tools_r37_windows.zip' -Sha256 $QuestVersions.buildTools.sha256
+Expand-Archive -LiteralPath $questBuildToolsArchive -DestinationPath (Join-Path $QuestEnv 'android-build-tools') -Force
+$questAndroidTools = Join-Path $QuestEnv 'android-build-tools\android-37.0'
+foreach ($questToolFile in @('lib\apksigner.jar', 'zipalign.exe', 'libwinpthread-1.dll', 'NOTICE.txt')) {
+    Copy-Item -LiteralPath (Join-Path $questAndroidTools $questToolFile) -Destination $questApkTools -Force
+}
+Invoke-QuestCommand -File (Join-Path $questApkTools 'jre\bin\java.exe') -Arguments @('-jar', (Join-Path $questApkTools 'apktool.jar'), '--version')
+
 if ($RefreshLocks) {
     Write-Host 'Explicitly refreshing dependency lockfiles...'
     Invoke-QuestCommand -File 'npm.cmd' -Arguments @('install', '--package-lock-only', '--ignore-scripts')
@@ -105,6 +123,9 @@ $questRecord = [ordered]@{
     rustup = $questInstalledRustup
     adb = @(& $questAdb version)
     aapt2 = @(& $questAapt version)
+    apktool = $QuestVersions.apktool.version
+    jre = $QuestVersions.jre.version
+    buildTools = $QuestVersions.buildTools.version
     toolchainSha256 = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'toolchain.versions.json')).Hash
     visualStudio = @($questVs | Select-Object displayName,installationVersion)
     msvcToolsets = @(foreach ($questVsInstance in $questVs) {

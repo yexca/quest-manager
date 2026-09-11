@@ -11,7 +11,7 @@ targets Windows x64; native system prerequisites are described in
 | `.\run-install.ps1` | Check system prerequisites, install pinned project tools/packages, and write the local installation record |
 | `.\run-dev.ps1` | Check the installed environment and start Tauri with Vite |
 | `.\run-test.ps1` | Frontend build/typecheck, Rust format check, Clippy, and default Cargo tests |
-| `.\run-build.ps1` | Build the release executable and portable ADB/AAPT2 directories |
+| `.\run-build.ps1` | Build the release executable, portable tools and license |
 | `.\run-build.ps1 -Installer` | Also build the NSIS installer |
 | `.\run-install.ps1 -RefreshLocks` | Intentionally regenerate dependency locks before installation |
 

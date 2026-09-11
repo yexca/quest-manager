@@ -39,6 +39,14 @@ Several selected files create independent tasks; they do not form one split
 installation session. Android enforces signature, version, ABI, and storage
 requirements.
 
+Preparation is an explicit per-APK opt-in. Compatibility mode re-signs a private
+copy with verity disabled; appearance editing rebuilds manifest/resources first.
+Original files are preserved. Verify the output signature, package/version,
+requested name/icon and payload metadata before installation. Never bypass
+Android signature checks or automatically uninstall conflicting packages.
+Signing keys persist separately from artwork and temporary files; see
+[ADR-0005](../decisions/ADR-0005-local-apk-preparation.md).
+
 Uninstallation checks the current third-party package list in the backend.
 Hiding a button for system apps is not the only protection.
 

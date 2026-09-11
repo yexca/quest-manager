@@ -26,3 +26,12 @@
 *.keystore
 adbkey
 adbkey.pub
+keystore-password.txt
+
+# User APKs and install archives; retain only the reviewed synthetic fixture
+*.apk
+*.aab
+*.apks
+*.apkm
+*.xapk
+!/tests/fixtures/verification.apk

@@ -19,7 +19,14 @@ export interface AppDetails {
 }
 export interface FileEntry { name: string; path: string; kind: 'directory' | 'file' | 'symlink' | 'other'; size: number; modifiedAt: number }
 export type TaskKind = 'install' | 'uninstall' | 'upload' | 'download' | 'export' | 'mkdir' | 'rename' | 'delete';
-export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string }
+export interface LocalApk {
+  packageName: string; versionName: string; versionCode: string; size: number;
+  sourceStamp: string; assets: AppAssets; split: boolean; veritySigning: boolean | null;
+}
+export interface InstallOptions {
+  sourceStamp: string; displayName: string | null; iconPng: string | null; compatibility: boolean;
+}
+export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string; installOptions?: InstallOptions }
 export interface Task {
   id: string; device: string; kind: TaskKind; label: string;
   status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled';

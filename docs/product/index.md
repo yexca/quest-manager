@@ -1,7 +1,8 @@
 # Product Behavior
 
 The current product has three pages: Overview, Applications, and Files. Task
-queue and Help & about are shared dialogs accessible from the sidebar.
+queue and Help are shared dialogs accessible from the sidebar. About is a
+separate page for project credits, dependencies, source code and licensing.
 
 Read [Product workflows](workflows.md) for the visible behavior of:
 

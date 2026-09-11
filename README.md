@@ -16,6 +16,7 @@
   <a href="docs/README.md">Documentation</a> ·
   <a href="docs/getting-started.md">Getting Started</a> ·
   <a href="AGENTS.md">Agent Guide</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="PRIVACY.md">Privacy</a>
 </p>
@@ -31,7 +32,8 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
   storage. Group USB and existing Wi-Fi connections when device identity is
   available, with USB preferred by default.
 - **Install from your computer.** Select or drop ordinary APK files, review the
-  target headset, and queue installations or compatible updates.
+  expected name/icon and target headset, and queue installations or compatible
+  updates. Optionally customize the display name/icon or try compatibility signing.
 - **Application management.** Search app names or package IDs, view icons,
   versions, APK sizes and enabled state. Inspect install times, SDK/ABI,
   permissions, splits, signing certificates and VR declarations; export APKs
@@ -105,6 +107,13 @@ General private-app storage access and complete saved-game backups are outside
 the current scope.
 
 Installation does not support XAPK/APKS/APKM archives or split-set installation.
+APK previews work without a headset. **Modify and re-sign APK** creates a private
+copy; appearance changes rebuild resources, while **Compatibility install** can
+re-sign without appearance changes. Prepared copies disable verity signatures to
+address some large-APK verification overflows. Re-signing changes the signing
+identity and may affect updates or game features. Back up local signing keys;
+see [Privacy](PRIVACY.md). Originals are preserved and conflicting installations
+are never automatically uninstalled.
 Compatible APK updates use Android's replace-install behavior; signature,
 downgrade, ABI, or storage failures are reported rather than worked around by
 automatically uninstalling an existing app.
@@ -128,10 +137,10 @@ See [Privacy](PRIVACY.md) for cache locations and retention.
 
 | Project path | Purpose |
 | --- | --- |
-| `env/` | Rust, ADB and AAPT2 tools, npm packages, caches, build output, and local installation records |
+| `env/` | Rust, ADB, AAPT2 and APK preparation tools, npm packages, private local data, caches, build output, and installation records |
 | `node_modules/` | Windows junction pointing to `env/node_modules` |
 | `dist/` | Built frontend assets |
-| `release/` | Portable executable, Platform-Tools, AAPT2, and local build environment record |
+| `release/` | Portable executable, Platform-Tools, AAPT2, APK preparation tools, and local build environment record |
 | `src-tauri/gen/` | Generated Tauri schemas |
 
 These generated locations are ignored by Git. Source code, version manifests,
@@ -148,6 +157,8 @@ layout and [Privacy](PRIVACY.md) before sharing local records.
 | rustup | 1.29.0; fixed archive URL and SHA-256 |
 | Android Platform-Tools | 37.0.1; fixed archive URL and SHA-256 |
 | Android AAPT2 | 9.4.0-15978811 (2.20-15978811); fixed Maven archive URL and SHA-256 |
+| APK preparation | Apktool 3.0.3, Android Build Tools 37.0.0 (apksigner/zipalign), Temurin JRE 21.0.12.1+1; fixed URLs and SHA-256 |
+| APK editing crates | quick-xml 0.42.0, png 0.18.1, getrandom 0.3.4; exact versions in `Cargo.toml` |
 | APK metadata crates | zip 4.6.1, sha2 0.10.9, base64 0.22.1; exact versions in `Cargo.toml` |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
@@ -175,8 +186,8 @@ changing versions.
 ```
 
 The portable executable is `release/quest-manager.exe`. Keep its
-`platform-tools` and `aapt2` directories, DLLs, and license files with it. The optional NSIS
-installer is written under `env/target/release/bundle/nsis`.
+`platform-tools`, `aapt2` and `apk-tools` directories, DLLs, and license files with
+it. The optional NSIS installer is written under `env/target/release/bundle/nsis`.
 
 Review local environment records before distributing build output. See
 [Commit and Release](docs/development/commit-and-release.md) for version
@@ -212,11 +223,17 @@ Development setup, validation, and maintenance procedures live under
 - [Testing](docs/development/testing.md)
 - [Dependencies](docs/development/dependencies.md)
 - [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Agent Guide](AGENTS.md)
 
 Use `run-test.ps1` for the routine frontend and Rust checks. Device integration
 tests are opt-in; read the testing guide before using a connected headset.
 The product UI remains English; the linked Chinese README is documentation.
+
+Bug and feature templates and a pull request checklist are included in `.github`.
+Security reports follow the private reporting procedure in [Security](SECURITY.md).
+Before publishing, use the [release checklist](docs/development/commit-and-release.md)
+and [third-party component index](THIRD_PARTY.md).
 
 ## Security and Privacy
 
@@ -227,3 +244,17 @@ commands for supported operations and has no cloud sync or analytics integration
 Device identifiers, application inventories, paths, and ADB output can appear
 in the interface and diagnostics. Review [Privacy](PRIVACY.md) before sharing
 screenshots or logs, and follow [Security](SECURITY.md) for sensitive reports.
+
+## About and License
+
+Quest Manager was developed by **yexca** using **Codex**, with **GPT-6-Astra** as
+the development model. The **About** page includes the project introduction,
+core tools/frameworks and their pinned versions, source repository and the full
+license. It is available without a headset. Connection guidance remains in **Help**.
+
+Source code: [github.com/yexca/quest-manager](https://github.com/yexca/quest-manager).
+
+Copyright © 2026 yexca. Quest Manager is licensed under the
+[GNU Affero General Public License, version 3 only](LICENSE)
+(`AGPL-3.0-only`), without any warranty. Third-party components retain their own
+licenses; the project license does not replace bundled dependency notices.

@@ -50,6 +50,38 @@ desktop widths, keyboard focus, dialogs, long package/file names, errors, and
 unknown-value states as relevant. The existing preview does not simulate every
 error or a running queue. It cannot validate ADB, native pickers, or real installs.
 
+For About, check sidebar selection, disconnected access, narrow desktop layout,
+manifest version values, the repository link and expandable license text.
+The desktop repository action needs a Windows browser smoke check; it does not
+require a headset or enable device tests.
+
+## Local APK Preparation
+
+Routine tests also use the bundled tools to edit/sign an inert local fixture with
+synthetic compressed game data, Unicode/quoted labels and a generated PNG. They
+verify payload bytes, output appearance, verity absence, stable key reuse and
+source-change rejection, then remove test keys and working copies. No device is
+involved. Invalid icon/options and manifest alias/escaping cases are covered.
+
+To exercise a selected local APK without installing it:
+
+```powershell
+. .\scripts\Environment.ps1
+$env:QUEST_TEST_APK = 'C:\Example\game.apk'
+# Optional: include name/icon rebuilding rather than only compatibility signing.
+$env:QUEST_TEST_APK_EDIT = '1'
+cargo test --locked --manifest-path src-tauri/Cargo.toml local_selected_apk_preparation -- --ignored --nocapture
+```
+
+This test writes only private copies and disposable keys under `env/test-artifacts`
+and cleans them up. It requires preparation disk space and does not contact ADB.
+Tool errors can contain local paths; never commit transcripts.
+
+The explicit preview's Install APK action opens fictional APK reviews. Exercise
+per-file switches, name changes, icon crop/reset, removal and disabled installation
+at supported sizes. Native pickers/IPC and Quest launcher appearance still need
+separate desktop/device checks.
+
 ## Opt-In Device Tests
 
 ```powershell
@@ -71,11 +103,14 @@ cleared after success. No fixture is installed and no device files are changed.
 [device_tests.rs](../../src-tauri/src/device_tests.rs). It uses a unique
 `/sdcard/Download/.quest-manager-test-*` folder and local `env/test-artifacts`,
 then exercises transfer round trips, unusual filenames, collision refusal,
-rename/delete, and fixture APK install/update/export/uninstall. It refuses to
-start if the fixture package already exists. This flag does not separately
+rename/delete, and fixture APK install/update/export/uninstall. It also installs
+and updates a fixture with a modified name/icon, confirms a conflicting signature
+is refused, and exports the surviving app to check its prepared resources.
+Disposable signing keys are removed with the test's local scratch folder. The
+test refuses to start if the fixture package already exists. This flag does not separately
 enable the read-only test; both flags can be supplied when both are needed.
 
-Both tests currently choose the first discovered model containing `Quest` and
+Device tests currently choose the first discovered model containing `Quest` and
 its first ready transport. They have no device-selector flag. Establish that
 this selects the intended authorized test device before opting in. Do not run
 all ignored tests indiscriminately or interpret USB debugging authorization as

@@ -58,6 +58,7 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 - **Overview**：自动发现设备；按设备序列号合并 USB / 已建立的 Wi-Fi 连接；显示 Android 版本、电量和共享存储容量。
 - **Applications**：第三方 / 系统应用列表、名称或包名搜索、图标、版本、APK 大小、启用状态；详情包含安装时间、SDK/ABI、权限、split、签名证书和 VR 声明；选择或拖入普通 APK 安装；兼容签名的覆盖更新；导出全部已安装 APK；卸载第三方应用。
 - **Files**：浏览共享存储；上传文件或整个目录；下载文件或目录；创建目录、重命名、删除；Downloads、Movies、OBB 快捷入口。
+- **安装前预览与编辑**：无需连接头显即可读取本地 APK 的预计名称和图标；可修改显示名称、裁剪替换图标，或开启兼容安装，创建关闭 verity 的重签名副本。
 - **Task queue**：后台串行执行变更任务；显示进度与实际错误；取消排队任务，以及正在进行的上传、下载和 APK 导出。
 
 使用前在 Quest 上启用开发者模式，连接 USB 数据线，并在头显中允许 USB 调试。已有的 ADB Wi-Fi 连接会被自动识别；本版不负责首次配置无线连接。
@@ -68,11 +69,13 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 安装支持普通 `.apk`，暂不支持将 XAPK/APKS/APKM 容器直接安装，也没有批量 split 安装入口。导出 APK 不包含存档。卸载和删除需要界面内确认；正在执行的安装/卸载不能取消。任务记录仅保留当前运行会话，请等待任务完成后再关闭软件。
 
-## 依赖版本与可复现性
+**Modify and re-sign APK** 默认关闭。修改名称或图标会重建资源并包含兼容签名处理；只开启 **Compatibility install** 时不修改外观。兼容处理用于部分大 APK 的签名校验溢出，不能解决所有安装问题。原 APK 保持不变；新签名通常不能覆盖原签名版本，也可能影响依赖签名的游戏功能。程序不会自动卸载冲突应用。每个包名使用稳定的本地密钥，请私下备份整个签名目录；详见[隐私说明](PRIVACY.md)。
 
 应用名称与位图图标通过读取 base APK 的部分数据逐步加载，并优先选择可用的英文名称。自适应、矢量或只存在于 split 的图标可能使用默认图标。APK 大小不包括应用数据、缓存或 OBB；证书指纹不验证发布者身份或 APK 完整性，VR 声明也不保证兼容性。
 
 应用元数据在本地缓存。**Clear cached artwork** 清除磁盘缓存并暂停后台读取；**Load app details** 或刷新后恢复。开发模式缓存位于 `env/cache/app-metadata`，发行版位于 `%LOCALAPPDATA%/dev.questmanager.desktop/app-metadata`。缓存与临时资源不应提交，详见[隐私说明](PRIVACY.md)。
+
+## 依赖版本与可复现性
 
 | 项目 | 固定版本 / 记录位置 |
 | --- | --- |
@@ -83,6 +86,8 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 | rustup | 1.29.0，固定下载地址 + SHA-256 |
 | Android Platform-Tools | 37.0.1，固定下载地址 + SHA-256 |
 | Android AAPT2 | 9.4.0-15978811（2.20-15978811），固定 Maven 下载地址 + SHA-256 |
+| APK 处理工具 | Apktool 3.0.3、Android Build Tools 37.0.0（apksigner/zipalign）、Temurin JRE 21.0.12.1+1；固定下载地址与 SHA-256 |
+| APK 编辑 crates | quick-xml 0.42.0、png 0.18.1、getrandom 0.3.4；精确固定 |
 | APK 元数据 crates | zip 4.6.1、sha2 0.10.9、base64 0.22.1；在 `Cargo.toml` 精确固定 |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
@@ -124,6 +129,8 @@ env/
   npm-cache/             npm 下载缓存
   platform-tools/        adb.exe、所需 DLL、NOTICE 等
   aapt2/                 固定 AAPT2 可执行文件及许可证
+  apk-tools/             Apktool、签名和对齐工具、Java 运行时及许可证
+  local-data/apk-install/ 私有的 APK 工作副本与持久签名密钥，不可分发
   cache/app-metadata/    开发模式的应用名称、图标与声明缓存
   downloads/             校验过的工具安装包
   target/                Rust 编译缓存、测试程序和构建产物
@@ -139,26 +146,30 @@ node_modules/            指向 env/node_modules 的 Windows junction
 ## 构建与测试
 
 ```powershell
-.\run-build.ps1              # 构建 release/quest-manager.exe 和随附 platform-tools、aapt2
+.\run-build.ps1              # 构建 release/quest-manager.exe 和随附 platform-tools、aapt2、apk-tools
 .\run-build.ps1 -Installer   # 另生成 NSIS 安装包；首次可能下载打包工具
 .\run-test.ps1               # 前端构建、Rust 格式、Clippy、单元测试
 .\run-test.ps1 -Device       # 加上已授权 Quest 的只读集成测试
 .\run-test.ps1 -DeviceWrite  # 加上专用目录 + 专用测试 APK 的完整读写集成测试
 ```
 
-便携版运行 `release/quest-manager.exe`，分发时保留随附的 `platform-tools`、`aapt2` 目录、DLL 和许可证文件，并先检查本机构建记录是否适合分享。安装包输出在 `env/target/release/bundle/nsis`；本地构建暂未配置代码签名。详见[构建与发布说明](docs/development/commit-and-release.md)。
+便携版运行 `release/quest-manager.exe`，分发时保留随附的 `platform-tools`、`aapt2`、`apk-tools` 目录、DLL 和许可证文件，并先检查本机构建记录是否适合分享。不要分发本地签名密钥。安装包输出在 `env/target/release/bundle/nsis`；本地构建暂未配置代码签名。详见[构建与发布说明](docs/development/commit-and-release.md)。
 
-`-DeviceWrite` 只在唯一的 `/sdcard/Download/.quest-manager-test-*` 目录操作，并临时安装不含代码、权限或启动入口的 `dev.questmanager.verification` 测试 APK。测试会验证字节一致、特殊文件名、覆盖拒绝、目录重命名/删除、安装/更新/导出/卸载，并清理测试内容；如果该测试包预先存在则拒绝执行。固定的测试 APK、源 manifest 和校验值位于 `tests/fixtures`。
+`-DeviceWrite` 只在唯一的 `/sdcard/Download/.quest-manager-test-*` 目录操作，并临时安装不含代码、权限或启动入口的 `dev.questmanager.verification` 测试 APK。测试会验证字节一致、特殊文件名、覆盖拒绝、目录重命名/删除、原版与改名换图标后的安装/更新/导出/卸载，以及签名冲突后原安装仍保留，并清理测试内容及临时测试密钥；如果该测试包预先存在则拒绝执行。固定的测试 APK、源 manifest 和校验值位于 `tests/fixtures`。
 
 仅检查前端界面可以运行 `npm run dev`，并在浏览器访问 `http://127.0.0.1:1420/?preview=1`。此模式明确显示 **Preview · sample data**，不操作任何设备。实际使用需要桌面版。
 
 ## 项目结构
+
+关于项目：侧栏 **About** 页面无需连接头显即可查看项目介绍、开发声明、核心依赖版本、源码仓库及许可证全文。连接帮助仍位于 **Help**。
 
 ```text
 src/                    英文 React 界面、类型、Tauri IPC 和显式预览数据
 src-tauri/src/adb.rs     设备查询、应用元数据、目录解析、路径校验
 src-tauri/src/metadata.rs 应用详情解析与本地缓存
 src-tauri/src/apk.rs     APK 分段读取、资源解析与证书指纹
+src-tauri/src/apk_edit.rs APK 名称与图标资源重建
+src-tauri/src/apk_install.rs 私有副本、对齐、签名和校验
 src-tauri/src/tasks.rs   后台队列、进度、取消、安装/传输/变更任务
 src-tauri/src/lib.rs     Tauri IPC 命令与启动
 src-tauri/src/device_tests.rs
@@ -172,3 +183,19 @@ run-test.ps1             验证入口
 ```
 
 界面通过明确的业务命令调用 Rust，不接受任意 shell 命令。Rust 使用独立参数启动官方 ADB；远端路径经过共享存储范围校验与 shell 转义。任务以事件向界面同步，并保留查询接口以补足初始状态。应用会复用 ADB 默认服务，不主动执行 `kill-server`。
+
+## 参与贡献与安全报告
+
+欢迎提交问题报告、文档改进和代码贡献。请先阅读[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[测试说明](docs/development/testing.md)。Issue 可以使用中文或英文；产品界面仍使用英文。仓库包含 Bug、功能建议和 PR 模板。
+
+疑似安全漏洞请按照 [Security](SECURITY.md) 中的私密报告流程处理，不要在公开 Issue 中贴出漏洞细节、个人 APK、设备信息或签名密钥。GitHub 的私密漏洞报告功能需要仓库所有者单独启用。
+
+推送源码与分发二进制是两个检查阶段。发布前请核对[提交与发布清单](docs/development/commit-and-release.md)以及[第三方组件与素材说明](THIRD_PARTY.md)，保留依赖的许可证与声明文件。
+
+## 项目声明与许可证
+
+本程序由 **yexca** 使用 **Codex** 进行开发，开发模型为 **GPT-6-Astra**。
+
+源代码仓库：[github.com/yexca/quest-manager](https://github.com/yexca/quest-manager)。
+
+Copyright © 2026 yexca。本项目使用 [GNU Affero General Public License 第 3 版](LICENSE)（仅限第 3 版，`AGPL-3.0-only`），不提供任何担保。第三方依赖保留各自许可证，项目许可证不替代依赖附带的许可与声明文件。

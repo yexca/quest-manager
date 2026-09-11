@@ -14,7 +14,7 @@ svg { flex-shrink: 0; }
 input[type='checkbox'] { accent-color: #2b6249; width: 15px; height: 15px; margin: 0; cursor: pointer; }
 button { transition: background .15s, border-color .15s, box-shadow .15s; }
 .app-shell { display: flex; height: 100vh; min-height: 600px; overflow: hidden; }
-.sidebar { width: 222px; flex: 0 0 222px; padding: 35px 19px 18px; background: #192e25; color: #b9c8be; display: flex; flex-direction: column; }
+.sidebar { width: 222px; flex: 0 0 222px; padding: 35px 19px 18px; background: #192e25; color: #b9c8be; display: flex; flex-direction: column; overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 9px; color: #f7faf4; font-size: 23px; font-weight: 650; letter-spacing: -.7px; line-height: 1; width: max-content; }
 .brand-icon { display: flex; width: 35px; height: 39px; align-items: center; justify-content: center; color: #d7edb3; }
 .brand-secondary { display: block; text-transform: uppercase; font-size: 8px; font-weight: 500; color: #a6baa9; letter-spacing: 4px; margin-top: 6px; }
@@ -38,6 +38,7 @@ nav { display: grid; gap: 6px; }
 .sidebar-storage p { font-size: 10px; color: #8fa48b; margin-top: 8px; }
 .sidebar-utility { display: flex; align-items: center; width: 100%; gap: 10px; border: 0; background: transparent; padding: 11px 13px; color: #a3b5a4; font-size: 12px; border-radius: 7px; }
 .sidebar-utility:hover { background: #273d2f; color: #eaf2e3; }
+.sidebar-utility.selected { background: #344b3b; color: #eff6e9; }
 .sidebar-utility small { margin-left: auto; font-size: 9px; color: #7e947e; }
 .queue-count { margin-left: auto; background: #cae6a6; color: #233925; min-width: 18px; border-radius: 6px; font-size: 10px; padding: 2px 4px; }
 .sidebar-footer { border-top: 1px solid #35493a; margin: 20px 11px 0; padding-top: 18px; display: flex; align-items: center; gap: 8px; color: #90a38f; font-size: 10px; }
@@ -188,6 +189,44 @@ tbody tr:hover { background: #fcfdf9; }
 .danger-text { color: #b47d6c; }
 .modal { width: min(540px, calc(100vw - 60px)); max-height: 85vh; overflow: auto; border: 1px solid #dfe7d5; border-radius: 14px; box-shadow: 0 25px 90px #19321938; padding: 25px; color: #405b34; background: #fff; }
 .modal.wide { width: min(740px, calc(100vw - 60px)); }
+.modal.wide:has(.install-review) { width: min(980px, calc(100vw - 60px)); }
+.install-review { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: start; }
+.apk-picker { display: grid; gap: 7px; max-height: 420px; overflow: auto; }
+.apk-picker > div { display: flex; align-items: center; border: 1px solid #e4e9dd; border-radius: 9px; background: #fafbf7; }
+.apk-picker > div.selected { border-color: #688b57; background: #f0f5e9; }
+.apk-select { display: flex; align-items: center; gap: 9px; padding: 13px 9px; min-width: 0; flex: 1; text-align: left; background: none; border: 0; font-size: 12px; }
+.apk-select > span { min-width: 0; overflow-wrap: anywhere; }
+.apk-select small { display: block; color: #73836a; font-size: 10px; margin-top: 5px; }
+.modified-dot { width: 6px; height: 6px; background: #49753a; border-radius: 50%; flex-shrink: 0; }
+.apk-editor { min-width: 0; }
+.apk-preview { display: flex; align-items: center; gap: 17px; padding: 15px; border-radius: 10px; background: #f4f6f0; margin-bottom: 13px; }
+.apk-preview > div:last-child { min-width: 0; }
+.apk-preview h3 { margin: 5px 0; font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.apk-preview code { font-size: 11px; overflow-wrap: anywhere; color: #697b5e; }
+.apk-preview p { font-size: 11px; color: #73836a; margin-top: 7px; }
+.apk-art { display: grid; place-items: center; width: 76px; height: 76px; flex-shrink: 0; color: #69865b; border-radius: 17px; background: #dfe8d6; overflow: hidden; }
+.apk-art img { width: 100%; height: 100%; object-fit: contain; }
+.apk-switch { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 17px 0 10px; }
+.apk-switch input { flex-shrink: 0; margin-top: 3px; }
+.apk-switch strong { font-size: 13px; font-weight: 600; }
+.apk-switch small { display: block; margin-top: 5px; color: #6e7f62; font-size: 11px; line-height: 1.65; }
+.apk-note { font-size: 11px; line-height: 1.65; color: #6e7f62; margin: 8px 0; overflow-wrap: anywhere; }
+.install-notice { display: flex; align-items: flex-start; gap: 8px; border: 1px solid #e6d5a4; border-radius: 8px; background: #fff9e8; color: #7d642c; font-size: 11px; line-height: 1.7; padding: 10px 12px; margin: 12px 0; }
+.install-notice svg { margin-top: 3px; }
+.apk-modifications { border-top: 1px solid #e6ebdf; padding-top: 3px; }
+.apk-name { display: grid; gap: 7px; font-size: 12px; margin-top: 17px; }
+.apk-name input { width: 100%; background: #fff; color: #263b32; border: 1px solid #c9d5bf; border-radius: 7px; padding: 10px 12px; }
+.apk-image-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 13px 0; }
+.apk-image-actions label { position: relative; overflow: hidden; cursor: pointer; }
+.apk-image-actions input[type=file] { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.apk-image-actions label:focus-within { outline: 2px solid #4a896d; outline-offset: 3px; }
+.apk-compatibility { border-top: 1px solid #e6ebdf; margin-top: 17px; }
+.apk-footer-note { margin-right: auto; font-size: 11px; color: #748567; }
+.icon-crop { display: flex; gap: 14px; border: 1px solid #e4e9dd; padding: 12px; border-radius: 8px; }
+.icon-crop canvas { width: 130px; height: 130px; background: #eff2e9; flex-shrink: 0; }
+.icon-crop > div { display: grid; gap: 7px; flex: 1; }
+.icon-crop label { display: grid; gap: 3px; font-size: 10px; }
+.icon-crop input { width: 100%; }
 .modal::backdrop { background: #122b2366; backdrop-filter: blur(3px); }
 .modal-title { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 15px; }
 .modal h2 { font-size: 18px; font-weight: 550; letter-spacing: -.3px; overflow-wrap: anywhere; }
@@ -286,6 +325,35 @@ th { font-size: 10px; color: #748568; }
 .muted { color: #738464; }
 .date-cell { font-size: 11px; }
 .help-section p { color: #758966; font-size: 12px; }
+.about-page { display: grid; gap: 20px; max-width: 1080px; padding-bottom: 18px; }
+.about-intro { display: flex; align-items: center; gap: 24px; padding: 28px; background: #edf3e8; }
+.about-intro img { flex-shrink: 0; border-radius: 21px; }
+.about-intro h2 { margin: 9px 0 12px; font-size: 23px; font-weight: 600; letter-spacing: -.5px; }
+.about-version { color: #59704c; font-size: 11px; }
+.about-page p { font-size: 13px; line-height: 1.8; color: #617357; }
+.about-page p + p { margin-top: 10px; }
+.about-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.about-card { padding: 24px; min-width: 0; }
+.about-card h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+.about-card h2 svg { color: #628052; }
+.about-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 0; }
+.about-facts dt { color: #75866b; font-size: 11px; }
+.about-facts dd { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+.about-repository { display: inline-flex; align-items: center; gap: 8px; color: #2d5942; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; overflow-wrap: anywhere; margin: 16px 0 8px; }
+.about-repository:hover { color: #507c3c; }
+.about-page .about-caption { font-size: 11px; color: #748469; }
+.about-dependencies { width: 100%; table-layout: fixed; margin: 18px 0 14px; border-collapse: collapse; }
+.about-dependencies th, .about-dependencies td { padding: 12px 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; white-space: normal; }
+.about-dependencies thead th { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; }
+.about-dependencies th:first-child { width: 26%; }
+.about-dependencies th:nth-child(2) { width: 24%; }
+.about-dependencies tbody th { font-size: 12px; font-weight: 600; color: #405b34; border-bottom: 1px solid #edf1e6; }
+.about-dependencies tbody td { font-size: 12px; line-height: 1.6; }
+.about-license { margin-top: 18px; border-top: 1px solid #e4e9dd; padding-top: 16px; }
+.about-license summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.about-license pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; background: #f6f8f2; border: 1px solid #e4e9dd; border-radius: 8px; padding: 18px; font-size: 11px; line-height: 1.65; color: #40533a; }
+@media (max-width: 1100px) { .about-info-grid { grid-template-columns: 1fr; } .about-intro { align-items: flex-start; padding: 22px; } }
+@media (max-height: 780px) { .sidebar { padding-top: 24px; } .sidebar-label { margin-top: 28px; } .sidebar-bottom { padding-top: 18px; } .sidebar-storage { padding-top: 13px; padding-bottom: 13px; margin-bottom: 12px; } .sidebar-footer { margin-top: 12px; padding-top: 12px; } }
 .modal-description { color: #748567; }
 .task-copy p { color: #7b8e6b; }
 @keyframes spin { to { transform: rotate(360deg); } }

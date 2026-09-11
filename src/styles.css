@@ -362,3 +362,6 @@ th { font-size: 10px; color: #748568; }
 @media (min-width: 1500px) { main { padding-left: max(40px, calc((100% - 1150px) / 2)); padding-right: max(40px, calc((100% - 1150px) / 2)); } }
 @media (max-width: 1130px) { .sidebar { width: 197px; flex-basis: 197px; padding-left: 13px; padding-right: 13px; } main { padding: 28px 25px 20px; }.topbar { padding: 0 25px; }.headset { right: -40px; width: 310px; }.hero-device-picker select { max-width: 166px; }.stat { padding: 16px; }.quick-card { padding: 16px 13px; gap: 10px; }.quick-card small { font-size: 9px; }.hero-art { min-width: 225px; }.file-toolbar { flex-wrap: wrap; }.file-toolbar .search-field { max-width: none; }.app-table td, .app-table th { padding-left: 13px; padding-right: 13px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+.task-target { display: block; margin-top: 5px; font-size: 10px; color: #6b8159; overflow-wrap: anywhere; }
+.queue-toolbar { display: flex; justify-content: flex-end; margin: 12px 0 4px; }

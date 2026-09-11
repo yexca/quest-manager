@@ -11,7 +11,7 @@ only mirror the implementation or prove that documentation text exists.
 ```
 
 The script checks the installed environment, builds/typechecks the frontend,
-runs `cargo fmt --check`, runs Clippy for all targets with warnings denied, and
+runs Node's built-in frontend logic tests, `cargo fmt --check`, Clippy for all targets with warnings denied, and
 runs locked Cargo tests. It does not enable ignored device integration tests.
 
 The unit tests cover remote path boundaries, shell quoting, directory parsing,
@@ -24,10 +24,13 @@ cache invalidation, resource size limits, image-type filtering, and real AAPT2
 label/signing parsing against the existing inert fixture. Test output remains
 synthetic; the fixture is not installed for these routine tests.
 
-There is no configured JavaScript unit-test, browser E2E, or documentation-test
-runner. Do not report frontend behavior coverage from `tsc` alone. If a future
-change needs such a harness, add it deliberately with pinned dependencies and
-a documented command.
+Frontend logic regressions use the pinned system Node's built-in test runner,
+without additional dependencies: `node --test tests/frontend/taskState.test.ts`.
+They cover stream registration/disposal, overlapping events and snapshots,
+revision ordering, clearing, device changes and batched refresh policy. Rust
+tests cover the authoritative exit guard, terminal-only clearing and revisions.
+There is no browser E2E or documentation-test runner. These logic tests do not
+replace rendered React or native-window inspection; `tsc` alone is not behavior coverage.
 
 | Change | Appropriate starting point |
 | --- | --- |
@@ -47,8 +50,12 @@ files, so include new files in link and privacy review separately.
 After installation, start `npm run dev` and open
 [preview](http://127.0.0.1:1420/?preview=1). Check the changed page at supported
 desktop widths, keyboard focus, dialogs, long package/file names, errors, and
-unknown-value states as relevant. The existing preview does not simulate every
-error or a running queue. It cannot validate ADB, native pickers, or real installs.
+unknown-value states as relevant. The preview includes fixed sample task states
+but does not execute tasks or simulate every error. It cannot validate ADB,
+native pickers, or real installs. Check target labels, disabled preview task
+actions, and queue dialog keyboard navigation. Native close interception still
+needs a desktop smoke check with authorized work; do not start device tasks
+solely for a preview review.
 
 For About, check sidebar selection, disconnected access, narrow desktop layout,
 manifest version values, the repository link and expandable license text.

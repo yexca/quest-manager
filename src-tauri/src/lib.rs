@@ -8,7 +8,7 @@ mod tasks;
 use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
 use metadata::{AppDetails, MetadataService};
 use tasks::{TaskManager, TaskRequest, TaskSnapshot};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[tauri::command]
 async fn open_project_repository() -> Result<(), String> {
@@ -107,6 +107,17 @@ fn list_tasks(tasks: tauri::State<'_, TaskManager>) -> Vec<TaskSnapshot> {
 }
 
 #[tauri::command]
+fn clear_completed_tasks(tasks: tauri::State<'_, TaskManager>) -> Vec<String> {
+    tasks.clear_completed()
+}
+
+// Called only by the explicit exit confirmation, never by a task event.
+#[tauri::command]
+fn exit_with_active_tasks(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn cancel_task(tasks: tauri::State<'_, TaskManager>, id: String) -> Result<(), String> {
     tasks.cancel(&id)
 }
@@ -114,6 +125,14 @@ fn cancel_task(tasks: tauri::State<'_, TaskManager>, id: String) -> Result<(), S
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.state::<TaskManager>().has_active()
+            {
+                api.prevent_close();
+                let _ = window.emit("app-close-blocked", ());
+            }
+        })
         .setup(|app| {
             let resource_adb = app.path().resource_dir()?.join("platform-tools/adb.exe");
             let adb_path = if cfg!(debug_assertions) {
@@ -158,6 +177,8 @@ pub fn run() {
             list_files,
             start_task,
             list_tasks,
+            clear_completed_tasks,
+            exit_with_active_tasks,
             cancel_task
         ])
         .run(tauri::generate_context!())

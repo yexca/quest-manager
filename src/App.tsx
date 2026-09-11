@@ -7,6 +7,9 @@ import { api, isDesktop, isPreview } from './api';
 import { AppIcon, ApplicationDetails, formatBytes } from './AppMetadata';
 import { InstallReview } from './InstallReview';
 import { About, appVersion } from './About';
+import { useDeviceDiscovery } from './useDeviceDiscovery';
+import { useTaskQueue } from './useTaskQueue';
+import { isActiveTask as active } from './taskState';
 import appLogo from '../src-tauri/icons/icon.png';
 import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
 
@@ -15,7 +18,6 @@ type ConfirmAction = { title: string; description: string; action: string; dange
 type NameAction = { title: string; initial: string; run: (name: string) => Promise<void> };
 const pageNames: Record<Page, string> = { overview: 'Overview', apps: 'Applications', files: 'Files', about: 'About' };
 const ErrorContext = createContext<string | null>(null);
-const active = (task: Task) => task.status === 'queued' || task.status === 'running';
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 function bytes(value: number, digits = 1) {
   if (value === 0) return '0 B';
@@ -75,19 +77,20 @@ function FileIcon({ file, size = 20 }: { file: FileEntry; size?: number }) {
   return <File size={size} />;
 }
 
-function TaskRow({ task, cancel }: { task: Task; cancel: (id: string) => void }) {
+function TaskRow({ task, devices, cancel }: { task: Task; devices: Device[]; cancel: (id: string) => void }) {
   const cancellable = task.status === 'queued' || (task.status === 'running' && ['upload', 'download', 'export'].includes(task.kind));
+  const device = devices.find(device => device.transports.some(transport => transport.serial === task.device));
+  const transport = device?.transports.find(transport => transport.serial === task.device);
   return <div className={`task-row task-${task.status}`}>
     <div className="task-icon">{task.status === 'success' ? <CheckCircle2 size={20} /> : task.status === 'failed' ? <XCircle size={20} /> : task.status === 'running' ? <LoaderCircle size={20} className="spin" /> : <Clock3 size={20} />}</div>
-    <div className="task-copy"><strong>{task.label}</strong><p>{task.detail}</p>{task.status === 'running' && <div className={`progress-track ${task.progress === null ? 'indeterminate' : ''}`}><span style={{ width: `${task.progress ?? 38}%` }} /></div>}</div>
+    <div className="task-copy"><strong>{task.label}</strong><small className="task-target">Target: {device ? `${device.model} · ${transport?.kind === 'usb' ? 'USB' : 'Wi-Fi'} · ` : ''}{task.device}</small><p>{task.detail}</p>{task.status === 'running' && <div className={`progress-track ${task.progress === null ? 'indeterminate' : ''}`}><span style={{ width: `${task.progress ?? 38}%` }} /></div>}</div>
     <div className="task-status">{task.status === 'running' && task.progress !== null ? `${Math.round(task.progress)}%` : task.status}</div>
-    {cancellable && <IconButton label={`Cancel ${task.label}`} onClick={() => cancel(task.id)}><X size={16} /></IconButton>}
+    {cancellable && <IconButton label={`Cancel ${task.label}`} disabled={!isDesktop} onClick={() => cancel(task.id)}><X size={16} /></IconButton>}
   </div>;
 }
 
 export default function App() {
   const [page, setPage] = useState<Page>('overview');
-  const [devices, setDevices] = useState<Device[]>([]);
   const [deviceId, setDeviceId] = useState('');
   const [preferredTransport, setPreferredTransport] = useState('');
   const [info, setInfo] = useState<DeviceInfo | null>(null);
@@ -99,8 +102,8 @@ export default function App() {
   const [fileQuery, setFileQuery] = useState('');
   const [includeSystem, setIncludeSystem] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [showTasks, setShowTasks] = useState(false);
+  const [exitBlocked, setExitBlocked] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [installPaths, setInstallPaths] = useState<string[] | null>(null);
   const [installing, setInstalling] = useState(false);
@@ -119,59 +122,60 @@ export default function App() {
   const appListTransport = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingApps, setLoadingApps] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const polling = useRef(false);
+  const fail = useCallback((cause: unknown) => setError(errorText(cause)), []);
+  const { devices, loadingDevices } = useDeviceDiscovery(refreshToken, fail);
   const selectedDevice = devices.find(d => d.id === deviceId) ?? devices[0];
   const transport = selectedDevice?.transports.find(t => t.serial === preferredTransport && t.state === 'device') ?? selectedDevice?.transports.find(t => t.state === 'device');
   const serial = transport?.serial ?? '';
   const ready = Boolean(serial);
   const canWrite = ready && isDesktop;
+  const { tasks, versions, start: startTask, clearCompleted, clearing } = useTaskQueue(selectedDevice?.transports.map(transport => transport.serial) ?? [], fail);
   const running = tasks.filter(active).length;
   const orderedTasks = useMemo(() => [...tasks].sort((a, b) => b.createdAt - a.createdAt), [tasks]);
   const userApps = apps.filter(app => !app.system);
   const visibleApps = apps.filter(app => `${app.packageName} ${appMetadata[app.packageName]?.assets.displayName ?? ''}`.toLowerCase().includes(query.toLowerCase()));
   const visibleFiles = files.filter(file => file.name.toLowerCase().includes(fileQuery.toLowerCase()));
   const chosenFiles = files.filter(file => selected.has(file.path));
-  const fail = useCallback((cause: unknown) => setError(errorText(cause)), []);
+  const inspectedMetadata = inspecting ? appMetadata[inspecting.packageName] : undefined;
   const refresh = () => setRefreshToken(token => token + 1);
 
-  const loadDevices = useCallback(async (quiet = false) => {
-    if (polling.current) return;
-    polling.current = true;
-    if (!quiet) setLoadingDevices(true);
-    try { setDevices(await api.devices()); } catch (cause) { fail(cause); } finally { polling.current = false; setLoadingDevices(false); }
+  useEffect(() => {
+    if (!isDesktop) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen('app-close-blocked', () => { if (!disposed) setExitBlocked(true); })
+      .then(stop => { if (disposed) stop(); else unlisten = stop; }).catch(fail);
+    return () => { disposed = true; unlisten?.(); };
   }, [fail]);
 
-  useEffect(() => {
-    void loadDevices();
-    const timer = setInterval(() => { void loadDevices(true); }, 15000);
-    return () => clearInterval(timer);
-  }, [loadDevices, refreshToken]);
+  useEffect(() => { setInfo(null); }, [serial]);
 
   useEffect(() => {
     let alive = true;
-    setInfo(null);
     if (!serial) return;
     const load = () => api.info(serial).then(value => { if (alive) setInfo(value); }).catch(cause => { if (alive) fail(cause); });
     void load();
     const timer = setInterval(() => { void load(); }, 30000);
     return () => { alive = false; clearInterval(timer); };
-  }, [serial, refreshToken, fail]);
+  }, [serial, refreshToken, versions.info, fail]);
 
   useEffect(() => {
-    let alive = true;
     setApps([]);
     appListTransport.current = '';
     setAppMetadata({}); setMetadataErrors({}); setMetadataPaused(false);
     setInspecting(null); setDetails(null); detailsRequest.current += 1;
-    if (!serial) return;
+  }, [serial, includeSystem, refreshToken]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!serial) { setLoadingApps(false); return; }
     setLoadingApps(true);
     void api.apps(serial, includeSystem).then(value => { if (alive) { appListTransport.current = serial; setApps(value); } }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingApps(false); });
     return () => { alive = false; };
-  }, [serial, includeSystem, refreshToken, fail]);
+  }, [serial, includeSystem, refreshToken, versions.apps, fail]);
 
   useEffect(() => {
     let alive = true;
@@ -191,32 +195,30 @@ export default function App() {
   }, [serial, page, apps, metadataPaused]);
 
   useEffect(() => {
-    let alive = true;
-    setFiles([]); setSelected(new Set());
-    if (!serial || page !== 'files') return;
-    setLoadingFiles(true);
-    void api.files(serial, path).then(value => { if (alive) setFiles(value); }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingFiles(false); });
-    return () => { alive = false; };
-  }, [serial, path, page, refreshToken, fail]);
-
-  const mergeTask = useCallback((task: Task) => {
-    setTasks(previous => [...previous.filter(t => t.id !== task.id), task]);
-    if (task.status === 'success') setRefreshToken(token => token + 1);
-  }, []);
+    if (!inspecting || loadingApps || appListTransport.current !== serial) return;
+    if (!apps.some(app => app.packageName === inspecting.packageName)) {
+      setDetailsError('This application is no longer in the current app list.');
+      return;
+    }
+  }, [apps, inspecting, loadingApps, serial]);
 
   useEffect(() => {
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-    if (!isDesktop && !isPreview) return;
-    if (isDesktop) void listen<Task>('task-updated', event => { if (!disposed) mergeTask(event.payload); }).then(stop => { if (disposed) stop(); else unlisten = stop; }).catch(fail);
-    void api.tasks().then(value => { if (!disposed) setTasks(current => [...value.filter(t => !current.some(c => c.id === t.id)), ...current]); }).catch(fail);
-    return () => { disposed = true; unlisten?.(); };
-  }, [mergeTask, fail]);
+    if (inspectedMetadata) { setDetails(inspectedMetadata); setDetailsError(null); }
+  }, [inspectedMetadata]);
+
+  useEffect(() => { setFiles([]); setSelected(new Set()); }, [serial, path]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!serial || page !== 'files') { setLoadingFiles(false); return; }
+    setLoadingFiles(true);
+    void api.files(serial, path).then(value => { if (alive) { setFiles(value); setSelected(current => new Set([...current].filter(path => value.some(file => file.path === path)))); } }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingFiles(false); });
+    return () => { alive = false; };
+  }, [serial, path, page, refreshToken, versions.files, fail]);
 
   const queue = async (request: Omit<TaskRequest, 'device'>, target = serial) => {
     if (!target) throw new Error('Connect and authorize a headset first.');
-    const task = await api.start({ ...request, device: target });
-    setTasks(previous => previous.some(t => t.id === task.id) ? previous : [...previous, task]);
+    await startTask({ ...request, device: target });
     setShowTasks(true);
   };
 
@@ -332,7 +334,7 @@ export default function App() {
             <div className="stats-grid"><div className="stat card"><div className="stat-heading"><span>Installed apps</span><span className="stat-icon lilac"><AppWindow size={18} /></span></div><div className="stat-value">{loadingApps ? '—' : userApps.length}<span>apps</span></div><button className="text-button" onClick={() => choosePage('apps')}>Manage applications<ArrowRight size={14} /></button></div><div className="stat card"><div className="stat-heading"><span>Available storage</span><span className="stat-icon peach"><HardDrive size={18} /></span></div><div className="stat-value">{info ? bytes(info.storageAvailable).split(' ')[0] : '—'}<span>{info ? bytes(info.storageAvailable).split(' ')[1] : 'GB'}</span></div><div className="storage-foot"><div className={`storage-meter ${storageRatio > .9 ? 'low-space' : ''}`}><span style={{ width: `${storageRatio * 100}%` }} /></div><span>{Math.round(storageRatio * 100)}% used</span></div></div><div className="stat card"><div className="stat-heading"><span>Battery level</span><span className="stat-icon mint"><BatteryCharging size={19} /></span></div><div className="stat-value">{info?.batteryLevel ?? '—'}<span>%</span></div><p className="stat-note"><span className="status-dot online" />{info?.charging ? 'Connected to power' : 'Running on battery'}</p></div></div>
             <div className="section-heading"><h2>Make yourself at home</h2><span>The essentials, one click away</span></div>
             <div className="quick-grid"><button className="quick-card card" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><span className="quick-icon"><Package size={24} /></span><span><strong>Something new to play</strong><small>Choose an APK from your computer</small></span><ArrowRight size={18} /></button><button className="quick-card card" onClick={() => goToFolder('/sdcard')}><span className="quick-icon"><FolderOpen size={24} /></span><span><strong>A place for every file</strong><small>Browse, transfer and organize</small></span><ArrowRight size={18} /></button></div>
-            <section className="activity card"><div className="section-heading"><h2><Activity size={18} />Recent activity</h2><button className="text-button" onClick={() => setShowTasks(true)}>View all<ArrowRight size={14} /></button></div>{orderedTasks.length ? orderedTasks.slice(0, 3).map(task => <TaskRow key={task.id} task={task} cancel={cancelTask} />) : <div className="activity-empty"><span><Check size={18} /></span><div><strong>All clear. Ready when you are.</strong><p>Your installs and transfers will appear here.</p></div><span className="quiet-label">A fresh start</span></div>}</section>
+            <section className="activity card"><div className="section-heading"><h2><Activity size={18} />Recent activity</h2><button className="text-button" onClick={() => setShowTasks(true)}>View all<ArrowRight size={14} /></button></div>{orderedTasks.length ? orderedTasks.slice(0, 3).map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="activity-empty"><span><Check size={18} /></span><div><strong>All clear. Ready when you are.</strong><p>Your installs and transfers will appear here.</p></div><span className="quiet-label">A fresh start</span></div>}</section>
           </>}
 
           {page === 'apps' && <section className="card list-card">
@@ -361,7 +363,7 @@ export default function App() {
       </main>
     </div>
 
-    {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}
+    {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="queue-toolbar"><button className="button secondary small" disabled={!isDesktop || clearing || !tasks.some(task => !active(task))} onClick={() => void clearCompleted()}>{clearing ? 'Clearing…' : 'Clear completed'}</button></div><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}
     {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} canInstall={canWrite} onQueue={request => queue(request, serial)} onClose={() => setInstallPaths(null)} onBusy={setInstalling} /></Modal>}
     {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}><p className="modal-description preserve-lines">{confirmAction.description}</p><div className="modal-actions"><button className="button secondary" disabled={confirming} onClick={() => setConfirmAction(null)}>Cancel</button><button className={`button ${confirmAction.danger ? 'danger' : 'primary'}`} disabled={confirming} onClick={() => { setConfirming(true); void confirmAction.run().then(() => setConfirmAction(null)).catch(fail).finally(() => setConfirming(false)); }}>{confirming ? 'Queuing…' : confirmAction.action}</button></div></Modal>}
     {nameAction && <NameDialog action={nameAction} onClose={() => setNameAction(null)} onError={fail} />}
@@ -369,5 +371,6 @@ export default function App() {
     {showHelp && <Modal title="A little help getting connected" onClose={() => setShowHelp(false)}><div className="help-section"><Usb size={21} /><div><h3>Connect your headset</h3><p>Enable developer mode for your Quest. Connect a USB data cable, put on the headset and allow USB debugging.</p></div></div><div className="help-section"><Wifi size={21} /><div><h3>Already connected over Wi-Fi?</h3><p>Existing ADB Wi-Fi connections appear automatically. When both connections are available, USB is selected by default.</p></div></div><div className="help-section"><HardDrive size={21} /><div><h3>Know your storage</h3><p>Files manages shared storage, including accessible Android/data and Android/obb folders. Access depends on the headset's permissions.</p></div></div><div className="help-section"><Package size={21} /><div><h3>Install and transfer</h3><p>Drop APK files into this window to install them. Other files and folders can be dropped into File explorer. Existing files are never silently replaced.</p></div></div><div className="help-section"><ShieldCheck size={21} /><div><h3>Local APK signing keys</h3><p>Modified APKs use a stable key for each application. Back up the entire signing-keys folder, including its password files. In development it is in env/local-data/apk-install; in the installed app it is in %LOCALAPPDATA%/dev.questmanager.desktop/apk-install. Keep backups private. Clearing artwork does not delete keys. Restoring the same keys allows compatible modified updates; losing them can prevent updates without reinstalling.</p></div></div><div className="about-footer">Quest Manager {appVersion}<span>Tauri 2 · Local ADB connection</span></div></Modal>}
     {dragging && <div className="drop-overlay"><div><ArrowUpFromLine size={45} /><h2>Drop it here</h2><p>APKs install on your headset. Other files upload to the open folder.</p></div></div>}
     {running > 0 && !showTasks && <button className="floating-queue" onClick={() => setShowTasks(true)}><LoaderCircle size={17} className="spin" />{running} task{running > 1 ? 's' : ''} in progress<ChevronRight size={16} /></button>}
+    {exitBlocked && <Modal title="Tasks are still running" onClose={() => setExitBlocked(false)}><p className="modal-description">Wait for queued and running tasks to finish before closing Quest Manager. Exiting now can interrupt work and leave temporary files. Tasks cannot resume after restart, and changes already made are not undone.</p><div className="modal-actions"><button className="button danger" onClick={() => void api.exitWithActiveTasks().catch(fail)}>Exit anyway</button><button autoFocus className="button primary" onClick={() => setExitBlocked(false)}>Keep waiting</button></div></Modal>}
   </div></ErrorContext.Provider>;
 }

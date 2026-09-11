@@ -47,6 +47,7 @@ pub struct TaskRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TaskSnapshot {
     pub id: String,
+    pub revision: u64,
     pub device: String,
     pub kind: TaskKind,
     pub label: String,
@@ -101,6 +102,27 @@ impl TaskManager {
             .collect()
     }
 
+    pub fn has_active(&self) -> bool {
+        self.inner
+            .records
+            .lock()
+            .unwrap()
+            .values()
+            .any(|record| matches!(record.snapshot.status.as_str(), "queued" | "running"))
+    }
+
+    pub fn clear_completed(&self) -> Vec<String> {
+        let mut removed = Vec::new();
+        self.inner.records.lock().unwrap().retain(|id, record| {
+            let active = matches!(record.snapshot.status.as_str(), "queued" | "running");
+            if !active {
+                removed.push(id.clone());
+            }
+            active
+        });
+        removed
+    }
+
     fn update(
         &self,
         emit: &TaskEmitter,
@@ -114,6 +136,7 @@ impl TaskManager {
             let Some(record) = records.get_mut(id) else {
                 return;
             };
+            record.snapshot.revision += 1;
             if let Some(status) = status {
                 record.snapshot.status = status.into();
             }
@@ -176,6 +199,7 @@ impl TaskManager {
         let label = task_label(&request);
         let snapshot = TaskSnapshot {
             id: id.clone(),
+            revision: 0,
             device: request.device.clone(),
             kind: request.kind,
             label,
@@ -746,6 +770,96 @@ mod device_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn insert_snapshot(manager: &TaskManager, id: &str, status: &str) {
+        manager.inner.records.lock().unwrap().insert(
+            id.into(),
+            TaskRecord {
+                snapshot: TaskSnapshot {
+                    id: id.into(),
+                    revision: 0,
+                    device: "DEMO-USB-001".into(),
+                    kind: TaskKind::Upload,
+                    label: "Upload example.txt".into(),
+                    status: status.into(),
+                    detail: String::new(),
+                    progress: None,
+                    created_at: 1,
+                },
+                cancelled: Arc::new(AtomicBool::new(false)),
+            },
+        );
+    }
+
+    #[test]
+    fn exit_guard_and_clearing_use_authoritative_task_states() {
+        let manager = TaskManager::new();
+        assert!(!manager.has_active());
+        for status in ["queued", "running", "success", "failed", "cancelled"] {
+            insert_snapshot(&manager, status, status);
+        }
+        assert!(manager.has_active());
+        assert_eq!(
+            manager.clear_completed(),
+            vec!["cancelled", "failed", "success"]
+        );
+        assert_eq!(manager.snapshots().len(), 2);
+        assert!(manager.has_active());
+        // Clearing does not cancel queued or running work.
+        assert!(
+            manager
+                .inner
+                .records
+                .lock()
+                .unwrap()
+                .values()
+                .all(|r| !r.cancelled.load(Ordering::Relaxed))
+        );
+        let emit: TaskEmitter = Arc::new(|_| {});
+        manager.update(&emit, "queued", Some("cancelled"), "Cancelled", None);
+        assert!(manager.has_active());
+        manager.update(&emit, "running", Some("success"), "Done", Some(100.0));
+        assert!(!manager.has_active());
+        assert_eq!(manager.clear_completed().len(), 2);
+        assert!(manager.snapshots().is_empty());
+    }
+
+    #[test]
+    fn task_revisions_advance_and_cleared_records_ignore_late_progress() {
+        let manager = TaskManager::new();
+        insert_snapshot(&manager, "EXAMPLE-TASK-1", "queued");
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let captured = events.clone();
+        let emit: TaskEmitter = Arc::new(move |snapshot| captured.lock().unwrap().push(snapshot));
+        manager.update(
+            &emit,
+            "EXAMPLE-TASK-1",
+            Some("running"),
+            "Copying",
+            Some(10.0),
+        );
+        manager.update(&emit, "EXAMPLE-TASK-1", None, "Copying", Some(50.0));
+        manager.update(
+            &emit,
+            "EXAMPLE-TASK-1",
+            Some("success"),
+            "Done",
+            Some(100.0),
+        );
+        assert_eq!(
+            events
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|t| t.revision)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        manager.clear_completed();
+        manager.update(&emit, "EXAMPLE-TASK-1", None, "Late output", None);
+        assert!(manager.snapshots().is_empty());
+        assert_eq!(events.lock().unwrap().len(), 3);
+    }
 
     #[test]
     fn parses_transfer_progress_without_inventing_percentages() {

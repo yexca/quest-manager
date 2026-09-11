@@ -28,8 +28,13 @@ newlines in supported UTF-8 names do not become record boundaries.
 4. Execution reports running state and ADB output. Transfer subprocesses support
    cancellation; each long-running task subprocess has a one-hour timeout.
    Short helper queries still use the 30-second query timeout.
-5. Completion publishes a terminal snapshot. A success event causes the UI to
-   refresh device, app, and active directory data.
+5. Completion publishes a terminal snapshot with an incremented revision.
+   Successes are grouped into 350 ms batches per captured transport. Only the
+   currently selected physical device's transports affect displayed data:
+   install/uninstall refresh app and device information; upload/mkdir/rename/delete
+   refresh files and device information. Download/export do not refresh device
+   data. These automatic reads preserve displayed lists and open app details;
+   device discovery is unaffected. Explicit refresh still reloads all areas.
 
 The one-hour limit applies per subprocess, not to the whole queue or necessarily
 to a multi-file export. Output readers retain a bounded tail, while snapshot
@@ -83,8 +88,9 @@ Do not delete unrelated `.partial` paths or retry the task automatically.
 ## Session Lifetime
 
 The queue and snapshots exist for the life of the Tauri process. Closing a page
-or queue dialog does not stop work, but closing the application provides no
-durable resume or cleanup guarantee. ADB/Android may already have applied an
+or queue dialog does not stop work. Native window closing checks the backend
+queue and prompts when work remains; Keep waiting is the default. Exit anyway
+provides no durable resume or cleanup guarantee. ADB/Android may already have applied an
 operation when its client disappears. Task completion is not proof that another
 process has not subsequently changed the same file.
 

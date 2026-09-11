@@ -83,8 +83,9 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml
 Keep validation proportional to the change. Documentation changes need link,
 command, factual, and whitespace checks. UI changes need the frontend build and
 relevant preview inspection. Rust or IPC changes normally use `run-test.ps1`.
-The current repository has no JavaScript unit-test runner or CI workflow;
-do not invent commands or claim coverage that is not present.
+Frontend logic tests use Node's built-in runner through `run-test.ps1`;
+there is no browser E2E runner or CI workflow. Do not claim rendered UI coverage
+from the logic tests or typecheck alone.
 
 Device tests are opt-in. `-Device` reads the connected headset; `-DeviceWrite`
 creates device files and temporarily installs a fixture APK. Choose these only

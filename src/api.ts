@@ -12,6 +12,12 @@ const previewApps: AppPackage[] = [
 const modifiedAt = new Date('2025-01-01T12:00:00Z').getTime();
 const entry = (parent: string, name: string, kind: FileEntry['kind'], size = 0): FileEntry => ({ name, path: `${parent}/${name}`, kind, size, modifiedAt });
 const previewNames = ['Orbit Adventures', 'Rhythm Studio', 'Pocket Minigolf', 'Open Canvas', 'Quiet Puzzles', 'World Explorer'];
+const previewTasks: Task[] = [
+  { id: 'EXAMPLE-TASK-1', revision: 2, device: 'DEMO-USB-001', kind: 'upload', label: 'Upload example-movie.mp4', status: 'running', detail: 'Sample transfer progress. No device operation is running.', progress: 42, createdAt: modifiedAt + 3 },
+  { id: 'EXAMPLE-TASK-2', revision: 0, device: 'DEMO-WIFI-001', kind: 'install', label: 'Install Example Adventure.apk', status: 'queued', detail: 'Sample queued installation.', progress: null, createdAt: modifiedAt + 2 },
+  { id: 'EXAMPLE-TASK-3', revision: 3, device: 'DEMO-DISCONNECTED-002', kind: 'download', label: 'Download example-notes.txt', status: 'failed', detail: 'Sample connection failure. Reconnect the original target before starting a new task.', progress: null, createdAt: modifiedAt + 1 },
+  { id: 'EXAMPLE-TASK-4', revision: 3, device: 'DEMO-USB-001', kind: 'export', label: 'Export com.example.orbit', status: 'success', detail: 'Sample completed export.', progress: 100, createdAt: modifiedAt },
+];
 function previewDetails(packageName: string): AppDetails {
   const index = previewApps.findIndex(app => app.packageName === packageName);
   const unavailable = index === 5;
@@ -72,7 +78,9 @@ export const api = {
     if (path === '/sdcard/Movies') return Promise.resolve([entry(path, 'Sample video.mp4', 'file', 2.4 * gib)]);
     return Promise.resolve([]);
   },
-  tasks: (): Promise<Task[]> => isPreview ? Promise.resolve([]) : call('list_tasks'),
+  tasks: (): Promise<Task[]> => isPreview ? Promise.resolve(previewTasks) : call('list_tasks'),
+  clearCompletedTasks: (): Promise<string[]> => call('clear_completed_tasks'),
+  exitWithActiveTasks: (): Promise<void> => call('exit_with_active_tasks'),
   start: (request: TaskRequest): Promise<Task> => call('start_task', { request }),
   cancel: (id: string): Promise<void> => call('cancel_task', { id }),
 };

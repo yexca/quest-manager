@@ -28,7 +28,7 @@ export interface InstallOptions {
 }
 export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string; installOptions?: InstallOptions }
 export interface Task {
-  id: string; device: string; kind: TaskKind; label: string;
+  id: string; revision: number; device: string; kind: TaskKind; label: string;
   status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
   detail: string; progress: number | null; createdAt: number;
 }

@@ -127,6 +127,9 @@ does not expose private app directories.
 Task queue shows work from the current session across devices. Recent activity
 shows the latest tasks on Overview, and a floating shortcut appears while work
 is active. Navigating or closing the queue dialog leaves tasks running.
+Each task shows its captured transport and, while discovered, the headset model
+and connection kind. Clear completed removes successful, failed and cancelled
+records from this session; it does not cancel active work or delete transferred files.
 
 All queued task kinds can be cancelled before execution. Running uploads,
 downloads, and exports support cancellation; installs, uninstalls, folder
@@ -139,12 +142,15 @@ actionable ADB or cleanup details, which may contain private paths.
 
 Changing the selected device does not redirect queued tasks. There is no
 automatic retry, resume after restart, or persistent activity log. Wait for
-active work before exiting; closing the app is not an undo operation.
+active work before exiting. Closing the window while work remains prompts with
+Keep waiting selected by default. Exit anyway can interrupt work and leave
+temporary files; closing the app is not an undo operation.
 
 ## Preview
 
 The explicit browser preview shows "Preview · sample data", fictional devices,
-and synthetic package/file entries. It supports read-only layout inspection and
+synthetic package/file entries and sample running, queued, failed and completed
+tasks. Task cancellation and clearing are disabled. It supports read-only layout inspection and
 does not provide a way to install, transfer, or mutate device data. It is not a
 fallback used after a desktop connection fails.
 

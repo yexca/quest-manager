@@ -41,7 +41,9 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
 - **Shared file management.** Browse, upload, and download files or folders;
   create directories, rename items, and delete selected content.
 - **Visible background work.** Follow a serial task queue with ADB progress and
-  errors. Cancel queued work or supported running transfers while browsing.
+  errors and captured target connections. Cancel queued work or supported running
+  transfers while browsing, and clear completed records. Closing with active
+  tasks prompts to keep waiting before an explicit exit.
 - **Reproducible setup.** Use pinned tools and locked dependencies, with Rust,
   ADB, npm packages, and build caches kept inside the project environment.
 

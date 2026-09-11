@@ -22,7 +22,10 @@ flowchart LR
 | Owner | Responsibility |
 | --- | --- |
 | [src/main.tsx](../../src/main.tsx) | React root and stylesheet loading |
-| [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, polling, native file pickers, drag/drop, task subscription |
+| [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, data reads, native file pickers and drag/drop |
+| [src/useDeviceDiscovery.ts](../../src/useDeviceDiscovery.ts) | Device polling and its lifetime guard |
+| [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
+| [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
 | [src/About.tsx](../../src/About.tsx) | Offline project credits/license, manifest-derived dependencies and repository link |
 | [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
@@ -49,9 +52,9 @@ manage device/transport selection, apps, files, task snapshots, and modal state;
 there is no router or external state store. Add feature boundaries when they
 improve a real workflow, rather than creating parallel abstractions prematurely.
 
-`api.ts` is the application IPC boundary. Tauri event subscription and native
-file/drag-drop integration remain in `App.tsx`. Preserve listener disposal,
-effect lifetime guards, and task merging when extracting these responsibilities.
+`api.ts` is the application IPC boundary. Task events live in `useTaskQueue.ts`;
+native file/drag-drop and blocked-close events remain in `App.tsx`. Preserve
+listener disposal, effect lifetime guards, and revision-aware task merging.
 Do not put ADB command text or validation policy in the UI.
 
 In a normal browser, calls fail with a desktop-app instruction. Only the explicit

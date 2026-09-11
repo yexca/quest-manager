@@ -81,7 +81,7 @@ do not pass a full path from a new caller.
 ## Task Snapshots and Events
 
 `TaskSnapshot` is called `Task` in TypeScript. It contains `id`, captured
-transport `device`, `kind`, `label`, `status`, `detail`, nullable `progress`, and
+transport `device`, monotonic per-task `revision`, `kind`, `label`, `status`, `detail`, nullable `progress`, and
 `createdAt` in epoch milliseconds. IDs combine an epoch timestamp with a
 process-local counter; they are not durable identities across installations.
 
@@ -89,7 +89,14 @@ Statuses are `queued`, `running`, `success`, `failed`, and `cancelled`.
 `progress` is a percentage when available; null means no numeric progress.
 Backend updates emit the complete snapshot on `task-updated`.
 
-The frontend merges events and queried snapshots by ID. Events can arrive
-before the response to `start_task`; do not overwrite a newer event with that
-initial queued response. `list_tasks` supplements events but is not a durable
-event log. See [Workflows](workflows.md).
+The frontend registers its listener before reading `list_tasks`, then merges
+events, snapshots and `start_task` responses by ID and increasing revision.
+The initial queued revision is zero. Duplicate or older revisions are ignored.
+`clear_completed_tasks` removes only terminal records and returns their IDs;
+frontend session-only tombstones prevent delayed messages from restoring them.
+These APIs do not persist history or clear device files. `list_tasks` supplements
+events but is not a durable event log. See [Workflows](workflows.md).
+
+When a native close request encounters queued/running tasks, the backend prevents
+closing and emits `app-close-blocked`. The UI defaults to keeping the app open;
+only explicit confirmation invokes `exit_with_active_tasks` to exit anyway.

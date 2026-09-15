@@ -63,6 +63,11 @@ files, so include new files in link and privacy review separately.
 
 ## Preview Inspection
 
+Overview preview defaults to a fictional Quest 3. Use the device selector to
+check Quest 3, Quest 3S, Quest 2, and the generic headset illustration at both
+1280 by 850 and 1000 by 680. Confirm that the model name and illustration follow
+selection, USB/Wi-Fi changes preserve the model, and preview writes stay disabled.
+
 After installation, start `npm run dev` and open
 [preview](http://127.0.0.1:1420/?preview=1). Check the changed page at supported
 desktop widths, keyboard focus, dialogs, long package/file names, errors, and

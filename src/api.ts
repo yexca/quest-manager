@@ -5,6 +5,12 @@ export const isDesktop = isTauri();
 export const isPreview = !isDesktop && new URLSearchParams(location.search).get('preview') === '1';
 const gib = 1024 ** 3;
 // Preview data is fictional and is never collected from a connected device.
+const previewDevices: Device[] = [
+  { id: 'DEMO-DEVICE-001', model: 'Quest 3', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }] },
+  { id: 'DEMO-DEVICE-002', model: 'Quest 3S', transports: [{ serial: 'DEMO-USB-002', kind: 'usb', state: 'device' }] },
+  { id: 'DEMO-DEVICE-003', model: 'Quest 2', transports: [{ serial: 'DEMO-USB-003', kind: 'usb', state: 'device' }] },
+  { id: 'DEMO-DEVICE-004', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-004', kind: 'usb', state: 'device' }] },
+];
 const previewApps: AppPackage[] = [
   'com.example.orbit', 'com.example.rhythm', 'com.example.minigolf',
   'com.example.paint', 'com.example.puzzle', 'com.example.explorer',
@@ -65,8 +71,8 @@ export const api = {
     return Promise.resolve({ packageName, versionName: system ? '' : versionCode === '110' ? '1.3.0' : versionCode === '90' ? '1.1.0' : '1.2.0', versionCode, size: (unknown || system ? 0.15 : 2.94) * gib, sourceStamp: 'DEMO-APK-STAMP', split: false, veritySigning: !unknown && !system,
       assets: { ...previewDetails(unknown ? 'com.example.explorer' : packageName).assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
   },
-  devices: (): Promise<Device[]> => isPreview ? Promise.resolve([{ id: 'DEMO-DEVICE-001', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }] }]) : call('list_devices'),
-  info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),
+  devices: (): Promise<Device[]> => isPreview ? Promise.resolve(previewDevices) : call('list_devices'),
+  info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: previewDevices.find(item => item.transports.some(transport => transport.serial === device))?.model ?? 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),
   apps: (device: string, includeSystem: boolean): Promise<AppPackage[]> => isPreview ? Promise.resolve(includeSystem ? [...previewApps, { packageName: 'com.example.systemshell', versionCode: '100', system: true, installer: null, apkPath: '/system/app/ExampleShell/base.apk' }] : previewApps) : call('list_apps', { device, includeSystem }),
   details,
   clearMetadataCache: (): Promise<void> => isPreview ? Promise.resolve() : call('clear_metadata_cache'),

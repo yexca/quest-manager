@@ -21,6 +21,8 @@
 
 用于管理 Meta Quest 的本地 Windows 桌面应用，使用 **Tauri 2 + React + TypeScript + Rust + 官方 ADB**。界面为英文，暂不引入 i18n。当前优先支持 Windows x64。
 
+开发与使用体验以 **Quest 3** 为主，不限制头显机型；其他机型可以使用其 ADB 与 Android 权限所支持的操作。Overview 会根据识别到的型号显示 Quest 3、Quest 3S 或 Quest 2 的对应插图，未知型号使用通用插图。
+
 <p align="center">
   <img src="docs/assets/quest-manager-showcase.png" width="1200" alt="Quest Manager 总览渲染图，展示绿色侧栏、头显插画、存储与电量卡片，以及匿名化的活动列表">
   <br>

@@ -12,7 +12,13 @@ file, and see the result of an operation without losing their place.
   Overview summarizes the device; Applications and Files use compact tables.
 - Green is the primary action color, amber indicates attention, and red marks
   errors or destructive actions. Neutral surfaces and borders provide structure.
-- Interface icons come from Lucide and the headset illustration is inline SVG.
+- Interface icons come from Lucide. Overview uses inline SVG illustrations for
+  Quest 3, Quest 3S, and Quest 2, selected by the discovered model name. Unknown
+  models use a generic headset. Keep their scale, palette, and perspective
+  consistent; Quest 3 is the primary device experience.
+  Quest 3 and Quest 3S use a near-front view with a central fabric strap. Keep
+  sensor windows in the lower faceplate: three vertical windows on Quest 3,
+  and mirrored clusters with outer illuminators on Quest 3S.
   The application brand uses the Mint Pilot mascot from `assets/branding` for
   its Windows icon, sidebar, About page, README artwork and browser favicon.
   Applications display extracted raster icons, with generic tiles when artwork

@@ -16,6 +16,12 @@ third-party app count, shared-storage capacity, battery, and recent tasks.
 Users can choose a device, and choose a connection when several ready
 transports belong to that device. USB is preferred by default.
 
+The headset illustration follows the selected device's discovered model: Quest 3,
+Quest 3S, or Quest 2. Case, spaces, underscores, hyphens, and Meta/Oculus prefixes
+are normalized for artwork selection. Unknown models use a generic illustration
+and retain the same device operations. Artwork does not indicate tested support
+for every feature on that model.
+
 No-device and authorization-required states provide connection guidance. Device
 discovery refreshes automatically and can be requested manually. The user must
 enable developer mode and authorize USB debugging in the headset. Existing

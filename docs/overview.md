@@ -1,7 +1,9 @@
 # Overview
 
-Quest Manager is a local Windows desktop companion for Meta Quest, with Quest 2
-as the initial product target. It uses Tauri 2, React, TypeScript, Rust, and the
+Quest Manager is a local Windows desktop companion for Meta Quest, with Quest 3
+as the primary development and usability target. There is no headset model
+restriction; available operations depend on ADB and Android permissions.
+It uses Tauri 2, React, TypeScript, Rust, and the
 official Android Platform-Tools ADB executable. The UI is English.
 
 ## Goals

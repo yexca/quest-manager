@@ -21,8 +21,10 @@
   <a href="PRIVACY.md">Privacy</a>
 </p>
 
-Quest Manager is a Windows desktop companion for Meta Quest, with Quest 2 as
-its initial product target. It combines an English interface with native file
+Quest Manager is a Windows desktop companion for Meta Quest, with development
+and usability focused on Quest 3. There is no headset model restriction; other
+models can use the operations supported by their ADB and Android permissions.
+It combines an English interface with native file
 pickers, background tasks, and the official Android Platform-Tools ADB client.
 The stack is **Tauri 2 + React + TypeScript + Rust**.
 
@@ -36,7 +38,8 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
 
 - **Device overview.** Inspect the model, Android version, battery, and shared
   storage. Group USB and existing Wi-Fi connections when device identity is
-  available, with USB preferred by default.
+  available, with USB preferred by default. Quest 3, Quest 3S, and Quest 2 have
+  model-specific headset illustrations, with generic artwork for unknown models.
 - **Install from your computer.** Select or drop ordinary APK files, review the
   expected name/icon, target headset and installed-version comparison, and queue
   installations or compatible updates. Optionally customize the display name/icon

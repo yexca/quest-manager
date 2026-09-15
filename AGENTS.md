@@ -5,6 +5,10 @@ and shared files through the official ADB executable. The stack is Tauri 2,
 React, TypeScript, and Rust. Product UI and error messages are English; i18n is
 outside the current scope.
 
+Quest 3 is the primary development and usability target. Keep device operations
+independent of model names; other headsets can use compatible ADB capabilities.
+Model-specific artwork is presentation only, never a device access restriction.
+
 ## Start Here
 
 Read these before changing the project:

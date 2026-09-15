@@ -23,6 +23,7 @@ flowchart LR
 | --- | --- |
 | [src/main.tsx](../../src/main.tsx) | React root and stylesheet loading |
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, data reads, native file pickers and drag/drop |
+| [src/Headset.tsx](../../src/Headset.tsx) | Model matching and Overview headset SVG illustrations |
 | [src/useDeviceDiscovery.ts](../../src/useDeviceDiscovery.ts) | Device polling and its lifetime guard |
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
 | [src/useApplications.ts](../../src/useApplications.ts) | Complete package inventory, session cache lifecycle and incremental enrichment |

@@ -1,8 +1,12 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, LocalApk, Task, TaskRequest } from './types';
+import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
+import type { LightningCatalog, LightningRecommendation } from './types';
+import { lightningPackage, navigatorPackage, previewLightningCatalog } from './lightningState';
 
 export const isDesktop = isTauri();
 export const isPreview = !isDesktop && new URLSearchParams(location.search).get('preview') === '1';
+const lightningPreview = isPreview ? new URLSearchParams(location.search).get('lightning') : null;
+const previewLightningVersion = lightningPreview === 'installed' ? '1.1.0' : lightningPreview === 'current' ? '1.2.0' : null;
 const gib = 1024 ** 3;
 // Preview data is fictional and is never collected from a connected device.
 const previewDevices: Device[] = [
@@ -18,6 +22,11 @@ const previewApps: AppPackage[] = [
   installer: index < 2 ? 'com.oculus.ocms' : index < 4 ? 'com.android.shell' : index === 4 ? 'com.example.installer' : null,
   apkPath: `/data/app/example/${packageName}/base.apk`,
 }));
+if (previewLightningVersion) {
+  for (const packageName of [lightningPackage, navigatorPackage]) {
+    previewApps.push({ packageName, versionCode: '100', system: false, installer: null, apkPath: '/data/app/example/base.apk' });
+  }
+}
 const modifiedAt = new Date('2025-01-01T12:00:00Z').getTime();
 const entry = (parent: string, name: string, kind: FileEntry['kind'], size = 0): FileEntry => ({ name, path: `${parent}/${name}`, kind, size, modifiedAt });
 const previewNames = ['Orbit Adventures', 'Rhythm Studio', 'Pocket Minigolf', 'Open Canvas', 'Quiet Puzzles', 'World Explorer'];
@@ -30,9 +39,10 @@ const previewTasks: Task[] = [
 function previewDetails(packageName: string): AppDetails {
   const index = previewApps.findIndex(app => app.packageName === packageName);
   const unavailable = index === 5;
+  const optionalApp = previewLightningVersion && (packageName === lightningPackage || packageName === navigatorPackage);
   const paths = ['/data/app/example/base.apk', '/data/app/example/split_config.arm64_v8a.apk'];
   return {
-    packageName, versionName: index === 1 ? '2.4.1' : '1.2.0', versionCode: '100', apkPaths: paths,
+    packageName, versionName: optionalApp ? previewLightningVersion : index === 1 ? '2.4.1' : '1.2.0', versionCode: '100', apkPaths: paths,
     apkFiles: paths.map((path, i) => ({ path, size: (i ? 24 : 156) * 1024 ** 2, modified: 1735732800 })), apkSize: 180 * 1024 ** 2,
     firstInstallTime: '2025-01-01 12:00:00', lastUpdateTime: '2025-02-10 09:30:00', installer: previewApps[index]?.installer ?? null,
     minSdk: '26', targetSdk: '34', primaryAbi: 'arm64-v8a', secondaryAbi: null, uid: '10123', androidUser: 0,
@@ -42,7 +52,7 @@ function previewDetails(packageName: string): AppDetails {
       { name: 'android.permission.RECORD_AUDIO', granted: false, kind: 'Runtime' },
       { name: 'com.example.permission.PLAY', granted: null, kind: 'Requested' },
     ],
-    assets: { displayName: unavailable ? null : previewNames[index] ?? 'System Shell', iconDataUrl: index < 0 || unavailable ? null : '/preview-app.svg',
+    assets: { displayName: optionalApp ? `${packageName === lightningPackage ? 'Lightning Launcher' : 'Navigator service'} (preview)` : unavailable ? null : previewNames[index] ?? 'System Shell', iconDataUrl: index < 0 || unavailable ? null : '/preview-app.svg',
       vrFeatures: unavailable ? [] : ['android.hardware.vr.headtracking', 'org.khronos.openxr'], signingSchemes: unavailable ? [] : ['v2', 'v3'],
       certificateSha256: unavailable ? [] : [Array(32).fill('AB').join(':')], notes: unavailable ? ['App artwork is unavailable. A standard icon is shown.'] : [],
     },
@@ -61,9 +71,14 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const api = {
+  lightningReleases: (refresh = false): Promise<LightningCatalog> => isPreview ? Promise.resolve(previewLightningCatalog) : call('lightning_releases', { refresh }),
+  lightningRecommendation: (tag: string): Promise<LightningRecommendation> => isPreview ? Promise.resolve({ launcherTag: tag, navigatorTag: `addons${tag}` }) : call('lightning_recommendation', { tag }),
+  navigatorEnabled: (device: string): Promise<boolean> => isPreview ? Promise.resolve(false) : call('navigator_enabled', { device }),
+  openLightningRepository: (): Promise<void> => isPreview ? Promise.resolve(void window.open('https://github.com/threethan/LightningLauncher', '_blank', 'noopener,noreferrer')) : call('open_lightning_repository'),
   openProjectRepository: (): Promise<void> => call('open_project_repository'),
   inspectApk: (source: string): Promise<LocalApk> => {
     if (!isPreview) return call('inspect_apk', { source });
+    if (source.includes('Unreadable')) return Promise.reject(new Error('The APK package name could not be read.'));
     const unknown = source.includes('Unknown');
     const system = source.includes('System Shell');
     const versionCode = system ? '' : source.includes('update') ? '110' : source.includes('older') ? '90' : '100';
@@ -72,6 +87,9 @@ export const api = {
       assets: { ...previewDetails(unknown ? 'com.example.explorer' : packageName).assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
   },
   devices: (): Promise<Device[]> => isPreview ? Promise.resolve(previewDevices) : call('list_devices'),
+  inspectObbs: (sources: string[]): Promise<LocalObb[]> => isPreview
+    ? Promise.resolve(sources.map((source, index) => ({ source, sourceStamp: 'DEMO-OBB-STAMP', name: source.split(/[\\/]/).pop() || source, size: (index + 1) * 128 * 1024 ** 2 })))
+    : call('inspect_obb_files', { sources }),
   info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: previewDevices.find(item => item.transports.some(transport => transport.serial === device))?.model ?? 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),
   apps: (device: string, includeSystem: boolean): Promise<AppPackage[]> => isPreview ? Promise.resolve(includeSystem ? [...previewApps, { packageName: 'com.example.systemshell', versionCode: '100', system: true, installer: null, apkPath: '/system/app/ExampleShell/base.apk' }] : previewApps) : call('list_apps', { device, includeSystem }),
   details,

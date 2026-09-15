@@ -1,4 +1,5 @@
 import type { AppDetails, AppPackage, Task } from './types.ts';
+import { taskChangedDevice } from './taskState.ts';
 
 export type InstallSource = 'meta' | 'sideload' | 'other' | 'unknown';
 export const sourceLabels: Record<InstallSource, string> = {
@@ -11,12 +12,12 @@ export function installSource(app: AppPackage): InstallSource {
   return app.installer ? 'other' : 'unknown';
 }
 
-export type AppMutation = Pick<Task, 'id' | 'device' | 'kind' | 'status' | 'packageName'>;
+export type AppMutation = Pick<Task, 'id' | 'device' | 'kind' | 'status' | 'packageName' | 'apkInstalled'>;
 export function applicationChanges(tasks: AppMutation[], transports: string[], seen: Set<string>): Set<string> | null {
   const packages = new Set<string>();
   let all = false;
   for (const task of tasks) {
-    if (task.status !== 'success' || !['install', 'uninstall'].includes(task.kind) || !transports.includes(task.device) || seen.has(task.id)) continue;
+    if (!taskChangedDevice(task) || !['install', 'uninstall'].includes(task.kind) || !transports.includes(task.device) || seen.has(task.id)) continue;
     seen.add(task.id);
     if (task.packageName) packages.add(task.packageName); else all = true;
   }

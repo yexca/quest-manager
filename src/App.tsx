@@ -2,12 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
+import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, Ellipsis, Zap, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
 import { api, isDesktop, isPreview } from './api';
 import { AppIcon, ApplicationDetails, UninstallSummary, formatBytes, type UninstallSelection } from './AppMetadata';
-import { InstallReview } from './InstallReview';
+import { InstallReview, type InstallDropHandler } from './InstallReview';
 import { About, appVersion } from './About';
 import { Headset } from './Headset';
+import { LightningSetup } from './LightningSetup';
+import { showLightningSuggestion, suggestionKey } from './lightningState';
 import { useDeviceDiscovery } from './useDeviceDiscovery';
 import { useTaskQueue } from './useTaskQueue';
 import { useApplications } from './useApplications';
@@ -76,6 +78,10 @@ function TaskRow({ task, devices, cancel }: { task: Task; devices: Device[]; can
 }
 
 export default function App() {
+  const preferenceKey = `${isPreview ? 'preview.' : ''}${suggestionKey}`;
+  const [lightningSuggestions, setLightningSuggestions] = useState(() => { try { return localStorage.getItem(preferenceKey) !== 'false'; } catch { return true; } });
+  const [lightningTarget, setLightningTarget] = useState<{ device: string; label: string } | null>(null);
+  const setSuggestions = (enabled: boolean) => { setLightningSuggestions(enabled); try { localStorage.setItem(preferenceKey, String(enabled)); } catch { /* The current session still honors the choice. */ } };
   const [page, setPage] = useState<Page>('overview');
   const [deviceId, setDeviceId] = useState('');
   const [preferredTransport, setPreferredTransport] = useState('');
@@ -92,6 +98,7 @@ export default function App() {
   const [exitBlocked, setExitBlocked] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [installPaths, setInstallPaths] = useState<string[] | null>(null);
+  const installDropHandler = useRef<InstallDropHandler | null>(null);
   const [installing, setInstalling] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -112,9 +119,10 @@ export default function App() {
   const serial = transport?.serial ?? '';
   const ready = Boolean(serial);
   const canWrite = ready && isDesktop;
+  const openLightning = () => { if (serial) setLightningTarget({ device: serial, label: `${selectedDevice.model} · ${transport?.kind === 'wifi' ? 'Wi-Fi' : 'USB'}` }); };
   const uninstallReady = !confirmAction?.uninstall || (isDesktop && devices.some(device => device.transports.some(item => item.serial === confirmAction.uninstall?.device && item.state === 'device')));
   const { tasks, appMutations, versions, start: startTask, clearCompleted, clearing } = useTaskQueue(selectedDevice?.transports.map(transport => transport.serial) ?? [], fail);
-  const { apps, metadata: appMetadata, errors: metadataErrors, sources, loadingApps, loadingMetadata, metadataPaused, setMetadataPaused, resumeMetadata, readDetails } = useApplications(
+  const { apps, metadata: appMetadata, errors: metadataErrors, sources, loadingApps, inventoryReady, loadingMetadata, metadataPaused, setMetadataPaused, resumeMetadata, readDetails } = useApplications(
     serial, selectedDevice?.transports.map(item => item.serial) ?? [], page === 'apps', includeSystem, refreshToken, versions.apps, appMutations, fail,
   );
   const running = tasks.filter(active).length;
@@ -196,7 +204,7 @@ export default function App() {
   };
 
   const selectApks = async () => {
-    if (isPreview) { setInstallPaths(['Orbit Adventures.apk', 'Orbit Adventures update.apk', 'Orbit Adventures older.apk', 'Unknown app.apk', 'System Shell.apk'].map(name => `C:\\Example\\${name}`)); return; }
+    if (isPreview) { setInstallPaths(['Orbit Adventures.apk', 'Orbit Adventures update.apk', 'Orbit Adventures older.apk', 'Unknown app.apk', 'System Shell.apk', 'Unreadable APK.apk'].map(name => `C:\\Example\\${name}`)); return; }
     try {
       const paths = await open({ multiple: true, title: 'Choose APK files', filters: [{ name: 'Android application', extensions: ['apk'] }] });
       if (paths) setInstallPaths(Array.isArray(paths) ? paths : [paths]);
@@ -252,6 +260,12 @@ export default function App() {
     let unlisten: (() => void) | undefined;
     void getCurrentWebview().onDragDropEvent(event => {
       if (disposed) return;
+      if (lightningTarget) { setDragging(false); return; }
+      if (installPaths) {
+        setDragging(false);
+        if (event.payload.type === 'drop' && !installing) installDropHandler.current?.(event.payload.paths);
+        return;
+      }
       if (event.payload.type === 'over' || event.payload.type === 'enter') setDragging(true);
       if (event.payload.type === 'leave') setDragging(false);
       if (event.payload.type === 'drop') {
@@ -267,7 +281,7 @@ export default function App() {
       }
     }).then(stop => { if (disposed) stop(); else unlisten = stop; }).catch(fail);
     return () => { disposed = true; unlisten?.(); };
-  }, [serial, page, path, fail, installing]);
+  }, [serial, page, path, fail, installing, installPaths, lightningTarget]);
 
   const cancelTask = (id: string) => { void api.cancel(id).catch(fail); };
   const choosePage = (nextPage: Page) => { setPage(nextPage); setError(null); };
@@ -295,7 +309,7 @@ export default function App() {
       <header className="topbar"><div className="breadcrumb-top">Workspace<ChevronRight size={14} /><span>{pageNames[page]}</span></div><div className="topbar-actions">{isPreview && <span className="preview-badge">Preview · sample data</span>}<span className={`connection-pill ${ready ? '' : 'offline'}`}><span className="status-dot online" />{statusLabel}</span><IconButton label="Refresh device data" onClick={refresh} disabled={loadingDevices}><RefreshCw size={17} className={loadingDevices ? 'spin' : ''} /></IconButton></div></header>
       <main>
         {error && <div className="error-banner" role="alert"><Info size={18} /><p>{error}</p><IconButton label="Dismiss error" onClick={() => setError(null)}><X size={16} /></IconButton></div>}
-        <div className="page-heading"><div><p className="eyebrow">{page === 'about' ? 'THE PROJECT BEHIND THE APP.' : page === 'overview' ? 'A LITTLE ORDER. MORE ROOM TO PLAY.' : 'YOUR HEADSET, ORGANIZED.'}</p><h1>{page === 'about' ? 'About Quest Manager' : page === 'overview' ? 'Device overview' : page === 'apps' ? 'Your applications' : 'File explorer'}</h1><p className="page-description">{page === 'about' ? 'The people, tools and license behind your workspace.' : page === 'overview' ? 'Everything on your Quest, within reach.' : page === 'apps' ? 'Install, inspect and manage the apps on your headset.' : 'Move files between your computer and your Quest.'}</p></div>{(page === 'overview' || page === 'apps') && <button className="button primary" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><Plus size={17} />Install APK</button>}</div>
+        <div className="page-heading"><div><p className="eyebrow">{page === 'about' ? 'THE PROJECT BEHIND THE APP.' : page === 'overview' ? 'A LITTLE ORDER. MORE ROOM TO PLAY.' : 'YOUR HEADSET, ORGANIZED.'}</p><h1>{page === 'about' ? 'About Quest Manager' : page === 'overview' ? 'Device overview' : page === 'apps' ? 'Your applications' : 'File explorer'}</h1><p className="page-description">{page === 'about' ? 'The people, tools and license behind your workspace.' : page === 'overview' ? 'Everything on your Quest, within reach.' : page === 'apps' ? 'Install, inspect and manage the apps on your headset.' : 'Move files between your computer and your Quest.'}</p></div>{page === 'apps' && <details className="optional-apps-menu"><summary aria-label="Optional apps" title="Optional apps"><Ellipsis size={20} /></summary><div><button disabled={!ready} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); openLightning(); }}><Zap size={16} />Lightning Launcher…</button><label><input type="checkbox" checked={lightningSuggestions} onChange={event => setSuggestions(event.target.checked)} />Show install suggestions</label></div></details>}{(page === 'overview' || page === 'apps') && <button className="button primary" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><Plus size={17} />Install APK</button>}</div>
 
         {page === 'about' ? <About /> : !ready ? <div className="empty-device card"><div className="empty-device-icon"><Unplug size={36} /></div><h2>{loadingDevices ? 'Looking for your headset…' : statusLabel}</h2><p>{selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Put on your headset and accept the USB debugging prompt, then refresh.' : 'Connect your Quest with a USB cable, enable developer mode, and allow USB debugging in the headset.'}</p><button className="button primary" onClick={refresh} disabled={loadingDevices}><RefreshCw size={16} />Check connection</button></div> : <>
           {page === 'overview' && <>
@@ -306,7 +320,9 @@ export default function App() {
             <section className="activity card"><div className="section-heading"><h2><Activity size={18} />Recent activity</h2><button className="text-button" onClick={() => setShowTasks(true)}>View all<ArrowRight size={14} /></button></div>{orderedTasks.length ? orderedTasks.slice(0, 3).map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="activity-empty"><span><Check size={18} /></span><div><strong>All clear. Ready when you are.</strong><p>Your installs and transfers will appear here.</p></div><span className="quiet-label">A fresh start</span></div>}</section>
           </>}
 
-          {page === 'apps' && <section className="card list-card">
+          {page === 'apps' && <>
+            {showLightningSuggestion(ready, inventoryReady, lightningSuggestions, apps) && <section className="lightning-suggestion"><div className="lightning-mark"><Zap size={23} /></div><div className="lightning-suggestion-copy"><strong>Lightning Launcher</strong><p>Your installed apps, together in your headset. Add an optional Meta button shortcut.</p></div><button className="button secondary small" onClick={openLightning}>Install Lightning Launcher<ArrowRight size={15} /></button><button className="text-button lightning-dismiss" onClick={() => setSuggestions(false)}>Don’t show again</button></section>}
+            <section className="card list-card">
             <div className="list-toolbar app-filters"><div className="search-field"><Search size={17} /><input aria-label="Search applications" placeholder="Search by app name or package…" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="source-filter">Install source<select aria-label="Filter by install source" value={sourceFilter} onChange={e => setSourceFilter(e.target.value as InstallSource | 'all')}><option value="all">All sources</option>{Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox-label"><input type="checkbox" checked={includeSystem} onChange={e => setIncludeSystem(e.target.checked)} />Show system apps</label><span className="result-count">{visibleApps.length} applications</span></div>
             <p className="source-explanation">Sources are inferred from the reported installer or installs completed here this session. Missing records stay unknown; they do not prove an app came from outside the store.</p>
             <div className="table-scroll"><table className="app-table"><thead><tr><th>APPLICATION</th><th>VERSION</th><th>APK SIZE</th><th>TYPE / STATE</th><th>INSTALL SOURCE</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{visibleApps.map((app, index) => {
@@ -319,7 +335,7 @@ export default function App() {
             })}</tbody></table></div>
             {!visibleApps.length && <div className="list-empty">{loadingApps ? <><LoaderCircle className="spin" size={24} /><p>Reading installed applications…</p></> : <><Search size={28} /><p>No applications found.</p></>}</div>}
             <div className="list-footer metadata-footer">{loadingMetadata || loadingApps ? <LoaderCircle size={14} className="spin" /> : <Info size={14} />}<span>{loadingApps ? 'Refreshing application list…' : loadingMetadata ? 'Loading new or changed app details…' : 'APK size excludes app data, cache and OBB files.'}</span><button className="text-button" disabled={clearingMetadata} onClick={() => metadataPaused ? resumeMetadata() : void clearMetadata()}>{clearingMetadata ? 'Clearing…' : metadataPaused ? 'Load app details' : 'Clear cached artwork'}</button></div>
-          </section>}
+          </section></>}
 
           {page === 'files' && <>
             <div className="folder-shortcuts">{[{ name: 'Shared storage', path: '/sdcard', icon: HardDrive }, { name: 'Downloads', path: '/sdcard/Download', icon: ArrowDownToLine }, { name: 'Movies', path: '/sdcard/Movies', icon: Film }, { name: 'OBB files', path: '/sdcard/Android/obb', icon: Box }].map(shortcut => <button key={shortcut.path} className={path === shortcut.path ? 'selected' : ''} onClick={() => goToFolder(shortcut.path)}><shortcut.icon size={17} />{shortcut.name}</button>)}</div>
@@ -334,8 +350,9 @@ export default function App() {
       </main>
     </div>
 
+    {lightningTarget && <Modal title="Lightning Launcher setup" onClose={() => setLightningTarget(null)} wide><LightningSetup device={lightningTarget.device} target={lightningTarget.label} available={devices.some(device => device.transports.some(item => item.serial === lightningTarget.device && item.state === 'device'))} revision={versions.apps} tasks={tasks} onQueue={startTask} onClose={() => setLightningTarget(null)} /></Modal>}
     {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="queue-toolbar"><button className="button secondary small" disabled={!isDesktop || clearing || !tasks.some(task => !active(task))} onClick={() => void clearCompleted()}>{clearing ? 'Clearing…' : 'Clear completed'}</button></div><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}
-    {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} device={serial} appRevision={`${refreshToken}:${versions.apps}`} canInstall={canWrite} onQueue={queue} onClose={() => setInstallPaths(null)} onBusy={setInstalling} /></Modal>}
+    {installPaths && <Modal title="Install applications" onClose={() => { if (!installing) setInstallPaths(null); }} wide><InstallReview key={installPaths.join('|')} paths={installPaths} target={selectedDevice?.model} device={serial} appRevision={`${refreshToken}:${versions.apps}`} canInstall={canWrite} onQueue={queue} onClose={() => setInstallPaths(null)} onBusy={setInstalling} dropHandler={installDropHandler} /></Modal>}
     {confirmAction && <Modal title={confirmAction.title} onClose={() => { if (!confirming) setConfirmAction(null); }}>
       {confirmAction.uninstall && <UninstallSummary selection={confirmAction.uninstall} />}
       <p className="modal-description preserve-lines">{confirmAction.description}</p>

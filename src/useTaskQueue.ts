@@ -20,7 +20,7 @@ export function useTaskQueue(transports: string[], fail: (error: unknown) => voi
   }));
   const [store] = useState(() => createTaskStore(setTasks, task => {
     if (task.kind === 'install' || task.kind === 'uninstall') setAppMutations(current => [...current, {
-      id: task.id, device: task.device, kind: task.kind, status: task.status, packageName: task.packageName,
+      id: task.id, device: task.device, kind: task.kind, status: task.status, packageName: task.packageName, apkInstalled: task.apkInstalled,
     }]);
     batcher.add(task);
   }));
@@ -37,6 +37,7 @@ export function useTaskQueue(transports: string[], fail: (error: unknown) => voi
   const start = useCallback(async (request: TaskRequest) => {
     const task = await api.start(request);
     store.merge([task]);
+    return task;
   }, [store]);
   const clearCompleted = async () => {
     if (clearing) return;

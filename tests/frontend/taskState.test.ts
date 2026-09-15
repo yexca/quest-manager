@@ -8,6 +8,25 @@ const task = (overrides: Partial<Task> = {}): Task => ({
   status: 'queued', detail: 'Waiting', progress: null, createdAt: 1, ...overrides,
 });
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
+
+test('a completed APK with failed OBB data refreshes apps and files once without becoming a success', () => {
+  let current: Task[] = [];
+  const refreshes: Task[] = [];
+  let flush!: () => void;
+  let areas = { info: false, apps: false, files: false };
+  const batcher = createRefreshBatcher(pending => { areas = refreshForTransports(pending, ['DEMO-USB-001']); }, run => { flush = run; return () => {}; });
+  const store = createTaskStore(tasks => { current = tasks; }, task => { refreshes.push(task); batcher.add(task); });
+  store.merge([task({ kind: 'install', revision: 1, status: 'running', apkInstalled: true, includesObb: true })]);
+  assert.equal(refreshes.length, 0);
+  const failed = task({ kind: 'install', revision: 2, status: 'failed', apkInstalled: true, includesObb: true });
+  store.merge([failed]); store.merge([failed]);
+  flush();
+  assert.equal(refreshes.length, 1);
+  assert.equal(current[0].status, 'failed');
+  assert.deepEqual(areas, { info: true, apps: true, files: true });
+  store.merge([task({ id: 'EXAMPLE-NO-INSTALL', kind: 'install', status: 'failed', includesObb: true, apkInstalled: false })]);
+  assert.equal(refreshes.length, 1);
+});
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });

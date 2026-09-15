@@ -28,10 +28,18 @@ export interface LocalApk {
 export interface InstallOptions {
   sourceStamp: string; displayName: string | null; iconPng: string | null; compatibility: boolean;
 }
-export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string; installOptions?: InstallOptions }
+export interface LocalObb { source: string; sourceStamp: string; name: string; size: number }
+export interface ObbInstall { apkSourceStamp: string; files: Pick<LocalObb, 'source' | 'sourceStamp'>[] }
+export interface LightningSelection { launcherAsset: number | null; navigatorAsset: number | null }
+export interface LightningRelease { tag: string; assetId: number; size: number; publishedAt: string; sha256: string | null }
+export interface LightningCatalog { launchers: LightningRelease[]; navigators: LightningRelease[] }
+export interface LightningRecommendation { launcherTag: string; navigatorTag: string | null }
+export interface TaskRequest { device: string; kind: TaskKind; source?: string; destination?: string; packageName?: string; installOptions?: InstallOptions; obb?: ObbInstall; lightning?: LightningSelection }
 export interface Task {
   /** Optional package refresh hint; never an installation target. */
   packageName?: string | null;
+  apkInstalled?: boolean;
+  includesObb?: boolean;
   id: string; revision: number; device: string; kind: TaskKind; label: string;
   status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled';
   detail: string; progress: number | null; createdAt: number;

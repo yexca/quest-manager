@@ -109,7 +109,7 @@ fails.
 
 | Action | Result | Scope |
 | --- | --- | --- |
-| Install APK | Install an ordinary APK or apply a compatible update | Each selected APK is an independent task |
+| Install APK | Install an ordinary APK or apply a compatible update, with optional OBB files | Each APK and its selected OBB files form one task |
 | Export application | Save all installed APK files into a new local folder | Includes splits; excludes private app data and saved games |
 | Uninstall application | Remove an app and its app data after confirmation | Third-party apps only |
 | Upload or download | Copy files or folders through a temporary destination | Existing final items are refused |
@@ -121,6 +121,14 @@ General private-app storage access and complete saved-game backups are outside
 the current scope.
 
 Installation does not support XAPK/APKS/APKM archives or split-set installation.
+In the review, **Add OBB files** selects multiple local `.obb` files; dropping
+OBB files into an open review attaches them to its selected APK. A readable APK
+package name is required. Files keep their names under
+`/sdcard/Android/obb/<package>/`. The task checks existing files before installing,
+then installs the APK and transfers/verifies its OBB files. Identical existing
+files are reused; different content is refused. A later OBB failure reports that
+the APK is installed and data is incomplete, preserving completed files for a
+manual retry. Running installation tasks cannot be cancelled.
 APK previews work without a headset. **Modify and re-sign APK** creates a private
 copy; appearance changes rebuild resources, while **Compatibility install** can
 re-sign without appearance changes. Prepared copies disable verity signatures to
@@ -146,6 +154,22 @@ identity or APK integrity; VR declarations do not guarantee compatibility.
 Artwork metadata is cached locally; **Clear cached artwork** removes the disk
 cache and pauses background reads until **Load app details** or refresh.
 See [Privacy](PRIVACY.md) for cache locations and retention.
+
+## Optional Lightning Launcher Setup
+
+Applications offers **Install Lightning Launcher** when a successful inventory
+read confirms no supported Launcher edition is installed. **Don't show again**
+remembers the choice on this computer. The **Optional apps** (`...`) menu keeps
+manual setup available and can restore suggestions.
+
+Setup fetches stable APK releases from the author's public GitHub repository on
+demand. Select a Launcher version and optionally the Navigator Button Redirection
+Service. The service defaults to the release explicitly referenced by the chosen
+Launcher version; other versions are labeled unverified. Installation retains
+original signatures and uses the existing task queue. The service must then be
+enabled in the headset's Accessibility settings. No permissions are enabled
+automatically. See [Product workflows](docs/product/workflows.md#lightning-launcher)
+and [Privacy](PRIVACY.md#optional-app-downloads).
 
 ## Local Files
 
@@ -175,6 +199,7 @@ layout and [Privacy](PRIVACY.md) before sharing local records.
 | APK editing crates | quick-xml 0.42.0, png 0.18.1, getrandom 0.3.4; exact versions in `Cargo.toml` |
 | APK metadata crates | zip 4.6.1, sha2 0.10.9, base64 0.22.1; exact versions in `Cargo.toml` |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
+| HTTPS / reqwest | 0.13.5; rustls |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
 | JavaScript dependency tree | Exact direct versions and `package-lock.json` |
 | Rust dependency tree | Exact direct versions and `src-tauri/Cargo.lock` |

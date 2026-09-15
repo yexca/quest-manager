@@ -1,6 +1,7 @@
 import type { Task } from './types.ts';
 
 export const isActiveTask = (task: Task) => task.status === 'queued' || task.status === 'running';
+export const taskChangedDevice = (task: Pick<Task, 'status' | 'apkInstalled'>) => task.status === 'success' || (task.status === 'failed' && !!task.apkInstalled);
 
 // Shared by events, initial snapshots and start_task responses. Cleared IDs stay
 // as small session-only tombstones so delayed IPC responses cannot restore them.
@@ -16,7 +17,7 @@ export function createTaskStore(changed: (tasks: Task[]) => void, succeeded: (ta
         if (cleared.has(task.id) || (previous && previous.revision >= task.revision)) continue;
         records.set(task.id, task);
         updated = true;
-        if (notifySuccess && task.status === 'success' && previous?.status !== 'success') successes.push(task);
+        if (notifySuccess && taskChangedDevice(task) && (!previous || !taskChangedDevice(previous))) successes.push(task);
       }
       if (updated) changed([...records.values()]);
       successes.forEach(succeeded);
@@ -52,7 +53,7 @@ export function connectTaskStream(
 export interface RefreshAreas { info: boolean; apps: boolean; files: boolean }
 export function taskRefreshAreas(task: Task): RefreshAreas {
   const apps = task.kind === 'install' || task.kind === 'uninstall';
-  const files = ['upload', 'mkdir', 'rename', 'delete'].includes(task.kind);
+  const files = ['upload', 'mkdir', 'rename', 'delete'].includes(task.kind) || !!task.includesObb;
   return { info: apps || files, apps, files };
 }
 
@@ -67,7 +68,7 @@ export function createRefreshBatcher(
   let cancel: (() => void) | undefined;
   return {
     add(task: Task) {
-      if (task.status !== 'success') return;
+      if (!taskChangedDevice(task)) return;
       const areas = taskRefreshAreas(task);
       if (!areas.info && !areas.apps && !areas.files) return;
       const previous = pending.get(task.device);

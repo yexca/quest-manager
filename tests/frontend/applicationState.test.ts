@@ -14,6 +14,15 @@ const details = (app: AppPackage, label = 'Example app'): AppDetails => ({
 });
 const mutation = (patch: Partial<AppMutation> = {}): AppMutation => ({ id: 'EXAMPLE-1', device: 'DEMO-USB-001', kind: 'install', status: 'success', packageName: 'com.example.game', ...patch });
 
+test('failed OBB data still invalidates the APK that was installed on the captured transport', () => {
+  const seen = new Set<string>();
+  const completedApk = mutation({ status: 'failed', apkInstalled: true });
+  assert.deepEqual(applicationChanges([completedApk], ['DEMO-USB-002'], seen), new Set());
+  assert.deepEqual(applicationChanges([completedApk], ['DEMO-USB-001'], seen), new Set(['com.example.game']));
+  assert.deepEqual(applicationChanges([completedApk], ['DEMO-USB-001'], seen), new Set());
+  assert.deepEqual(applicationChanges([mutation({ id: 'EXAMPLE-NO-INSTALL', status: 'failed', apkInstalled: false })], ['DEMO-USB-001'], seen), new Set());
+});
+
 test('source uses exact installer identity; null and app package names do not prove a source', () => {
   assert.equal(installSource(app('game', { installer: 'com.oculus.ocms' })), 'meta');
   assert.equal(installSource(app('game', { installer: 'com.android.shell' })), 'sideload');

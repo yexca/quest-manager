@@ -2,6 +2,37 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { compareVersions, duplicatePackages, installationStatus, observeInstalledApps, type InstalledSnapshot } from '../../src/installState.ts';
 import type { AppPackage } from '../../src/types.ts';
+import type { LocalApk, LocalObb } from '../../src/types.ts';
+import { canAttachObbs, mergeObbs, obbOptions } from '../../src/obbState.ts';
+
+const obbFile = (name = 'audio.obb', folder = 'Example'): LocalObb => ({ name, source: `C:\\${folder}\\${name}`, sourceStamp: 'EXAMPLE-STAMP', size: 32 });
+
+test('OBB attachments require a valid decoded package and reject split APKs', () => {
+  assert.equal(canAttachObbs(undefined), false);
+  for (const packageName of ['', '..', 'com..example', 'com/example.app', 'Unknown']) {
+    assert.equal(canAttachObbs({ packageName, split: false }), false);
+  }
+  assert.equal(canAttachObbs({ packageName: 'com.example.Game', split: false }), true);
+  assert.equal(canAttachObbs({ packageName: 'com.example.game', split: true }), false);
+  assert.equal(obbOptions(undefined, [obbFile()]), undefined);
+});
+
+test('OBB selection preserves custom names, replaces repeated selections and rejects colliding basenames atomically', () => {
+  const first = [obbFile()];
+  const refreshed = { ...obbFile(), sourceStamp: 'EXAMPLE-NEW-STAMP' };
+  assert.deepEqual(mergeObbs(first, [refreshed, obbFile('main.100.com.example.game.obb')]), [refreshed, obbFile('main.100.com.example.game.obb')]);
+  assert.throws(() => mergeObbs(first, [obbFile('another.obb'), obbFile('AUDIO.OBB', 'Other')]), /More than one/);
+  assert.deepEqual(first, [obbFile()]);
+  assert.throws(() => mergeObbs([], [obbFile('game.zip')]), /\.obb/);
+  assert.throws(() => mergeObbs([], Array.from({ length: 129 }, (_, i) => obbFile(`${i}.obb`))), /128/);
+});
+
+test('OBB request binds the reviewed APK stamp and files without accepting remote paths or display metadata', () => {
+  const details = { packageName: 'com.example.game', split: false, sourceStamp: 'EXAMPLE-APK-STAMP' } as LocalApk;
+  assert.deepEqual(obbOptions(details, [obbFile()]), { apkSourceStamp: 'EXAMPLE-APK-STAMP', files: [{ source: obbFile().source, sourceStamp: 'EXAMPLE-STAMP' }] });
+  assert.equal(obbOptions(details, []), undefined);
+  assert.equal(obbOptions({ ...details, packageName: '' }, [obbFile()]), undefined);
+});
 
 const app: AppPackage = { packageName: 'com.example.game', versionCode: '100', system: false, installer: null, apkPath: null };
 const ready: InstalledSnapshot = { key: 'EXAMPLE-CHECK-1', status: 'ready', apps: [app] };

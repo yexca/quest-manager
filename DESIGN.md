@@ -62,6 +62,14 @@ previews honestly. Show signature/update consequences when preparation is enable
 name/icon changes include compatibility signing. Local review works offline,
 while installation still requires a ready device and the desktop runtime.
 
+Keep optional OBB attachments within each APK's review. Show filename, size,
+count, destination and removal controls. File selection and native multi-file
+drops share validation; while review is open, drops belong to its selected APK.
+Disable attachment controls and explain why when the package name is unreadable
+or the APK is a recognized split. APK and OBB completion is one queue result;
+an OBB failure after installation must explicitly distinguish the installed APK
+from incomplete expansion data.
+
 Place the headset installation status inside the APK review with a compact
 per-file summary. Show installed and selected version codes together, use amber
 for older APKs, and keep unknown/loading/failed checks distinct from absence.
@@ -80,6 +88,23 @@ Keep the queue available across page navigation. Indeterminate progress is
 appropriate when ADB has no percentage; do not invent elapsed-time progress.
 Show task errors and cleanup details where the user can act on them. Only
 display cancellation when the backend supports it for that task state.
+
+## Optional Application Setup
+
+Place the dismissible Lightning Launcher suggestion above the Applications table.
+Retain Install APK as the primary page action and expose manual Launcher setup and
+suggestion preferences in the adjacent Optional apps menu. Detection uses the
+complete successful inventory, independent of visible table filters.
+
+The setup dialog uses separate Launcher and optional Navigator cards, a captured
+target, release selectors, author/source link, and inline progress. Expand the
+service explanation and selector only when chosen. Distinguish an upstream
+recommended release from unverified historical choices, and installed state from
+Accessibility activation. Keep queue results and partial completion visible. Preview
+uses fictional releases and a separate suggestion preference.
+Mark installed releases inside both version selectors and show a confirmation
+below a selected installed version. Keep the installed service's match with the
+target Launcher's recommendation visible even when service installation is off.
 
 ## Changes to the UI
 

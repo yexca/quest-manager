@@ -98,6 +98,53 @@ impl Installer {
         let scratch = self.storage.join("preview");
         blocking(move || apk::inspect_local(&path, &aapt, &scratch)).await
     }
+    // Keep the APK whose manifest determines the OBB destination stable through install.
+    // This copies bytes without rebuilding resources or changing signatures.
+    pub async fn stage_original(
+        &self,
+        source: &Path,
+        stamp: &str,
+        id: &str,
+    ) -> Result<PreparedApk, String> {
+        if apk::source_stamp(source)? != stamp {
+            return Err("The APK changed after preview. Select it again.".into());
+        }
+        if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err("Invalid installation task identifier.".into());
+        }
+        let parent = self.storage.join("staging");
+        fs::create_dir_all(&parent).map_err(|e| e.to_string())?;
+        check_space(
+            &parent,
+            fs::metadata(source).map_err(|e| e.to_string())?.len(),
+        )
+        .await?;
+        let directory = parent.join(id);
+        fs::create_dir(&directory).map_err(|e| format!("Could not stage the APK: {e}"))?;
+        let path = directory.join("original.apk");
+        let result = async {
+            tokio::fs::copy(source, &path)
+                .await
+                .map_err(|e| format!("Could not stage the APK: {e}"))?;
+            if apk::source_stamp(source)? != stamp {
+                return Err("The APK changed while being copied. Select it again.".into());
+            }
+            let preview = self.inspect(text_path(&path)).await?;
+            if preview.split {
+                return Err("Split APK installation is not supported here.".into());
+            }
+            Ok(preview)
+        }
+        .await;
+        match result {
+            Ok(preview) => Ok(PreparedApk {
+                path,
+                directory,
+                preview,
+            }),
+            Err(error) => Err(cleanup_result(&directory, Err(error)).await.unwrap_err()),
+        }
+    }
     async fn java(
         &self,
         jar: &str,
@@ -347,6 +394,17 @@ impl Installer {
         blocking(move || apk_edit::compare_payloads(&source, &target)).await?;
         Ok((output, after))
     }
+    pub async fn verify_original(&self, path: &Path, directory: &Path) -> Result<(), String> {
+        self.java(
+            "apksigner.jar",
+            vec!["verify".into(), "--verbose".into(), text_path(path)],
+            "APK signature verification",
+            directory,
+        )
+        .await?;
+        Ok(())
+    }
+
     async fn key_for(&self, package: &str) -> Result<PathBuf, String> {
         // Separate app keys avoid introducing shared signature-level permissions.
         let name = format!("{:x}", Sha256::digest(package.as_bytes()));

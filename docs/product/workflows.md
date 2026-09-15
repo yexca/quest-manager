@@ -9,6 +9,57 @@ is embedded for offline reading. The repository link opens the default browser
 in the desktop app or a new browser tab in preview. No device task is created.
 Help remains a separate dialog for connection, transfer and signing-key guidance.
 
+## Lightning Launcher
+
+Applications shows a compact optional installation suggestion above its table
+only after the selected transport's complete inventory successfully confirms
+absence of all recognized Launcher editions. Search/source/system filters do not
+affect detection. Installed or unknown states hide the suggestion. **Don't show
+again** persists a local, computer-wide preference; uninstalling a launcher can
+show the suggestion again only if that preference remains enabled. Applications'
+**Optional apps** menu always provides manual setup and **Show install suggestions**.
+
+The setup dialog captures its target connection when opened. It fetches releases
+only on opening/refresh and reads current installed versions. It can install the
+GitHub Launcher edition, the Navigator service, or both. Recognized store editions
+suppress the suggestion; installing the GitHub edition alongside one is explicit.
+The optional service checkbox starts off. Existing installations show versions;
+Navigator activation is queried separately and failures remain unknown.
+Release options mark the installed version, and selecting it shows an inline
+already-installed notice. Markers compare the version name of the same package;
+a store edition does not mark the GitHub edition as installed. The task still
+checks the APK's actual version code before deciding whether to skip installation.
+
+The version catalog includes up to 500 published releases with the exact expected
+APK assets, excluding drafts and prereleases. The default Launcher is the highest
+numeric stable version. The Navigator default comes from the selected Launcher
+tag's explicit upstream addon declaration, or from a matched installed version
+when only adding the service. Missing/changed source declarations never imply
+compatibility. **Show other service versions** permits an explicit unverified
+selection with an inline notice. Original source, dates and sizes are visible.
+Changing the Launcher target or refreshing releases resets the service choice to
+that target's recommendation; stale responses cannot retain a previous pairing.
+An installed service is compared with the target recommendation even when its
+install checkbox is off. A difference or unreadable version is shown as unverified,
+and updating the service remains an explicit choice. An author recommendation is
+not a guarantee of compatibility with every headset OS version.
+
+**Download & install** creates one task in the global queue. Every selected APK
+is downloaded and verified before the first install. Downloads check published
+size and SHA-256 when available; all APKs require matching package/version,
+ordinary APK structure and a valid original signature. No re-signing, automatic
+downgrade, uninstall or retry occurs. Matching installed version codes are skipped.
+Launcher failure prevents the service install. A later failure preserves and
+reports earlier completed installations; applications refresh on partial success.
+Task-owned download files are cleaned after success/failure, with cleanup errors
+reported. Queued setup can be cancelled; running setup cannot.
+
+A service-only request requires a recognized installed Launcher. Installation
+never enables Accessibility settings. The dialog/result explains how to activate
+it inside Lightning Launcher and check status again. Enabling requires the
+Navigator system interface; release recommendations are not proof of compatibility
+with every headset OS. Preview versions are fictional and downloads/writes disabled.
+
 ## Connect and Inspect
 
 Overview shows the selected headset, connection method, Android version,
@@ -88,6 +139,26 @@ name/icon, package, version and size for each file. Unknown artwork is not proof
 of missing artwork; device language and launcher behavior can differ. The user
 reviews the files and target, then queues an independent installation for each
 file. Each file has its own disabled-by-default Modify and re-sign APK switch.
+
+Each APK also has an optional **OBB files** area. **Add OBB files** accepts one or
+more local `.obb` files, including custom names such as `audio.obb`. While review
+is open, native drops attach OBB files to the selected APK, including when Files
+is the underlying page; they do not start ordinary uploads or replace the APK
+selection. Attachments can be removed individually. Switching APKs keeps their
+attachments separate. A pending picker/read retains its original APK target.
+Unreadable package names and recognized split APKs disable OBB selection/drops.
+
+The displayed destination is `/sdcard/Android/obb/<package>/`. One task installs
+the APK and its OBB files. It checks all selected files and existing destinations
+before installing the APK, then transfers and SHA-256 verifies each OBB under its
+original name. Existing identical files are reused; different content, unsafe
+directories and non-file collisions are refused. Running installs, including
+OBB work, cannot be cancelled. An OBB failure keeps the installed APK and completed
+files, reports the verified count and any cleanup failure, and stops that task.
+The app/files views refresh even if the overall result failed after installing.
+Select the APK and files again for a manual retry. This does not resume a saved
+task, overwrite different data, or automatically uninstall the app. Other queued
+tasks remain independent.
 
 The review checks the selected connection's complete package list, including
 system apps, independently of the Applications filter. Each APK shows whether

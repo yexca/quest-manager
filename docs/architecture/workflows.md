@@ -30,12 +30,15 @@ newlines in supported UTF-8 names do not become record boundaries.
    cancellation; each long-running task subprocess has a one-hour timeout.
    Short helper queries still use the 30-second query timeout.
 5. Completion publishes a terminal snapshot with an incremented revision.
-   Successes are grouped into 350 ms batches per captured transport. Only the
+   Successes and failed installs with `apkInstalled` are grouped into 350 ms batches per captured transport. Only the
    currently selected physical device's transports affect displayed data:
    install/uninstall refresh app and device information; upload/mkdir/rename/delete
    refresh files and device information. Download/export do not refresh device
    data. These automatic reads preserve displayed lists and open app details;
    device discovery is unaffected. Explicit refresh still reloads all areas.
+
+   Composite OBB installs additionally refresh files, including after partial
+   completion. No refresh is triggered for a preflight failure before installation.
 
 `useApplications` owns the current transport's session cache. Lightweight package
 queries include installer and base APK path (`pm list packages -f -i`) along
@@ -78,6 +81,32 @@ a signature conflict. See [ADR-0005](../decisions/ADR-0005-local-apk-preparation
 
 ## Staged Transfers
 
+### OBB Installation
+
+An install with `obb` stages the APK privately, retaining its signature unless
+preparation was explicitly selected. The staged manifest must match the reviewed
+package and the source stamp must be current. Local OBB inspection accepts only
+regular `.obb` files with unique case-insensitive basenames; names are never
+rewritten. Source stamps and SHA-256 checks detect changed inputs.
+
+Preflight checks every existing target before APK installation. Directory
+components beneath `/sdcard` cannot be symlinks or resolve to a different shared
+path. Identical existing OBB files may be reused after checksum verification;
+differing files cause refusal. After `install -r`, the task records `apkInstalled`,
+verifies `pm path`, creates the package directory and processes each OBB in order.
+Each upload reserves a task/index-specific `.partial` sibling, pushes, verifies
+SHA-256, rechecks the directory/target and publishes with a no-clobber move.
+Remote hashing has a one-hour timeout for large files.
+
+On failure, cleanup targets only that temporary file after checking its parent
+again. Uncertain reservation ownership is reported without removing the file.
+Completed files and the installed APK remain; the terminal error reports partial
+completion. The single global queue permit is held through all phases and local
+APK cleanup. Running installation remains non-cancellable. Other queued tasks
+are independent. See [ADR-0006](../decisions/ADR-0006-obb-installation.md).
+
+### General File Transfers
+
 Upload validates the local source and remote parent, checks that final and
 temporary paths are absent, pushes to a `.partial` sibling, then publishes with
 a no-clobber remote move. The move also checks that the source disappeared so
@@ -96,6 +125,24 @@ Ordinary transfer failures attempt cleanup only for the task's temporary path.
 A lost connection can prevent remote cleanup. Such an error includes the
 potential residual path and can make a cancellation finish as `failed`.
 Do not delete unrelated `.partial` paths or retry the task automatically.
+
+## Optional Launcher Setup
+
+`start_task` accepts an exclusive `lightning` selection for install tasks. The
+backend resolves Launcher and Navigator asset IDs against its catalog before
+queueing, capturing URLs, sizes and optional SHA-256 values. Downloads occur under
+the single mutation permit into an exclusively created task folder. HTTPS redirects
+are restricted to exact configured GitHub/CDN hosts, metadata/body sizes are
+bounded, and network requests have timeouts. No device values enter URLs/headers.
+
+All selected APKs pass size/hash, package/version and original apksigner verification
+before querying installed packages and starting the first device mutation. Newer
+installed version codes reject the operation, equal codes skip that component.
+The Launcher is installed before its service; failure stops the sequence. Completed
+components survive later failure. Download cleanup failures are visible. The
+frontend shows results from normal queue snapshots, not a persistent install record.
+`navigator_enabled` performs a read-only active-user Accessibility check in `adb.rs`.
+No activation-setting writer is exposed.
 
 ## Session Lifetime
 

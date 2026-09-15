@@ -8,6 +8,9 @@ are not device validation records or a claim about a published release.
 - [ADR-0003: Serial task execution and staged transfers](ADR-0003-serial-staged-tasks.md)
 - [ADR-0004: Local APK metadata and artwork cache](ADR-0004-application-metadata.md)
 - [ADR-0005: Local APK preparation and signing](ADR-0005-local-apk-preparation.md)
+- [ADR-0006: OBB files as part of an APK installation](ADR-0006-obb-installation.md)
+
+- [ADR-0007: Optional public APK downloads](ADR-0007-optional-app-downloads.md)
 
 Add an ADR when a change alters a long-lived boundary such as process topology,
 device identity, storage scope, task persistence, dependency management, or

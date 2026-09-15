@@ -2,7 +2,9 @@ mod adb;
 mod apk;
 mod apk_edit;
 mod apk_install;
+mod lightning;
 mod metadata;
+mod obb;
 mod tasks;
 
 use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
@@ -12,6 +14,15 @@ use tauri::{Emitter, Manager};
 
 #[tauri::command]
 async fn open_project_repository() -> Result<(), String> {
+    open_repository("https://github.com/yexca/quest-manager").await
+}
+
+#[tauri::command]
+async fn open_lightning_repository() -> Result<(), String> {
+    open_repository("https://github.com/threethan/LightningLauncher").await
+}
+
+async fn open_repository(url: &str) -> Result<(), String> {
     // Fixed destination: the webview cannot supply URLs, paths or shell arguments.
     let powershell = std::path::PathBuf::from(
         std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()),
@@ -24,7 +35,7 @@ async fn open_project_repository() -> Result<(), String> {
                 "-NoProfile".into(),
                 "-NonInteractive".into(),
                 "-Command".into(),
-                "$ErrorActionPreference='Stop'; Start-Process -FilePath 'https://github.com/yexca/quest-manager'".into(),
+                format!("$ErrorActionPreference='Stop'; Start-Process -FilePath '{url}'"),
             ])
             .output(),
     )
@@ -41,11 +52,39 @@ async fn open_project_repository() -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn lightning_releases(
+    service: tauri::State<'_, lightning::Lightning>,
+    refresh: bool,
+) -> Result<lightning::Catalog, String> {
+    service.catalog(refresh).await
+}
+
+#[tauri::command]
+async fn lightning_recommendation(
+    service: tauri::State<'_, lightning::Lightning>,
+    tag: String,
+) -> Result<lightning::Recommendation, String> {
+    service.recommendation(tag).await
+}
+
+#[tauri::command]
+async fn navigator_enabled(adb: tauri::State<'_, Adb>, device: String) -> Result<bool, String> {
+    adb.navigator_enabled(&device).await
+}
+
+#[tauri::command]
 async fn inspect_apk(
     installer: tauri::State<'_, apk_install::Installer>,
     source: String,
 ) -> Result<apk::LocalApk, String> {
     installer.inspect(source).await
+}
+
+#[tauri::command]
+async fn inspect_obb_files(sources: Vec<String>) -> Result<Vec<obb::LocalObb>, String> {
+    tauri::async_runtime::spawn_blocking(move || obb::inspect(sources))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -162,18 +201,28 @@ pub fn run() {
             };
             let installer = apk_install::Installer::new(apk_tools, aapt.clone(), apk_storage);
             app.manage(MetadataService::new(aapt, cache));
-            app.manage(TaskManager::with_installer(installer.clone()));
+            let lightning = lightning::Lightning::default();
+            app.manage(TaskManager::with_lightning(
+                installer.clone(),
+                lightning.clone(),
+            ));
+            app.manage(lightning);
             app.manage(installer);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             open_project_repository,
+            open_lightning_repository,
+            lightning_releases,
+            lightning_recommendation,
+            navigator_enabled,
             list_devices,
             device_info,
             list_apps,
             app_details,
             clear_metadata_cache,
             inspect_apk,
+            inspect_obb_files,
             list_files,
             start_task,
             list_tasks,

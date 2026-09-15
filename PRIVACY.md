@@ -17,6 +17,7 @@ of Windows, WebView2, ADB, or the headset operating system.
 | Shared filenames, paths, sizes, and timestamps | File browsing and transfer | Current UI state and task details |
 | Selected computer paths and ADB output | Task execution and error feedback | Current process and UI state |
 | Local APKs and selected icon images | Optional rebuilding, signing and installation | Task-owned temporary copies; cleanup attempted on completion/failure |
+| Selected OBB paths, sizes, source stamps and SHA-256 hashes | Attachment review, change detection and transfer verification | Current process/UI only; completed OBB files remain on the headset |
 | Per-package signing keys and password files | Allow subsequent locally signed updates | Persistent private local storage; user-managed backup/removal |
 | Uploaded, downloaded, or exported files | Explicit user operations | Files remain at their destinations |
 
@@ -64,6 +65,14 @@ Original APKs are not overwritten. Temporary files are removed on normal
 completion/failure; cleanup failures report their paths. Crashes may leave
 private staging files. Remove only known inactive task directories, not keys.
 
+Installing with OBB files also stages a complete APK copy here to bind the
+destination package to the installed bytes. With modification disabled, this
+copy retains the original signature and creates no signing keys. Local OBBs are
+read directly and hashed in bounded chunks, without a persistent local copy or
+hash cache. Headset transfers use task-owned `.partial` files in the package's
+OBB directory. Cleanup failures report remaining paths; completed files are not
+rolled back if a later transfer fails.
+
 Signing keys persist across launches, uninstall operations and artwork clearing.
 They allow compatible updates signed by this installation. Back up the entire
 `signing-keys` folder privately, including password files, and restore it to the
@@ -92,6 +101,31 @@ device operations.
 Project tool locations in `env` do not isolate ADB authorization keys or all
 system caches. Quest Manager does not override ADB's standard key storage or
 manage revocation of the computer's device authorization.
+
+## Optional App Downloads
+
+Opening Lightning Launcher setup or refreshing its versions contacts the author's
+public GitHub repository. Version matching reads public source at a release tag;
+APK downloads occur only after **Download & install**. Requests contain fixed
+repository paths, selected public release information and an application user
+agent. They do not include device identifiers, app inventories, local paths or
+credentials. GitHub/CDN providers receive ordinary network information such as
+the client IP. HTTPS is handled by pinned reqwest 0.13.5 with rustls and platform
+certificate verification; the webview is not given general network access.
+
+Release data is cached in process memory for ten minutes, bounded to 500 releases;
+recommendations last until refresh/process exit. Downloads use task-owned folders
+under the existing APK installation storage's `downloads` directory. They are
+removed after completion or failure; an interrupted process may leave files here.
+These folders contain public APK bytes, not signing keys, and are not bundled.
+
+The **Show install suggestions** boolean is persisted in WebView2 localStorage
+under `quest-manager.show-lightning-suggestion`. It contains no headset identity
+and survives restarts and artwork-cache clearing. Preview uses a separate key.
+Navigator activation state is read from the active Android user's Accessibility
+settings and retained only in the open setup dialog. No activation or permission
+settings are written. The project link opens the fixed upstream GitHub page in
+the default browser.
 
 ## Diagnostics and Sharing
 

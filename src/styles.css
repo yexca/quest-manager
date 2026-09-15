@@ -191,6 +191,64 @@ tbody tr:hover { background: #fcfdf9; }
 .danger-text { color: #b47d6c; }
 .modal { width: min(540px, calc(100vw - 60px)); max-height: 85vh; overflow: auto; border: 1px solid #dfe7d5; border-radius: 14px; box-shadow: 0 25px 90px #19321938; padding: 25px; color: #405b34; background: #fff; }
 .modal.wide { width: min(740px, calc(100vw - 60px)); }
+.page-heading > div:first-child { margin-right: auto; }
+.optional-apps-menu { position: relative; margin-left: 10px; }
+.optional-apps-menu summary { list-style: none; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #dce5d2; border-radius: 7px; cursor: pointer; background: #fff; }
+.optional-apps-menu summary::-webkit-details-marker { display: none; }
+.optional-apps-menu > div { position: absolute; top: 42px; right: 0; width: 235px; z-index: 5; border: 1px solid #dce5d2; border-radius: 9px; background: #fff; padding: 6px; box-shadow: 0 8px 28px #1932191a; }
+.optional-apps-menu button, .optional-apps-menu label { display: flex; align-items: center; gap: 9px; padding: 11px; width: 100%; font-size: 12px; text-align: left; border: 0; background: none; border-radius: 5px; color: inherit; }
+.optional-apps-menu button:hover { background: #f1f5e9; }
+.lightning-suggestion { display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 20px; background: #f2f6e9; border: 1px solid #dae4c8; border-radius: 11px; }
+.lightning-mark { width: 45px; height: 45px; border-radius: 12px; background: #e3eccd; color: #476d30; display: grid; place-items: center; flex: 0 0 auto; }
+.lightning-suggestion-copy { flex: 1; min-width: 0; }
+.lightning-suggestion-copy strong { font-size: 14px; font-weight: 600; }
+.lightning-suggestion-copy p { margin: 5px 0 0; font-size: 12px; line-height: 1.6; color: #6d7f5c; }
+.lightning-dismiss { white-space: nowrap; font-size: 11px; }
+.lightning-intro { display: flex; align-items: center; gap: 16px; padding: 9px 0 19px; }
+.lightning-intro .lightning-mark { width: 56px; height: 56px; }
+.lightning-intro h3 { font-size: 21px; margin: 0 0 7px; font-weight: 550; letter-spacing: -.5px; }
+.lightning-intro p { font-size: 12px; line-height: 1.6; margin: 0 0 6px; color: #748567; }
+.lightning-intro .text-button { font-size: 11px; }
+.lightning-target { padding: 11px 14px; background: #f8faf4; border: 1px solid #e8ecdf; border-radius: 7px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 17px; }
+.lightning-target strong { font-size: 12px; font-weight: 600; }
+.lightning-target small { margin-left: auto; font-size: 10px; color: #7b8970; overflow-wrap: anywhere; }
+.lightning-options { border: 0; padding: 0; margin: 0; min-width: 0; }
+.lightning-component { border: 1px solid #e1e7d8; border-radius: 9px; padding: 16px; margin-bottom: 12px; }
+.lightning-component.selected { border-color: #b9cca1; background: #fbfcf8; }
+.lightning-choice { display: flex; align-items: center; gap: 11px; cursor: pointer; }
+.lightning-choice input { flex-shrink: 0; }
+.lightning-choice span { flex: 1; }
+.lightning-choice strong { display: block; font-size: 13px; line-height: 1.5; font-weight: 600; }
+.lightning-choice small { display: block; margin-top: 4px; font-size: 11px; color: #738363; line-height: 1.5; }
+.lightning-version { display: grid; grid-template-columns: 115px minmax(0, 1fr); gap: 7px 12px; align-items: center; margin: 16px 0 0 25px; }
+.lightning-version label { font-size: 12px; }
+.lightning-version select { width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #d9e2ce; background: white; color: #476138; font: inherit; font-size: 12px; }
+.lightning-version small { grid-column: 2; color: #7a886e; font-size: 10px; line-height: 1.6; }
+.lightning-version .lightning-installed { grid-column: 2; display: flex; align-items: center; gap: 7px; margin: 0; color: #476138; font-size: 11px; line-height: 1.6; }
+.lightning-installed svg { flex-shrink: 0; }
+.lightning-compatibility { margin-left: 25px; }
+.lightning-service-body { margin: 12px 0 0 25px; }
+.lightning-service-body > p { font-size: 12px; line-height: 1.7; color: #718062; }
+.lightning-service-body .lightning-version { margin-left: 0; }
+.lightning-permission { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border: 1px solid #e1e7d6; border-radius: 6px; background: #f0f4e8; font-size: 11px; line-height: 1.65; }
+.lightning-permission svg, .lightning-source svg, .lightning-note svg { flex-shrink: 0; }
+.lightning-permission strong { display: block; margin-bottom: 3px; font-weight: 600; }
+.lightning-other { margin-top: 13px; font-size: 11px; }
+.lightning-note { font-size: 11px; color: #748567; display: flex; align-items: center; gap: 8px; line-height: 1.7; }
+.lightning-warning { padding: 10px; background: #fff4db; color: #856529 !important; border-radius: 5px; }
+.lightning-source { display: flex; gap: 8px; align-items: flex-start; font-size: 10px; color: #7b8a6d; line-height: 1.7; }
+.lightning-source span { flex: 1; }
+.lightning-source .text-button { font-size: 10px; flex-shrink: 0; white-space: nowrap; }
+.lightning-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 42px; font-size: 13px; }
+.lightning-total { margin-right: auto; font-size: 11px; color: #77886a; }
+.lightning-result, .lightning-guide { margin-top: 17px; background: #f1f6e8; padding: 15px; border-radius: 7px; font-size: 12px; }
+.lightning-result p, .lightning-guide p { font-size: 11px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lightning-result.failed { background: #fff2e7; color: #85532c; }
+@media (max-width: 1100px) {
+  .lightning-suggestion { flex-wrap: wrap; gap: 12px; }
+  .lightning-suggestion-copy { flex-basis: calc(100% - 65px); }
+  .lightning-suggestion > .button { margin-left: 57px; }
+}
 .modal.wide:has(.install-review) { width: min(980px, calc(100vw - 60px)); }
 .install-review { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: start; }
 .apk-picker { display: grid; gap: 7px; max-height: 420px; overflow: auto; }
@@ -237,6 +295,19 @@ tbody tr:hover { background: #fcfdf9; }
 .apk-image-actions label:focus-within { outline: 2px solid #4a896d; outline-offset: 3px; }
 .apk-compatibility { border-top: 1px solid #e6ebdf; margin-top: 17px; }
 .apk-footer-note { margin-right: auto; font-size: 11px; color: #748567; }
+.obb-attachments { margin: 20px 0; padding: 16px; border: 1px dashed #a7bda0; border-radius: 9px; background: #f5f8f0; }
+.obb-attachments.unavailable { border-color: #d8dfd1; background: #f7f8f4; }
+.obb-heading { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.obb-heading > div { flex: 1; min-width: 190px; }
+.obb-heading strong { font-size: 12px; color: #46653a; }
+.obb-heading strong span { font-size: 10px; font-weight: 400; margin-left: 6px; color: #718068; }
+.obb-heading p, .obb-empty, .obb-destination { font-size: 11px; line-height: 1.7; color: #718068; margin-top: 7px; }
+.obb-destination code { display: block; color: #48683b; overflow-wrap: anywhere; }
+.obb-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 190px; overflow: auto; }
+.obb-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #e0e7d8; }
+.obb-list li > div { flex: 1; min-width: 0; }
+.obb-list strong { display: block; font-size: 11px; font-weight: 500; overflow-wrap: anywhere; }
+.obb-list small { display: block; font-size: 10px; margin-top: 4px; color: #718068; }
 .icon-crop { display: flex; gap: 14px; border: 1px solid #e4e9dd; padding: 12px; border-radius: 8px; }
 .icon-crop canvas { width: 130px; height: 130px; background: #eff2e9; flex-shrink: 0; }
 .icon-crop > div { display: grid; gap: 7px; flex: 1; }
@@ -381,3 +452,6 @@ th { font-size: 10px; color: #748568; }
 
 .task-target { display: block; margin-top: 5px; font-size: 10px; color: #6b8159; overflow-wrap: anywhere; }
 .queue-toolbar { display: flex; justify-content: flex-end; margin: 12px 0 4px; }
+
+.lightning-target .quiet-label { margin-left: 0; }
+.lightning-setup .modal-actions { position: sticky; bottom: -25px; z-index: 1; background: #fff; padding-bottom: 12px; box-shadow: 0 -8px 12px #ffffffed; }

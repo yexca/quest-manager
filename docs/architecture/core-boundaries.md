@@ -67,6 +67,11 @@ details and use explicit unknown values/fallback artwork.
 - Ordinary upload/download/rename targets must be absent. File transfers do not
   silently overwrite existing final items. Compatible APK replacement is the
   intentional exception through `install -r`.
+- OBB attachment destinations come from the staged APK's decoded package, never
+  a supplied remote path. A matching review package and source stamp are required.
+  One install task owns the APK and all selected OBBs. Existing OBBs are only
+  reused after identical SHA-256 verification; differing files are not overwritten.
+  Partial completion is retained and reported, with no automatic rollback.
 - Transfers write to task-specific `.quest-manager-*.partial` paths before
   publishing a final name. Cleanup is attempted after ordinary failures or
   cancellation, and cleanup failures are reported.
@@ -75,6 +80,20 @@ details and use explicit unknown values/fallback artwork.
   not. Preflight queries and final publication may delay or race cancellation.
 - Tasks are not persistent or crash-recoverable. There is no automatic retry,
   rollback of completed actions, or transaction spanning several queued tasks.
+
+## Optional Public APK Downloads
+
+`lightning.rs` owns the fixed-repository release catalog, conservative source-based
+addon matching and bounded HTTPS downloads. IPC accepts asset IDs from the loaded
+catalog, never arbitrary URLs or download paths. Task creation pins the resolved
+asset metadata; refresh or selection changes cannot retarget queued work.
+
+`tasks.rs` holds the global queue permit through download, original signature and
+identity verification, device preflight, ordered installation and cleanup. All
+components verify before any device write. Partial completion is explicit;
+`apkInstalled` refreshes applications even on failure, and a null package hint
+invalidates the composite setup's packages. Service activation stays a user action.
+See [ADR-0007](../decisions/ADR-0007-optional-app-downloads.md).
 
 ## Local Paths and Trust
 

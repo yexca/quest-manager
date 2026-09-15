@@ -31,8 +31,12 @@ flowchart LR
 | [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
 | [src/installState.ts](../../src/installState.ts) | Review package checks, stale-response disposal, numeric version comparison and duplicate detection |
+| [src/obbState.ts](../../src/obbState.ts) | OBB attachment eligibility, collision handling and request construction |
 | [src/About.tsx](../../src/About.tsx) | Offline project credits/license, manifest-derived dependencies and repository link |
 | [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
+| [src/LightningSetup.tsx](../../src/LightningSetup.tsx) | Optional Launcher setup, release selection and activation guidance |
+| [src/lightningState.ts](../../src/lightningState.ts) | Suggestion eligibility, release matching and fictional preview catalog |
+| [src-tauri/src/lightning.rs](../../src-tauri/src/lightning.rs) | Fixed GitHub catalog, addon recommendations and HTTPS downloads |
 | [src/api.ts](../../src/api.ts) | Typed IPC calls and explicit fictional browser preview |
 | [src/types.ts](../../src/types.ts) | Frontend data and task contracts |
 | [src/styles.css](../../src/styles.css) | Shared layout and interface styling |
@@ -43,8 +47,10 @@ flowchart LR
 | [src-tauri/src/apk.rs](../../src-tauri/src/apk.rs) | APK byte-range reader, ZIP limits, AAPT2 resource decoding, raster icons and signing-block fingerprints |
 | [src-tauri/src/apk_edit.rs](../../src-tauri/src/apk_edit.rs) | Resource staging, manifest editing and compressed game-payload preservation |
 | [src-tauri/src/apk_install.rs](../../src-tauri/src/apk_install.rs) | Local preview/preparation, private signing keys and output verification |
+| [src-tauri/src/obb.rs](../../src-tauri/src/obb.rs) | Local OBB inspection, filename validation and streaming hashes |
 | [src-tauri/src/tasks.rs](../../src-tauri/src/tasks.rs) | Task validation, global queue, mutations, transfers, cancellation, cleanup |
 | [src-tauri/src/device_tests.rs](../../src-tauri/src/device_tests.rs) | Opt-in fixture-based device integration test |
+| [src-tauri/src/obb_tests.rs](../../src-tauri/src/obb_tests.rs) | Host-only composite install tests using a synthetic ADB executable |
 | [scripts/Environment.ps1](../../scripts/Environment.ps1) | Process-local tool paths and installed-environment checks |
 | [src-tauri/tauri.conf.json](../../src-tauri/tauri.conf.json) | Window, CSP, build hooks, bundled resources, installer target |
 | [src-tauri/capabilities/default.json](../../src-tauri/capabilities/default.json) | Main-window core and dialog permissions |

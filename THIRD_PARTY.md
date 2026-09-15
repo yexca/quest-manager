@@ -20,6 +20,7 @@ metadata; transitive components need their own review for a binary release.
 | TypeScript | Apache-2.0 | Build-time type checking |
 | Vite, its React plugin and the direct TypeScript type packages | MIT | Frontend development/build tooling |
 | Serde, serde_json, base64, sha2, getrandom and png | MIT OR Apache-2.0 | Rust serialization, hashes, encoding, randomness and images |
+| reqwest | MIT OR Apache-2.0 | Optional fixed-repository HTTPS downloads |
 | Tokio, quick-xml and zip | MIT | Rust subprocesses, XML and archives |
 
 Read the license files shipped with the exact packages as well as their metadata.
@@ -81,3 +82,13 @@ remain with their respective owners.
 
 Follow [Commit and release](docs/development/commit-and-release.md). Source
 publication and binary distribution are separate review steps.
+
+
+## Optional Headset Applications
+
+[Lightning Launcher and its Navigator service](https://github.com/threethan/LightningLauncher)
+are separate applications by threethan, published under the repository's
+[GPLv3 license](https://github.com/threethan/LightningLauncher/blob/main/LICENSE).
+Quest Manager offers on-demand download of the author's unmodified release APKs;
+it does not include them in the application bundle. The setup dialog links to
+the upstream source. This integration does not imply author endorsement.

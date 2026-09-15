@@ -101,6 +101,8 @@ async fn connected_device_task_roundtrip() {
         destination,
         package_name,
         install_options: None,
+        obb: None,
+        lightning: None,
     };
 
     let result: Result<(), String> = async {

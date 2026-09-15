@@ -2,7 +2,7 @@ param([switch]$Device, [switch]$DeviceWrite)
 . (Join-Path $PSScriptRoot 'scripts\Environment.ps1')
 Assert-QuestInstalled
 Invoke-QuestCommand -File 'npm.cmd' -Arguments @('run', 'build')
-Invoke-QuestCommand -File 'node.exe' -Arguments @('--test', 'tests/frontend/taskState.test.ts', 'tests/frontend/installState.test.ts', 'tests/frontend/applicationState.test.ts')
+Invoke-QuestCommand -File 'node.exe' -Arguments @('--test', 'tests/frontend/taskState.test.ts', 'tests/frontend/installState.test.ts', 'tests/frontend/applicationState.test.ts', 'tests/frontend/lightningState.test.ts')
 Invoke-QuestCommand -File 'cargo.exe' -Arguments @('fmt', '--manifest-path', 'src-tauri/Cargo.toml', '--', '--check')
 Invoke-QuestCommand -File 'cargo.exe' -Arguments @('clippy', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', '--all-targets', '--', '-D', 'warnings')
 Invoke-QuestCommand -File 'cargo.exe' -Arguments @('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml')

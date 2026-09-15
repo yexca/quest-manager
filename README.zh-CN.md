@@ -77,6 +77,8 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 安装支持普通 `.apk`，暂不支持将 XAPK/APKS/APKM 容器直接安装，也没有批量 split 安装入口。导出 APK 不包含存档。卸载和删除需要界面内确认；正在执行的安装/卸载不能取消。任务记录仅保留当前运行会话，请等待任务完成后再关闭软件。
 
+安装确认页的 **Add OBB files** 可选择多个本地 `.obb` 文件，也可直接拖入确认页，附加到当前选中的 APK。读取不到 APK 包名时禁用该功能。APK 和配套 OBB 作为同一个任务执行，OBB 保留原文件名，放入 `/sdcard/Android/obb/<包名>/`。安装前检查已有文件；内容完全一致时复用，内容不同时拒绝覆盖。APK 安装后逐个传输并校验 OBB；若中途失败，会明确显示“APK 已安装、OBB 数据未完成”，保留已完成文件，可重新选择 APK 和 OBB 手动重试。运行中的整个安装任务不能取消。
+
 **Modify and re-sign APK** 默认关闭。修改名称或图标会重建资源并包含兼容签名处理；只开启 **Compatibility install** 时不修改外观。兼容处理用于部分大 APK 的签名校验溢出，不能解决所有安装问题。原 APK 保持不变；新签名通常不能覆盖原签名版本，也可能影响依赖签名的游戏功能。程序不会自动卸载冲突应用。每个包名使用稳定的本地密钥，请私下备份整个签名目录；详见[隐私说明](PRIVACY.md)。
 
 应用名称与位图图标通过读取 base APK 的部分数据逐步加载，并优先选择可用的英文名称。自适应、矢量或只存在于 split 的图标可能使用默认图标。APK 大小不包括应用数据、缓存或 OBB；证书指纹不验证发布者身份或 APK 完整性，VR 声明也不保证兼容性。
@@ -98,6 +100,7 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 | APK 编辑 crates | quick-xml 0.42.0、png 0.18.1、getrandom 0.3.4；精确固定 |
 | APK 元数据 crates | zip 4.6.1、sha2 0.10.9、base64 0.22.1；在 `Cargo.toml` 精确固定 |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
+| HTTPS / reqwest | 0.13.5; rustls |
 | React / TypeScript / Vite | 19.3.0 / 7.0.2 / 8.2.2 |
 | NSIS / nsis-tauri-utils（可选打包工具） | 3.11 / 0.5.3，由固定的 Tauri CLI 下载并校验，缓存于 `env/target/.tauri` |
 | JS 直接与间接依赖 | `package.json` 精确版本 + `package-lock.json` 完整锁定 |
@@ -207,3 +210,17 @@ run-test.ps1             验证入口
 源代码仓库：[github.com/yexca/quest-manager](https://github.com/yexca/quest-manager)。
 
 Copyright © 2026 yexca。本项目使用 [GNU Affero General Public License 第 3 版](LICENSE)（仅限第 3 版，`AGPL-3.0-only`），不提供任何担保。第三方依赖保留各自许可证，项目许可证不替代依赖附带的许可与声明文件。
+
+
+## 可选的 Lightning Launcher 安装
+
+Applications 在成功读取完整应用列表、确认未安装任何受识别的 Launcher
+发行版本后显示 **Install Lightning Launcher**。**Don't show again** 会在本机
+记住隐藏偏好；右上角 **Optional apps**（`...`）菜单保留手动安装入口和恢复提示的选项。
+
+安装窗口按需从作者的 GitHub 获取稳定版 APK，默认选择最新 Launcher。
+可选安装 Navigator Button Redirection Service，默认匹配所选 Launcher 源码
+明确指定的插件版本，其他历史版本标注兼容性未经确认。保留原始 APK 签名，
+通过现有任务队列依次安装；插件需要用户在头显的无障碍设置中启用，程序不会自动授权。
+下载限制、部分完成和数据保留见 [产品流程](docs/product/workflows.md#lightning-launcher)
+及[隐私说明](PRIVACY.md#optional-app-downloads)。

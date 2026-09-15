@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { applicationChanges, createApplicationCache, type AppMutation } from './applicationState';
 import type { AppPackage } from './types';
+import { taskChangedDevice } from './taskState';
 
 export function useApplications(device: string, transports: string[], active: boolean, includeSystem: boolean, refresh: number, revision: number, tasks: AppMutation[], fail: (error: unknown) => void) {
   const cache = useMemo(() => createApplicationCache(), [device]);
@@ -9,6 +10,7 @@ export function useApplications(device: string, transports: string[], active: bo
   currentCache.current = cache;
   const [view, setView] = useState(() => ({ device, ...cache.snapshot() }));
   const [loadingApps, setLoadingApps] = useState(false);
+  const [inventory, setInventory] = useState({ device: '', valid: false });
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [metadataPaused, setMetadataPaused] = useState(false);
   const latest = useRef({ tasks, transports });
@@ -24,15 +26,17 @@ export function useApplications(device: string, transports: string[], active: bo
     const explicit = previousRefresh.current !== refresh;
     previousRefresh.current = refresh;
     for (const task of latest.current.tasks) {
-      if (!seen.current.has(task.id) && latest.current.transports.includes(task.device) && task.kind === 'install' && task.packageName) cache.installed(task.packageName);
+      if (taskChangedDevice(task) && !seen.current.has(task.id) && latest.current.transports.includes(task.device) && task.kind === 'install' && task.packageName) cache.installed(task.packageName);
     }
     const affected = applicationChanges(latest.current.tasks, latest.current.transports, seen.current);
     cache.invalidate(explicit ? null : affected);
     if (explicit) setMetadataPaused(false);
     setLoadingApps(true);
+    setInventory({ device, valid: false });
     void api.apps(device, true).then(apps => {
       if (!alive) return;
       cache.reconcile(apps); publish();
+      setInventory({ device, valid: true });
     }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setLoadingApps(false); });
     return () => { alive = false; };
   }, [cache, device, refresh, revision, fail]);
@@ -64,7 +68,7 @@ export function useApplications(device: string, transports: string[], active: bo
   };
   const resumeMetadata = () => { cache.invalidate(new Set(Object.keys(cache.snapshot().errors))); setMetadataPaused(false); };
   return {
-    ...(view.device === device ? view : { device, ...cache.snapshot() }), loadingApps, loadingMetadata,
+    ...(view.device === device ? view : { device, ...cache.snapshot() }), loadingApps, loadingMetadata, inventoryReady: inventory.device === device && inventory.valid,
     metadataPaused, setMetadataPaused, resumeMetadata, readDetails,
   };
 }

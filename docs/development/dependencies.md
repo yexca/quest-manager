@@ -90,3 +90,10 @@ crates are pinned to 0.42.0/0.18.1/0.3.4 respectively.
 hashes. Builds copy it to `release/build-environment.json`. These records may
 contain machine paths and belong to ignored local output. Commit the version
 declarations and lockfiles, not installation records. See [Privacy](../../PRIVACY.md).
+
+
+## Optional Download Client
+
+Runtime GitHub downloads use exact reqwest 0.13.5 with rustls and platform certificate
+verification. Cargo.lock pins its dependencies. This client is separate from the
+ADB client and does not alter the webview network capabilities.

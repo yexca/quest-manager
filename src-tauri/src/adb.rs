@@ -165,6 +165,28 @@ impl Adb {
         })
     }
 
+    pub async fn navigator_enabled(&self, device: &str) -> Result<bool, String> {
+        let user = self.shell(device, "am get-current-user").await?;
+        if user.is_empty() || !user.bytes().all(|c| c.is_ascii_digit()) {
+            return Err("Could not determine the active Android user.".into());
+        }
+        let values = self.shell(device, &format!("settings --user {user} get secure accessibility_enabled; settings --user {user} get secure enabled_accessibility_services")).await?;
+        let mut lines = values.lines();
+        let active = lines.next().unwrap_or("").trim();
+        if !matches!(active, "0" | "1" | "null") {
+            return Err("Could not read Accessibility service status.".into());
+        }
+        let services = lines
+            .next()
+            .ok_or("Could not read Accessibility service status.")?;
+        Ok(active == "1"
+            && services.trim().split(':').any(|service| {
+                service
+                    .split_once('/')
+                    .is_some_and(|(package, _)| package == crate::lightning::NAVIGATOR)
+            }))
+    }
+
     pub async fn apps(
         &self,
         device: &str,
@@ -312,6 +334,57 @@ impl Adb {
             return Err("An item with that name already exists. Choose another name or remove the existing item first.".into());
         }
         Ok(())
+    }
+
+    // A package's OBB directory must resolve to that exact shared-storage location.
+    // Missing components are allowed during preflight; existing links are not.
+    pub async fn obb_directory(&self, device: &str, package: &str) -> Result<String, String> {
+        let directory = crate::obb::package_directory(package)?;
+        for path in ["/sdcard/Android", "/sdcard/Android/obb", &directory] {
+            let quoted = shell_quote(path);
+            let actual = self.shell(device, &format!(
+                "if [ -L {quoted} ]; then exit 1; elif [ -e {quoted} ]; then [ -d {quoted} ] && readlink -f -- {quoted}; else printf missing; fi"
+            )).await.map_err(|e| format!("Cannot access the OBB directory safely: {e}"))?;
+            if actual != "missing" && normalize_remote(&actual)? != path {
+                return Err("The OBB directory resolves to a different location.".into());
+            }
+        }
+        Ok(directory)
+    }
+
+    pub async fn obb_file_exists(&self, device: &str, path: &str) -> Result<bool, String> {
+        let quoted = shell_quote(path);
+        let state = self.shell(device, &format!(
+            "if [ -L {quoted} ]; then printf conflict; elif [ -e {quoted} ]; then if [ -f {quoted} ]; then printf file; else printf conflict; fi; else printf missing; fi"
+        )).await?;
+        match state.as_str() {
+            "file" => Ok(true),
+            "missing" => Ok(false),
+            _ => Err(format!("The OBB destination is not a regular file: {path}")),
+        }
+    }
+
+    pub async fn obb_sha256(&self, device: &str, path: &str) -> Result<String, String> {
+        validate_device(device)?;
+        let quoted = shell_quote(path);
+        // Large expansion files may take longer than the ordinary query timeout.
+        let output = tokio::time::timeout(
+            Duration::from_secs(3600),
+            self.command(&[
+                "-s".into(),
+                device.into(),
+                "shell".into(),
+                format!("[ ! -L {quoted} ] && [ -f {quoted} ] && sha256sum < {quoted}"),
+            ])
+            .output(),
+        )
+        .await
+        .map_err(|_| "OBB verification timed out after one hour.")?
+        .map_err(|e| format!("Could not verify the OBB file: {e}"))?;
+        if !output.status.success() {
+            return Err(friendly_error(&String::from_utf8_lossy(&output.stderr)));
+        }
+        crate::obb::parse_sha256(&String::from_utf8_lossy(&output.stdout))
     }
 }
 

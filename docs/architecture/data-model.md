@@ -17,6 +17,7 @@ as camelCase; task kinds are lowercase strings.
 | `AppAssets` | Nullable `displayName`/`iconDataUrl`, VR declarations, signing schemes, certificate SHA-256 fingerprints and availability notes; persisted in a bounded private cache |
 | `Permission` | Permission `name`, nullable `granted` boolean and `kind` (Requested, Install, Runtime) for the selected Android user |
 | `LocalApk` | Package/version, byte size, source size/mtime stamp, default launcher assets, split flag and nullable verity-signature presence |
+| `LocalObb` | Absolute local `source`, `sourceStamp`, original `name` and byte `size`; no persistent cache |
 | `FileEntry` | Name, remote path, kind, byte size, and `modifiedAt` as Unix epoch milliseconds |
 
 File kinds are `directory`, `file`, `symlink`, and `other`. Directory size is
@@ -46,6 +47,7 @@ calls them through [api.ts](../../src/api.ts).
 | `app_details` | `device`, `package` | `AppDetails` |
 | `clear_metadata_cache` | None | Success or error; deletes cached JSON under the service gate |
 | `inspect_apk` | `source` (absolute local APK path) | `LocalApk`; no device needed |
+| `inspect_obb_files` | `sources` (1–128 absolute local OBB file paths) | `LocalObb[]`; no device needed |
 | `list_files` | `device`, `path` | `FileEntry[]` |
 | `start_task` | `request` | Initial `TaskSnapshot` |
 | `list_tasks` | None | Current task snapshots |
@@ -58,6 +60,23 @@ The repository command accepts no URL, path or command arguments. It opens only
 Every `device` argument is an ADB transport serial, including
 `TaskRequest.device`. It is not the grouped `Device.id`. Errors are strings;
 they can contain diagnostic details and are not automatically redacted.
+
+## Optional Setup IPC
+
+- `lightning_releases(refresh: boolean)` returns `LightningCatalog` with Launcher
+  and Navigator arrays. Each release has `tag`, `assetId`, `size`, `publishedAt`,
+  and nullable `sha256`. Download URLs and package identities stay backend-owned.
+- `lightning_recommendation(tag: string)` returns `launcherTag` and nullable
+  `navigatorTag`; errors/missing declarations do not imply support.
+- `navigator_enabled(device: string)` returns a boolean or error for the captured
+  transport's active Android user. UI errors display activation as unknown.
+- `open_lightning_repository()` opens only the fixed upstream public repository.
+
+`TaskRequest.lightning` contains nullable `launcherAsset` and `navigatorAsset` IDs.
+At least one is required. This field is exclusive with local source/destination,
+package hint, preparation and OBB options; `kind` remains `install`. The normal
+queue and `apkInstalled` partial-completion flag apply. It supplies no package hint
+because the task can install two packages. No new persistent device state exists.
 
 ## Task Requests
 
@@ -81,6 +100,13 @@ explicit opt-in to local preparation. Appearance edits always include compatible
 signing; without appearance changes, `compatibility` must be true. Other task
 kinds reject these options. A changed source stamp rejects preparation.
 
+Installation can also accept `obb`: an `apkSourceStamp` and 1–128 `files`, each
+containing `source` and `sourceStamp`. Other kinds reject it. OBB requests require
+a valid preview `packageName`; this is checked against the staged APK manifest
+before any device writes. It is never used as the destination authority. The
+backend rereads local names/sizes, checks stamps and computes hashes itself.
+No target path or caller-supplied checksum is accepted.
+
 Local destinations are folders, not the final output filename. Upload/download
 preserve the source basename. Export creates a folder named from the package
 and task ID. `mkdir` and `rename` intentionally use `destination` for a basename;
@@ -93,6 +119,12 @@ transport `device`, monotonic per-task `revision`, `kind`, nullable `packageName
 refresh hint, `label`, `status`, `detail`, nullable `progress`, and
 `createdAt` in epoch milliseconds. IDs combine an epoch timestamp with a
 process-local counter; they are not durable identities across installations.
+
+`includesObb` identifies composite installs. `apkInstalled` starts false and
+becomes true after Android accepts the APK, retaining that value if later OBB
+work or local cleanup fails. Terminal failed snapshots with this flag invalidate
+application data; composite installs also refresh Files and storage information.
+The flag does not make a failed task successful or imply that the game launched.
 
 Statuses are `queued`, `running`, `success`, `failed`, and `cancelled`.
 `progress` is a percentage when available; null means no numeric progress.

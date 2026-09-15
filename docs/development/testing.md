@@ -40,6 +40,21 @@ unknown-version system packages, plus duplicate package selection. Inspect the
 inline comparison, retry, removal and re-signing warning at supported widths;
 preview installation remains disabled.
 
+OBB logic tests cover unknown/split-package disabling, repeated selections,
+custom filenames, duplicate conflicts, attachment limits and stamped requests.
+Partial-install task tests check app/files refresh without converting failure
+into success. The normal Rust suite compiles the host-only
+[mock ADB fixture](../../tests/fixtures/mock-adb.rs) with the project Rust toolchain
+and runs composite installs against an isolated directory under `env/test-artifacts`.
+It checks multi-file order, reuse, conflicts, changed sources, unreadable/wrong
+packages, redirected directories, APK failure, interrupted pushes, checksum
+mismatch, publication collisions and cleanup reporting. This executable cannot
+contact a headset; its simulated checksum responses do not establish device
+compatibility. Real local hashing and APK parsing run in the normal test process.
+Preview attachment selection/removal and switching at both supported widths;
+the unreadable APK fixture must keep OBB controls disabled. Native file picker
+and drag/drop integration require separate desktop validation.
+
 Application cache regressions check that deleting one package and toggling
 system visibility do not reread unrelated metadata. They also cover same-version
 replacement, APK path/installer changes, obsolete pending results, detail request
@@ -166,3 +181,32 @@ fixture; the signing private key must remain outside tracked files.
 Report commands and aggregate outcomes in the task response. Do not save live
 validation records to `VALIDATION.md`, docs, or a new fixture. See
 [Privacy](../../PRIVACY.md) and [Secure development](security.md).
+
+
+## Optional Launcher Setup
+
+Routine frontend tests include `tests/frontend/lightningState.test.ts` for absent,
+unknown, dismissed and installed-edition states, explicit addon matching and
+partial-setup refresh, installed-version normalization, edition isolation, and
+service choice invalidation when changing targets or refreshing. Rust tests cover fixed-host/asset checks, source matching,
+streamed size/hash validation, file collision refusal and component ordering using
+the host-only mock ADB. These tests cannot contact a headset.
+
+An opt-in network-only smoke check exercises real release discovery, matching,
+download and original signature verification; it creates temporary local files,
+cleans them up, and never invokes ADB:
+
+```powershell
+. .\scripts\Environment.ps1
+cargo test --locked --manifest-path src-tauri/Cargo.toml github_release_download_and_signature_smoke -- --ignored
+```
+
+Inspect the suggestion, dismissal/restoration and setup dialog at both supported
+sizes. Changing Launcher versions must update the recommended service. Other
+versions require an explicit choice and remain labeled unverified; preview install
+stays disabled. Native IPC and real installation require separate device testing.
+Use `?preview=1&lightning=installed` for fictional older installations, or
+`?preview=1&lightning=current` for fictional current installations. In manual
+setup, check the installed labels in both selectors, notices when selecting those
+versions, and the service recommendation comparison while its checkbox is off.
+The default `?preview=1` keeps the absent-installation scenario.

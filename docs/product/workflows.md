@@ -67,20 +67,78 @@ third-party app count, shared-storage capacity, battery, and recent tasks.
 Users can choose a device, and choose a connection when several ready
 transports belong to that device. USB is preferred by default.
 
+Without a matching explicit selection, the app prefers a device with a ready
+connection over an offline entry. An explicitly selected device is not replaced
+by another headset just because it goes offline. Manual refresh waits for a
+fresh device snapshot; an older pending poll cannot overwrite that refresh.
+
 The headset illustration follows the selected device's discovered model: Quest 3,
 Quest 3S, or Quest 2. Case, spaces, underscores, hyphens, and Meta/Oculus prefixes
 are normalized for artwork selection. Unknown models use a generic illustration
 and retain the same device operations. Artwork does not indicate tested support
 for every feature on that model.
 
-No-device and authorization-required states provide connection guidance. Device
-discovery refreshes automatically and can be requested manually. The user must
-enable developer mode and authorize USB debugging in the headset. Existing
-Wi-Fi connections appear through ADB; there is no pairing or wireless setup UI.
+No-device and authorization-required states provide connection guidance and a
+**Connect via Wi-Fi** action. The top bar and Help keep this entry available
+when a headset is connected. Discovery refreshes automatically and can be
+requested manually. Developer mode and headset debugging authorization are
+required. Existing Wi-Fi connections also appear through ADB.
 
 The app distinguishes shared capacity from private app storage. Battery or
 version information can be unavailable; it must not be replaced with sample
 measurements in desktop mode.
+
+### Wireless Setup
+
+The dialog offers three icon-and-text tabs in one row, in this order:
+
+- **USB setup** requires an explicitly selected, authorized USB headset. It first
+  reuses a ready wireless connection whose physical identity matches. Otherwise
+  it enables system wireless debugging for the current network and tries existing
+  trust before pairing. A working authenticated connection reports that pairing
+  is already available; an authentication failure starts pairing and connection.
+  Network failures are not reported as proof of pairing. The temporary helper is
+  removed after setup; no APK is installed. A disappeared selection never
+  substitutes another USB headset.
+- **QR code** generates an Android debugging QR locally, valid for two minutes.
+  In Lightning Launcher, open **Android Settings → System → Developer options**,
+  then **Debugging → Wireless debugging → Pair device with QR code**. The app's
+  **Lightning Launcher setup** can install the launcher. Scanner availability
+  depends on the headset OS; use USB setup if absent. Meta mobile QR pairing uses
+  another protocol. ADB mDNS finds the exact scanner, pairs once, and connects
+  the verified device. Cancelling stops the app session; pairing already submitted
+  to the shared ADB server may still finish.
+- **Pairing code** accepts the numeric pairing IP/port and six-digit code from
+  the headset's open Wireless debugging pairing screen. Pairing and connection
+  happen automatically, using the paired device identity. The pairing port
+  differs from the connection port; the app discovers the latter. Not every
+  Horizon OS version exposes this entry.
+
+Keep the headset awake and both devices on the same reachable local network.
+Pairing cannot start in deep sleep: put on the headset or press its power button,
+and keep the display on until setup finishes. This instruction appears above all tabs.
+The top note explains that deep sleep disconnects Wi-Fi and ADB reconnects on wake
+on the same network while wireless debugging remains enabled. This is ADB's
+existing reconnection behavior; the app does not resume failed tasks or silently
+pair again. Reboots or network changes may require explicit setup again.
+There is no pairing-code retention. Closing the dialog does not disable
+wireless debugging or revoke ADB trust.
+
+Setup is disabled while tasks are queued/running. The backend independently
+holds the global mutation permit and rejects busy setup. Code setup has a
+90-second deadline; USB has bounded preflight, setup and awaited cleanup stages;
+QR sessions have a two-minute total deadline. The dialog prevents closing during the request,
+with a dedicated cancel action for QR sessions. The native exit guard also
+covers setup in progress.
+
+Connection success requires a matching ready transport (and ADB's success
+response for explicit connect). QR/code verify the paired GUID through a readable
+device property or its exact authenticated TLS service transport when the
+property is hidden. USB verifies the same physical identity over both connections.
+Discovery then refreshes and selects that Wi-Fi transport for future
+operations. Already queued tasks keep their original transport. USB remains
+the default for ordinary discovery; explicit wireless selection takes priority.
+Preview exposes all forms but disables connection and pairing actions.
 
 ## Manage Applications
 

@@ -45,6 +45,55 @@ Do not paste its unredacted output into tracked files.
   server-level diagnosis; do not automatically run `kill-server`, reset keys,
   enable root, or reconfigure wireless debugging.
 
+### Wireless Setup
+
+- No **Pair device with QR code** scanner: in Lightning Launcher, try
+  **Android Settings → System → Developer options → Debugging → Wireless
+  debugging**. The app's **Lightning Launcher setup** can install the launcher.
+  If the scanner is still absent, use **USB setup**. Meta mobile QR pairing is
+  a different protocol; Android version alone does not establish availability.
+- QR remains waiting or expires: keep both devices on the same reachable
+  network. Guest/client isolation or blocked mDNS can prevent discovery.
+  Generate a fresh QR and scan with the headset's debugging scanner, or use
+  **USB setup**. QR setup never changes firewall settings.
+- Paired but did not connect: wake the headset and refresh, or use **USB setup**
+  to reuse authorization. Cancellation/expiry can leave a completed pairing trusted.
+
+Open **Connect via Wi-Fi** from the disconnected screen, top bar, or Help.
+Pairing cannot start while the headset is in deep sleep. Put it on or press its
+power button to wake it, and keep the display on until setup completes. Keep it
+on the same reachable local network as the computer.
+
+- No Wireless debugging settings or pairing code: use **USB setup** with
+  an authorized cable connection. Headset settings differ across OS versions.
+- Pairing fails: use the address/port from the open pairing-code screen and a
+  fresh six-digit code. Connection follows automatically; do not substitute the
+  separate connection port for the pairing port.
+- Connection refused/offline: check the current IP/port and wireless-debugging
+  state. Guest-network isolation or firewall rules can prevent peer connections.
+  Retry setup after correcting the cause.
+- USB setup cannot determine an address: connect the headset to Wi-Fi. Setup
+  requires one IPv4 source address on its `wlan0` route. If unavailable, use
+  QR or code pairing in supported headset settings instead.
+- USB reports already paired/authorized: the app verified an existing connection
+  to that physical headset and reused it. No new pairing is needed.
+- USB did not start wireless debugging: wake the headset, keep it connected to
+  Wi-Fi, and retry. This failure does not establish whether it is paired.
+  Existing trust, system-interface availability and network reachability are
+  separate. Setup errors may leave debugging enabled.
+- Temporary-helper cleanup is unconfirmed: a started helper has an on-device
+  deadline, but interrupted staging can leave files. Do not delete unrelated
+  files or reset ADB keys to resolve this message.
+- Setup disabled: finish or cancel active tasks first. This prevents setup from
+  interrupting installations or transfers. A lost USB selection is not replaced
+  by another headset; refresh discovery and explicitly choose the intended one.
+
+TLS connection ports can change. Deep sleep disconnects Wi-Fi; on the same
+network, ADB can reconnect after wake while wireless debugging remains enabled.
+Refresh to read current state. Failed tasks are not resumed. Restarting the
+headset may require setup again. Closing Quest Manager does not
+disable wireless debugging or revoke trust. Manage those in headset settings.
+
 ## APK Installation
 
 Signature mismatch and version downgrade are Android installation failures.

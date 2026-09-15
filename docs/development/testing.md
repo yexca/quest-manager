@@ -25,7 +25,7 @@ label/signing parsing against the existing inert fixture. Test output remains
 synthetic; the fixture is not installed for these routine tests.
 
 Frontend logic regressions use the pinned system Node's built-in test runner,
-without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts tests/frontend/applicationState.test.ts`.
+without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts tests/frontend/applicationState.test.ts tests/frontend/lightningState.test.ts tests/frontend/deviceState.test.ts`.
 They cover stream registration/disposal, overlapping events and snapshots,
 revision ordering, clearing, device changes and batched refresh policy. Rust
 tests cover the authoritative exit guard, terminal-only clearing and revisions.
@@ -77,6 +77,34 @@ collect device data merely to validate Markdown. `git diff` excludes untracked
 files, so include new files in link and privacy review separately.
 
 ## Preview Inspection
+
+Device-state regressions cover an offline address appearing before a ready TLS
+connection, explicit device selection, stale polls during manual refresh,
+refresh coalescing, read failure recovery, and disposal. These host-only tests
+do not establish wireless network stability or headset sleep behavior.
+
+Wireless setup has host-only tests in
+[wireless_tests.rs](../../src-tauri/src/wireless_tests.rs), using a separate
+[mock executable](../../tests/fixtures/mock-wireless-adb.rs) that cannot contact
+a device. They cover invalid endpoints, command injection, readiness checks,
+zero-exit connection failures, private pairing stdin, partial setup, route
+ambiguity, USB selection/authorization, same-device existing trust reuse,
+unrelated transport rejection, temporary-helper cleanup and collision refusal.
+Task tests cover queue exclusion,
+release on failure and the native close guard. These run in the routine suite.
+QR tests in [qr_tests.rs](../../src-tauri/src/qr_tests.rs) cover exact service
+matching, automatic/explicit TLS connection, paired GUID verification including
+hidden properties with an exact TLS service identity, stale IDs,
+cancellation, expiry, queue release and dropping an in-flight pairing client.
+They use fictional services and the same host-only executable.
+
+Use `?preview=1&connection=none` for the disconnected entry and
+`?preview=1&connection=unauthorized` for authorization guidance. Inspect all
+three setup tabs at 1280 by 850 and 1000 by 680, including scrollable pairing
+forms, keyboard close/focus, unavailable USB selection, and disabled preview
+actions. Default preview includes fictional authorized USB choices. Connection
+success, headset settings, radio behavior and native IPC require separate
+opt-in device testing; preview does not simulate successful pairing/writes.
 
 Overview preview defaults to a fictional Quest 3. Use the device selector to
 check Quest 3, Quest 3S, Quest 2, and the generic headset illustration at both

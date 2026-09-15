@@ -10,6 +10,9 @@ of Windows, WebView2, ADB, or the headset operating system.
 | Data | Purpose | App-managed retention |
 | --- | --- | --- |
 | Device serials, transport addresses, model, Android version | Discovery, selection, and command targeting | Current process and UI state |
+| Entered pairing addresses and codes | Explicit wireless pairing and connection | Dialog/request memory only; codes clear on submission or method change |
+| Current Wi-Fi route/BSSID and generated USB setup credentials | Enable wireless debugging on the selected USB headset and reuse trust or pair | Request/private stdin memory only; not logged or persisted by the app |
+| Generated debugging QR and shared secret | Explicit QR pairing and matching ADB mDNS discovery | Local encoding and session memory only; two-minute deadline; QR clears when pairing starts or the session ends |
 | Battery and shared-storage totals | Overview | Current UI state |
 | Package names, versions, and installed APK paths | Application listing, details, and export | Current UI state and task details |
 | Application labels, raster icons, signing fingerprints, VR declarations | Identify and inspect applications | Local metadata cache, bounded to 512 entries / 64 MiB |
@@ -90,8 +93,21 @@ the public GitHub repository in the user's browser, where browser/GitHub network
 and privacy behavior apply. The link contains no device identifiers or paths.
 
 The app starts a local ADB client and reuses the default ADB server. The server
-can communicate with a device over USB or an already established Wi-Fi
-connection. Quest Manager does not set up wireless debugging itself.
+can communicate over USB or Wi-Fi. Explicit setup uses USB, pairing codes or
+locally generated debugging QR codes. USB checks existing authorization first;
+when needed it enables system TLS debugging for the current network and pairs.
+ADB mDNS discovers the exact generated service and paired device's connection
+service. ADB can reconnect trusted wireless transports after wake; there is no subnet scanning or app recovery
+that pairs devices or enables wireless debugging.
+
+Pairing codes and QR secrets use private subprocess stdin, not process arguments,
+and are not included in returned pairing diagnostics. QR images are generated
+locally without external image services. The app does not save addresses or codes.
+ADB and the headset manage their own persistent trust records and authorization
+keys. Closing the dialog/app does not revoke pairing or disable the headset's
+wireless listener. Manage trust and wireless debugging in the headset settings.
+Cancelling or expiring a QR session stops the local worker/client, but a pairing
+already submitted to the shared ADB server may still complete.
 
 Dependency installation contacts the package and tool distributors referenced
 by the version manifests and lockfiles. Optional installer builds also fetch
@@ -101,6 +117,14 @@ device operations.
 Project tool locations in `env` do not isolate ADB authorization keys or all
 system caches. Quest Manager does not override ADB's standard key storage or
 manage revocation of the computer's device authorization.
+
+USB setup stages a first-party DEX helper, with no credentials embedded in its
+bytes, under a random owned `/data/local/tmp/quest-manager-wireless-*` directory.
+It runs as the already authorized shell user; no APK is installed. Cleanup stops
+an operation-requested pairing listener and removes the helper on normal exit.
+A started helper has an on-device deadline; abrupt exits or lost USB can still
+leave temporary files. Existing trust and enabled wireless debugging are not
+rolled back. The app never reads or exports the headset's pairing-key files.
 
 ## Optional App Downloads
 

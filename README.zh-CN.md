@@ -63,13 +63,16 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 ## 功能
 
+- **无线连接**：USB 设置会先检查已有授权，需要时自动配对并连接；也支持头显提供的六位配对码或 Android 调试二维码。未连接时也可打开设置入口。
 - **Overview**：自动发现设备；按设备序列号合并 USB / 已建立的 Wi-Fi 连接；显示 Android 版本、电量和共享存储容量。
 - **Applications**：第三方 / 系统应用列表、名称或包名搜索、图标、版本、APK 大小、启用状态；按推断的 Meta 商店安装 / 侧载等来源筛选，来源不明时保留未知；会话缓存保留筛选、卸载时其他应用的名称和图标；详情包含安装时间、SDK/ABI、权限、split、签名证书和 VR 声明；选择或拖入普通 APK 安装；兼容签名的覆盖更新；导出全部已安装 APK；卸载第三方应用。
 - **Files**：浏览共享存储；上传文件或整个目录；下载文件或目录；创建目录、重命名、删除；Downloads、Movies、OBB 快捷入口。
 - **安装前预览与编辑**：无需连接头显即可读取本地 APK 的预计名称和图标；连接后对照设备上的安装状态与版本，提示新版、同版、旧版及同批重复包名；可修改显示名称、裁剪替换图标，或开启兼容安装，创建关闭 verity 的重签名副本。
 - **Task queue**：后台串行执行变更任务；显示进度、实际错误和固定的目标连接；取消排队任务，以及正在进行的上传、下载和 APK 导出；可清除已结束记录。存在活动任务时，关闭窗口会提示继续等待，也可明确选择退出。
 
-使用前在 Quest 上启用开发者模式，连接 USB 数据线，并在头显中允许 USB 调试。已有的 ADB Wi-Fi 连接会被自动识别；本版不负责首次配置无线连接。
+使用前在 Quest 上启用开发者模式。可连接 USB 数据线并在头显中允许 USB 调试，也可从顶部栏或未连接页面打开 **Connect via Wi-Fi**。三个页签依次为 **USB setup**、**QR code**、**Pairing code**。USB 设置先检查现有连接和授权，只有需要时才配对，随后自动连接；二维码和配对码也会在配对后验证并连接。电脑与头显需要处于同一局域网；头显深度休眠时 Wi-Fi 会断开，保持无线调试开启时，ADB 可在唤醒后重新连接。配置前需等待活动任务结束；已有 ADB 连接也会自动显示。详见[无线连接流程](docs/product/workflows.md#wireless-setup)。
+
+二维码配对提供两分钟有效期和取消操作。在 Lightning Launcher 中打开 **Android Settings → System → Developer options → Debugging → Wireless debugging → Pair device with QR code** 扫码；可通过 Quest Manager 的 **Lightning Launcher setup** 获取启动器。入口是否可用取决于头显系统；Meta 手机应用的二维码配对属于另一套协议，不能据此判断是否支持 ADB 扫码。缺少该入口时，请使用 USB 设置。
 
 共享存储限定为 `/sdcard`（接受 `/storage/emulated/0` 别名）；具体 `Android/data` / `Android/obb` 的权限取决于系统。普通应用私有目录 `/data/data` 和完整存档备份不在本版能力范围内。
 
@@ -98,6 +101,7 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 | Android AAPT2 | 9.4.0-15978811（2.20-15978811），固定 Maven 下载地址 + SHA-256 |
 | APK 处理工具 | Apktool 3.0.3、Android Build Tools 37.0.0（apksigner/zipalign）、Temurin JRE 21.0.12.1+1；固定下载地址与 SHA-256 |
 | APK 编辑 crates | quick-xml 0.42.0、png 0.18.1、getrandom 0.3.4；精确固定 |
+| 本地调试二维码编码 | qrcode 0.14.1；禁用默认特性 |
 | APK 元数据 crates | zip 4.6.1、sha2 0.10.9、base64 0.22.1；在 `Cargo.toml` 精确固定 |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | HTTPS / reqwest | 0.13.5; rustls |

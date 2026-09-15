@@ -11,6 +11,7 @@ are not device validation records or a claim about a published release.
 - [ADR-0006: OBB files as part of an APK installation](ADR-0006-obb-installation.md)
 
 - [ADR-0007: Optional public APK downloads](ADR-0007-optional-app-downloads.md)
+- [ADR-0008: Explicit wireless connection setup](ADR-0008-explicit-wireless-setup.md)
 
 Add an ADR when a change alters a long-lived boundary such as process topology,
 device identity, storage scope, task persistence, dependency management, or

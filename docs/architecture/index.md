@@ -25,6 +25,9 @@ flowchart LR
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, data reads, native file pickers and drag/drop |
 | [src/Headset.tsx](../../src/Headset.tsx) | Model matching and Overview headset SVG illustrations |
 | [src/useDeviceDiscovery.ts](../../src/useDeviceDiscovery.ts) | Device polling and its lifetime guard |
+| [src/deviceState.ts](../../src/deviceState.ts) | Ready-device fallback selection and serialized discovery with fresh manual refreshes |
+| [src/WirelessSetup.tsx](../../src/WirelessSetup.tsx) | USB, QR and pairing-code tabs with verified connection feedback |
+| [src/QrPairing.tsx](../../src/QrPairing.tsx) | QR session display, status polling and cancellation |
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
 | [src/useApplications.ts](../../src/useApplications.ts) | Complete package inventory, session cache lifecycle and incremental enrichment |
 | [src/applicationState.ts](../../src/applicationState.ts) | Installer classification, package invalidation and cache reconciliation |
@@ -43,6 +46,9 @@ flowchart LR
 | [src-tauri/src/main.rs](../../src-tauri/src/main.rs) | Windows application entry |
 | [src-tauri/src/lib.rs](../../src-tauri/src/lib.rs) | Tauri setup, ADB location, managed state, and command registration |
 | [src-tauri/src/adb.rs](../../src-tauri/src/adb.rs) | Read queries, parsing, path checks, quoting, ADB process construction |
+| [src-tauri/src/wireless_tests.rs](../../src-tauri/src/wireless_tests.rs) | Host-only wireless protocol and failure tests |
+| [src-tauri/src/qr_pairing.rs](../../src-tauri/src/qr_pairing.rs) | Local QR credentials, encoding and session snapshots |
+| [src-tauri/src/qr_tests.rs](../../src-tauri/src/qr_tests.rs) | Host-only QR lifecycle and device matching tests |
 | [src-tauri/src/metadata.rs](../../src-tauri/src/metadata.rs) | Package dump parsing, metadata IPC models, extraction gate and bounded cache |
 | [src-tauri/src/apk.rs](../../src-tauri/src/apk.rs) | APK byte-range reader, ZIP limits, AAPT2 resource decoding, raster icons and signing-block fingerprints |
 | [src-tauri/src/apk_edit.rs](../../src-tauri/src/apk_edit.rs) | Resource staging, manifest editing and compressed game-payload preservation |
@@ -67,6 +73,13 @@ native file/drag-drop and blocked-close events remain in `App.tsx`. Preserve
 listener disposal, effect lifetime guards, and revision-aware task merging.
 Do not put ADB command text or validation policy in the UI.
 
+Device discovery shares periodic reads. An explicit refresh supersedes any older
+pending snapshot and starts a fresh read after that request settles; repeated
+refreshes share that fresh read. Disposal prevents late publication. Default
+device selection prefers a ready connection over an offline list entry, while
+an explicitly selected device remains selected. These rules do not change an
+existing task's captured transport or reconnect a device.
+
 In a normal browser, calls fail with a desktop-app instruction. Only the explicit
 `?preview=1` mode returns sample read data. `canWrite` requires both a ready
 transport and the desktop runtime.
@@ -80,7 +93,9 @@ in a mutex-protected map.
 
 ADB is located from `env/platform-tools` in debug builds and Tauri's resource
 directory in release builds. Child processes receive separate argument values,
-have no interactive stdin, and use hidden process creation on Windows. Shell
+normally have no interactive stdin, and use hidden process creation on Windows.
+Explicit wireless pairing supplies only the validated code through piped stdin
+so it does not enter process arguments. Shell
 fragments run on Android and require separate quoting and path validation.
 
 Application enrichment uses a separate backend single-permit gate, shared with cache

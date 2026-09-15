@@ -16,6 +16,10 @@ headset.
   dedicated operations. Metadata uses bounded ZIP resource and byte-range reads.
 - Task execution protects storage roots, refuses ordinary transfer collisions,
   and stages transfers before publishing their final names.
+- Explicit USB wireless setup stages a first-party shell helper in a random owned
+  `/data/local/tmp/quest-manager-wireless-*` directory. It uses named system ADB
+  methods with existing USB authorization, bounded execution and cleanup; it
+  does not install an APK or expose arbitrary shell execution to the webview.
 - System applications cannot be uninstalled through the task API. Root access,
   permission bypasses, and arbitrary private-data extraction are outside scope.
 

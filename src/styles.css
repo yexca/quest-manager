@@ -131,6 +131,29 @@ h1 { font-size: 29px; font-weight: 600; letter-spacing: -.9px; line-height: 1.3;
 .empty-device-icon { color: #81916d; background: #f0f3e8; padding: 23px; border-radius: 50%; margin-bottom: 23px; }
 .empty-device h2 { font-size: 22px; font-weight: 550; }
 .empty-device p { max-width: 410px; font-size: 13px; color: #89947e; line-height: 1.8; margin: 13px 0 25px; }
+.connection-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.wireless-methods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-bottom: 22px; padding: 4px; border-radius: 9px; background: #f1f4ed; }
+.wireless-methods button { display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 10px 4px; font-size: 12px; }
+.wireless-methods button[aria-selected='true'] { color: #28563e; background: #fff; border-color: #d4dfcd; box-shadow: 0 1px 3px #243d2210; }
+.wireless-sleep-note { display: flex; align-items: flex-start; gap: 9px; border: 1px solid #dce5d6; border-radius: 8px; padding: 12px; color: #596b50; background: #f5f8f1; font-size: 12px; line-height: 1.6; margin: 0 0 14px; }
+.wireless-sleep-note svg { flex-shrink: 0; margin-top: 2px; }
+.pair-code-icon { font-size: 12px; line-height: 17px; font-weight: 700; letter-spacing: 1px; }
+.wireless-setup fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.wireless-setup h3 { font-size: 14px; font-weight: 600; }
+.wireless-guidance, .wireless-hint { font-size: 12px; color: #748567; line-height: 1.7; margin: 10px 0 15px; }
+.wireless-hint { font-size: 11px; margin: 10px 0 0; }
+.wireless-setup .field-label { margin-top: 16px; }
+.pairing-code { letter-spacing: 3px; }
+.wireless-success { display: flex; align-items: flex-start; gap: 9px; padding: 12px; margin-top: 16px; border: 1px solid #c8dcc1; border-radius: 8px; background: #eff7ea; font-size: 12px; line-height: 1.7; }
+.wireless-success strong { display: block; overflow-wrap: anywhere; }
+.wireless-success svg { margin-top: 2px; }
+.wireless-setup .modal-actions { position: sticky; bottom: -25px; background: #fff; padding-bottom: 10px; box-shadow: 0 -8px 12px #ffffffed; }
+.qr-compatibility { padding: 10px 12px; border-radius: 8px; background: #f5f6f1; }
+.qr-display { display: flex; justify-content: center; margin: 18px 0 12px; }
+.pairing-qr, .qr-placeholder { width: 232px; height: 232px; max-width: 100%; background: white; }
+.pairing-qr { image-rendering: pixelated; }
+.qr-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; border: 1px dashed #cad4c2; border-radius: 10px; color: #748567; font-size: 12px; }
+.qr-status { font-size: 12px; line-height: 1.7; margin-bottom: 0; }
 .list-card { overflow: hidden; }
 .list-toolbar { display: flex; align-items: center; gap: 18px; padding: 20px; border-bottom: 1px solid #edf0e9; }
 .search-field { background: #f8f9f5; border: 1px solid #e4e9de; border-radius: 7px; color: #99a68e; display: flex; align-items: center; gap: 9px; padding: 9px 11px; max-width: 360px; flex: 1; }

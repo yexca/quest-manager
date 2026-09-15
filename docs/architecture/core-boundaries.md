@@ -15,7 +15,24 @@ Each task captures its transport when queued. A changed selection, disappeared
 connection, or new USB connection does not redirect that task. Automatic
 failover would be a new behavior requiring an explicit targeting design.
 
+Wireless setup is explicit business IPC, never a discovery/recovery side effect.
+`adb.rs` owns numeric endpoint validation, pairing and selected-USB setup;
+`tasks.rs` guards the entire operation with the global mutation semaphore and
+rejects already active tasks. Pairing uses private stdin and does not imply a
+ready connection. QR setup uses bounded, explicit ADB mDNS discovery for a
+fresh session identity and verifies the paired GUID before selecting a transport.
+USB first reuses verified existing wireless authorization, and only pairs after
+an authentication failure. No subnet scanning, key reset, root, reboot or server reset is performed.
+See [ADR-0008](../decisions/ADR-0008-explicit-wireless-setup.md).
+
 ## General File Management
+
+Explicit USB wireless setup has one dedicated temporary-write exception:
+the embedded first-party DEX helper may be staged in a random owned directory
+under `/data/local/tmp/quest-manager-wireless-*` and executed as the authorized
+shell user. It calls named platform ADB methods and has bounded lifetime/cleanup.
+No APK is installed and no helper path or shell text is accepted from the webview.
+This does not broaden general file management or private-storage access.
 
 The shared namespace is `/sdcard`; `/storage/emulated/0` is an accepted alias.
 `normalize_remote` validates and normalizes the lexical path, while `shared_path`

@@ -13,11 +13,13 @@ resource directory. This choice is made in
 
 ADB uses its default server and standard authorization storage. Existing USB
 and Wi-Fi connections are discovered from that server. The app does not manage
-the server's lifecycle, start wireless pairing, or reset authorization keys.
+the server's lifecycle or reset authorization keys. Wireless connection/pairing
+and USB-assisted TCP/IP enabling occur only through explicit setup actions.
 It can share the server with Android Studio and other ADB clients.
 
 Overview lets the user select a physical device and a ready transport. USB is
-preferred when available. New tasks capture that transport; changing a selector
+preferred for ordinary discovery; explicit wireless setup selects its verified
+Wi-Fi transport. New tasks capture that transport; changing a selector
 does not migrate already queued work. See [Data model](../architecture/data-model.md).
 
 ## Development Environment

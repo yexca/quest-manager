@@ -1,4 +1,14 @@
 export interface Transport { serial: string; kind: 'usb' | 'wifi'; state: string }
+export type WirelessRequest = { method: 'pair'; address: string; code: string } | { method: 'usb'; device: string };
+export interface WirelessResult { serial: string | null; message: string }
+export interface WirelessQrSnapshot {
+  id: string;
+  status: 'waiting' | 'pairing' | 'connecting' | 'connected' | 'failed' | 'cancelled' | 'expired';
+  message: string;
+  qrDataUrl: string | null;
+  expiresAt: number;
+  serial: string | null;
+}
 export interface Device { id: string; model: string; transports: Transport[] }
 export interface DeviceInfo {
   model: string; androidVersion: string; batteryLevel: number | null; charging: boolean;

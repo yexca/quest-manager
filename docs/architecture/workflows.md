@@ -7,6 +7,45 @@ guard prevents overlapping discovery polls. The backend parses `adb devices -l`,
 queries `ro.serialno` for ready transports, and groups by the resulting identity.
 Ready connections sort ahead of unavailable ones, with USB preferred.
 
+After explicit wireless connection succeeds, the UI waits for any older
+discovery request, then requests a fresh snapshot and selects the matching
+ready serial. This prevents an in-flight pre-connection poll from swallowing
+the connection refresh. Wireless setup uses a strict pair/USB request union in
+`adb.rs` under the global queue permit. Code pairing has a 90-second deadline,
+including up to 30 seconds discovering the paired GUID's connection. Explicit
+connect checks ADB's text result (exit zero alone is insufficient) and readiness
+in `devices -l`. Existing tasks never change their target.
+
+USB setup checks the captured USB serial and physical identity, then reuses any
+ready Wi-Fi transport with that same identity. Otherwise it reads one `wlan0`
+IPv4 route and current BSSID, stages the embedded first-party DEX in a random
+owned `/data/local/tmp/quest-manager-wireless-*` directory using binary-preserving
+`exec-in`, verifies SHA-256, marks it read-only, and runs it as the
+authorized shell user. The helper calls named system ADB methods to enable TLS
+debugging for that network and obtain its dynamic port. The parent attempts
+connection with existing trust first. Only an authentication failure requests a
+fresh pairing service; unrelated connection failures do not trigger pairing.
+The resulting Wi-Fi transport must return the captured USB `ro.serialno`.
+
+USB identity preflight has 20 seconds, network checks 15 seconds, setup 60 seconds,
+child shutdown 5 seconds, and final cleanup 10 seconds. Cleanup is awaited under
+the permit, not dropped by an outer request timeout. The shell wrapper also
+limits a started helper to 75 seconds and attempts cleanup on exit/disconnection.
+Staging collisions are refused; only an owned directory is cleaned. Completed
+pairing/debugging stays enabled; cleanup removes the helper and stops a pairing
+listener requested by this operation. Abrupt exits can leave staging files.
+
+QR setup is a separate in-memory start/status/cancel session under that same
+permit, with a two-minute deadline. The frontend polls its stored status every
+500 ms. The worker polls ADB mDNS at one-second intervals until the exact random
+pairing service appears, submits one pairing request, and discovers only the
+returned GUID's connection. A ready auto-connected TLS transport can be reused;
+otherwise one connection attempt follows. Verify a readable device GUID, or when
+hidden, the exact authenticated TLS service transport for the paired GUID.
+A numeric address alone is insufficient in this case. Cancel or expiry drops the worker/client;
+already submitted pairing can still finish in the shared server. See
+[ADR-0008](../decisions/ADR-0008-explicit-wireless-setup.md).
+
 The UI keeps a physical selection and optional preferred transport. It uses a
 ready preferred transport when present, then another ready transport for future
 queries. Device information is queried on selection/refresh and every 30

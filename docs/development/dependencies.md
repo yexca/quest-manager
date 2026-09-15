@@ -83,6 +83,15 @@ under `env`; the bootstrap copies runtime contents into `env/apk-tools`. This
 includes Java license/notices and Android NOTICE.txt; Apktool retains its JAR
 notices. No external Android SDK or global Java is searched. Rust XML/PNG/random
 crates are pinned to 0.42.0/0.18.1/0.3.4 respectively.
+Local QR encoding uses exact `qrcode` 0.14.1 with default features disabled.
+The app builds SVG geometry from its matrix; no remote QR service or image
+dependency is used.
+
+The first-party USB wireless helper is authored as Smali in
+[device-tools/wireless](../../device-tools/wireless/README.md). `src-tauri/build.rs`
+assembles it with the existing pinned Apktool and project JRE, then embeds the
+DEX bytes in the Rust executable. Build output stays under Cargo's `OUT_DIR`
+inside `env/target`. No extra compiler, Android Studio, SDK or global Java is required.
 
 ## Local Records
 

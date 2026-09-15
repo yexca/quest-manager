@@ -5,6 +5,7 @@ use crate::adb::{
 use crate::apk_install::{InstallOptions, Installer, cleanup_result};
 use crate::lightning::{self, Lightning};
 use crate::obb::{self, CheckedObb, ObbInstall};
+use crate::qr_pairing;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -75,6 +76,12 @@ struct Inner {
     records: Mutex<BTreeMap<String, TaskRecord>>,
     queue: Arc<Semaphore>,
     counter: AtomicU64,
+    qr: Mutex<Option<QrRecord>>,
+}
+
+struct QrRecord {
+    snapshot: qr_pairing::Snapshot,
+    cancel: Arc<tokio::sync::Notify>,
 }
 
 #[derive(Clone)]
@@ -107,6 +114,7 @@ impl TaskManager {
                 records: Mutex::new(BTreeMap::new()),
                 queue: Arc::new(Semaphore::new(1)),
                 counter: AtomicU64::new(0),
+                qr: Mutex::new(None),
             }),
         }
     }
@@ -128,6 +136,165 @@ impl TaskManager {
             .unwrap()
             .values()
             .any(|record| matches!(record.snapshot.status.as_str(), "queued" | "running"))
+    }
+
+    pub fn has_active_work(&self) -> bool {
+        self.has_active() || self.inner.queue.available_permits() == 0
+    }
+
+    fn wireless_permit(&self) -> Result<tokio::sync::OwnedSemaphorePermit, String> {
+        let message =
+            "Wait for active tasks or wireless setup to finish before changing connections.";
+        let permit = self
+            .inner
+            .queue
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| message.to_string())?;
+        if self.has_active() {
+            return Err(message.into());
+        }
+        Ok(permit)
+    }
+
+    pub async fn wireless_connection(
+        &self,
+        adb: &Adb,
+        request: crate::adb::WirelessRequest,
+    ) -> Result<crate::adb::WirelessResult, String> {
+        // No await between taking the permit and checking queued work. New tasks wait
+        // for this same permit, keeping transport setup separate from running writes.
+        let _permit = self.wireless_permit()?;
+        // USB setup owns its deadline and awaited device-helper cleanup. Do not
+        // drop that cleanup future when an outer timer expires.
+        if matches!(&request, crate::adb::WirelessRequest::Usb { .. }) {
+            return adb.wireless_connection(request).await;
+        }
+        tokio::time::timeout(Duration::from_secs(90), adb.wireless_connection(request)).await
+            .map_err(|_| "Wireless setup timed out. Check the headset's debugging settings before trying again; pairing or Wi-Fi mode may already have been enabled.".to_string())?
+    }
+
+    pub fn start_wireless_qr(&self, adb: Adb) -> Result<qr_pairing::Snapshot, String> {
+        self.start_qr_with_lifetime(adb, Duration::from_secs(qr_pairing::LIFETIME_SECS))
+    }
+
+    fn start_qr_with_lifetime(
+        &self,
+        adb: Adb,
+        lifetime: Duration,
+    ) -> Result<qr_pairing::Snapshot, String> {
+        let permit = self.wireless_permit()?;
+        let credentials = qr_pairing::Credentials::generate()?;
+        let snapshot = qr_pairing::Snapshot {
+            id: credentials.id.clone(),
+            status: "waiting".into(),
+            message:
+                "Scan with Pair device with QR code in the headset's Wireless debugging settings."
+                    .into(),
+            qr_data_url: Some(credentials.image()?),
+            expires_at: (SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                + lifetime)
+                .as_millis() as u64,
+            serial: None,
+        };
+        let cancel = Arc::new(tokio::sync::Notify::new());
+        *self.inner.qr.lock().unwrap() = Some(QrRecord {
+            snapshot: snapshot.clone(),
+            cancel: cancel.clone(),
+        });
+        let manager = self.clone();
+        tokio::spawn(async move {
+            let id = credentials.id.clone();
+            // Dropping the selected future stops polling and kills the ADB client.
+            // The shared ADB server may still finish a pairing already submitted.
+            let outcome = tokio::select! {
+                biased;
+                _ = cancel.notified() => ("cancelled", "QR setup cancelled. A pairing already submitted may still complete; remove this computer in the headset to revoke trust.".into(), None),
+                result = tokio::time::timeout(lifetime, manager.run_qr(&adb, credentials)) => match result {
+                    Ok(Ok(serial)) => ("connected", "Paired and connected over Wi-Fi.".into(), Some(serial)),
+                    Ok(Err(error)) => ("failed", error, None),
+                    Err(_) => ("expired", "QR setup expired. Check that your headset offers a Wireless debugging QR scanner and the network allows discovery. If pairing already completed, wake the headset and refresh, or use USB setup.".into(), None),
+                }
+            };
+            // Release before making completion visible, so a new setup can start.
+            drop(permit);
+            let mut qr = manager.inner.qr.lock().unwrap();
+            if let Some(record) = qr.as_mut().filter(|r| r.snapshot.id == id) {
+                record.snapshot.status = outcome.0.into();
+                record.snapshot.message = outcome.1;
+                record.snapshot.serial = outcome.2;
+                record.snapshot.qr_data_url = None;
+            }
+        });
+        Ok(snapshot)
+    }
+
+    pub fn wireless_qr_status(&self, id: &str) -> Result<qr_pairing::Snapshot, String> {
+        self.inner
+            .qr
+            .lock()
+            .unwrap()
+            .as_ref()
+            .filter(|r| r.snapshot.id == id)
+            .map(|r| r.snapshot.clone())
+            .ok_or_else(|| "This QR session no longer exists. Generate a new QR code.".into())
+    }
+
+    pub fn cancel_wireless_qr(&self, id: &str) -> Result<(), String> {
+        let mut qr = self.inner.qr.lock().unwrap();
+        let record = qr
+            .as_mut()
+            .filter(|r| r.snapshot.id == id)
+            .ok_or("This QR session no longer exists.")?;
+        record.snapshot.qr_data_url = None;
+        record.cancel.notify_one();
+        Ok(())
+    }
+
+    fn qr_stage(&self, id: &str, status: &str, message: &str) {
+        let mut qr = self.inner.qr.lock().unwrap();
+        if let Some(record) = qr.as_mut().filter(|r| r.snapshot.id == id) {
+            record.snapshot.status = status.into();
+            record.snapshot.message = message.into();
+            record.snapshot.qr_data_url = None;
+        }
+    }
+
+    async fn run_qr(
+        &self,
+        adb: &Adb,
+        credentials: qr_pairing::Credentials,
+    ) -> Result<String, String> {
+        let address = loop {
+            if let Some(address) = adb.qr_service_address(&credentials.service, true).await? {
+                break address;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        };
+        self.qr_stage(
+            &credentials.id,
+            "pairing",
+            "Scanner found. Pairing with the headset…",
+        );
+        let guid = adb.qr_pair(&address, &credentials.secret).await?;
+        let id = credentials.id.clone();
+        drop(credentials);
+        self.qr_stage(
+            &id,
+            "connecting",
+            "Paired. Waiting for the headset's Wi-Fi connection…",
+        );
+        loop {
+            if let Some(serial) = adb.qr_ready_serial(&guid).await? {
+                return Ok(serial);
+            }
+            if let Some(address) = adb.qr_service_address(&guid, false).await? {
+                return adb.qr_connect(&address, &guid).await;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
     }
 
     pub fn clear_completed(&self) -> Vec<String> {
@@ -1115,6 +1282,10 @@ mod device_tests;
 mod obb_tests;
 
 #[cfg(test)]
+#[path = "qr_tests.rs"]
+mod qr_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1172,6 +1343,45 @@ mod tests {
         assert!(!manager.has_active());
         assert_eq!(manager.clear_completed().len(), 2);
         assert!(manager.snapshots().is_empty());
+    }
+
+    #[test]
+    fn wireless_setup_shares_the_queue_and_close_guard() {
+        let manager = TaskManager::new();
+        let permit = manager.wireless_permit().unwrap();
+        assert!(manager.has_active_work());
+        assert!(manager.wireless_permit().is_err());
+        assert!(manager.inner.queue.try_acquire().is_err());
+        drop(permit);
+        assert!(!manager.has_active_work());
+        for status in ["queued", "running"] {
+            insert_snapshot(&manager, "EXAMPLE-TASK", status);
+            assert!(manager.wireless_permit().is_err());
+            assert_eq!(manager.inner.queue.available_permits(), 1);
+        }
+        insert_snapshot(&manager, "EXAMPLE-TASK", "failed");
+        assert!(manager.wireless_permit().is_ok());
+    }
+
+    #[tokio::test]
+    async fn wireless_failure_releases_queue_without_creating_a_task() {
+        let manager = TaskManager::new();
+        let adb = Adb::new(PathBuf::from("EXAMPLE-NONEXISTENT-ADB"));
+        assert!(
+            manager
+                .wireless_connection(
+                    &adb,
+                    crate::adb::WirelessRequest::Pair {
+                        address: "invalid".into(),
+                        code: "123456".into()
+                    }
+                )
+                .await
+                .is_err()
+        );
+        assert!(manager.snapshots().is_empty());
+        assert!(!manager.has_active_work());
+        assert!(manager.wireless_permit().is_ok());
     }
 
     #[test]

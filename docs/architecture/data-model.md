@@ -42,6 +42,10 @@ calls them through [api.ts](../../src/api.ts).
 | Command | Frontend arguments | Result |
 | --- | --- | --- |
 | `list_devices` | None | `Device[]` |
+| `wireless_connection` | `request: WirelessRequest` | `WirelessResult` |
+| `start_wireless_qr` | None | `WirelessQrSnapshot` |
+| `wireless_qr_status` | `id` | `WirelessQrSnapshot` |
+| `cancel_wireless_qr` | `id` | None |
 | `device_info` | `device` | `DeviceInfo` |
 | `list_apps` | `device`, `includeSystem` | `AppPackage[]` |
 | `app_details` | `device`, `package` | `AppDetails` |
@@ -60,6 +64,24 @@ The repository command accepts no URL, path or command arguments. It opens only
 Every `device` argument is an ADB transport serial, including
 `TaskRequest.device`. It is not the grouped `Device.id`. Errors are strings;
 they can contain diagnostic details and are not automatically redacted.
+
+`WirelessRequest` is a strict tagged union: `{method: "pair", address, code}`
+or `{method: "usb", device}`. Unknown variants and fields
+are rejected. Addresses are numeric IP/port pairs; USB `device` is a captured
+transport serial, not a physical identity. `WirelessResult` contains nullable
+`serial` and English `message`. Both variants pair/reuse trust and connect;
+only a verified ready connection returns its transport serial. USB messages
+distinguish reused authorization from newly paired trust. Connection setup is a bounded
+IPC operation under the task queue permit, with no task snapshot or new event.
+
+`WirelessQrSnapshot` contains a random `id`, `status`, English `message`, nullable
+`qrDataUrl`, `expiresAt` in epoch milliseconds, and nullable verified transport
+`serial`. Statuses are `waiting`, `pairing`, `connecting`, `connected`, `failed`,
+`cancelled`, and `expired`. The deadline is enforced using monotonic time in the
+worker. Start takes the global queue permit; status reads stored state only.
+Cancellation and replacement require the exact session ID. QR images clear
+when pairing starts or cancellation/completion occurs; raw secrets are not
+separate IPC fields. Only one session snapshot is retained, in memory.
 
 ## Optional Setup IPC
 

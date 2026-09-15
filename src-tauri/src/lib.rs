@@ -5,6 +5,7 @@ mod apk_install;
 mod lightning;
 mod metadata;
 mod obb;
+mod qr_pairing;
 mod tasks;
 
 use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
@@ -93,8 +94,38 @@ async fn list_devices(adb: tauri::State<'_, Adb>) -> Result<Vec<Device>, String>
 }
 
 #[tauri::command]
+async fn wireless_connection(
+    adb: tauri::State<'_, Adb>,
+    tasks: tauri::State<'_, TaskManager>,
+    request: adb::WirelessRequest,
+) -> Result<adb::WirelessResult, String> {
+    tasks.wireless_connection(&adb, request).await
+}
+
+#[tauri::command]
 async fn device_info(adb: tauri::State<'_, Adb>, device: String) -> Result<DeviceInfo, String> {
     adb.device_info(&device).await
+}
+
+#[tauri::command]
+async fn start_wireless_qr(
+    adb: tauri::State<'_, Adb>,
+    tasks: tauri::State<'_, TaskManager>,
+) -> Result<qr_pairing::Snapshot, String> {
+    tasks.start_wireless_qr(adb.inner().clone())
+}
+
+#[tauri::command]
+fn wireless_qr_status(
+    tasks: tauri::State<'_, TaskManager>,
+    id: String,
+) -> Result<qr_pairing::Snapshot, String> {
+    tasks.wireless_qr_status(&id)
+}
+
+#[tauri::command]
+fn cancel_wireless_qr(tasks: tauri::State<'_, TaskManager>, id: String) -> Result<(), String> {
+    tasks.cancel_wireless_qr(&id)
 }
 
 #[tauri::command]
@@ -166,7 +197,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
-                && window.state::<TaskManager>().has_active()
+                && window.state::<TaskManager>().has_active_work()
             {
                 api.prevent_close();
                 let _ = window.emit("app-close-blocked", ());
@@ -217,6 +248,10 @@ pub fn run() {
             lightning_recommendation,
             navigator_enabled,
             list_devices,
+            wireless_connection,
+            start_wireless_qr,
+            wireless_qr_status,
+            cancel_wireless_qr,
             device_info,
             list_apps,
             app_details,

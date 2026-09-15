@@ -17,8 +17,12 @@ official Android Platform-Tools ADB executable. The UI is English.
 ## Implemented Behavior
 
 The app discovers ADB connections, groups connections by device identity when
-available, and prefers a ready USB connection. It can also use Wi-Fi connections
-already known to ADB.
+available, and prefers a ready USB connection. Explicit wireless setup supports
+USB setup with existing-trust detection, Android debugging QR codes and pairing
+codes, all followed by verified connection. QR requires a headset-provided
+debugging scanner. A successful
+connection is selected for future operations. Existing ADB Wi-Fi connections
+also appear automatically.
 
 Applications are identified by package name. Users can inspect versions, install
 ordinary APKs, apply Android-compatible updates, export installed APK files
@@ -36,7 +40,7 @@ The desktop app performs real ADB operations. See
 
 - The bootstrap and distributable target Windows x64 with MSVC and WebView2.
   Other desktop platforms are not packaged by the current scripts.
-- There is no wireless-debugging setup, root access, arbitrary command console,
+- There is no automatic wireless recovery, root access, arbitrary command console,
   or general browser for private Android app data.
 - Installation accepts ordinary APKs individually, including a queue of several
   independent APKs. XAPK/APKS/APKM archives and split-set installation are not

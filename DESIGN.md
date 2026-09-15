@@ -48,6 +48,16 @@ Distinguish disconnected, authorization-required, loading, empty, and failed
 states. A failed live query must not turn the desktop app into a preview or
 display fictional values as device data. Unknown values should remain unknown.
 
+The disconnected card offers **Connect via Wi-Fi** alongside a USB connection
+check. Keep wireless setup available in the top bar and Help. Its dialog has
+one row of icon-and-text tabs: **USB setup**, **QR code**, **Pairing code**.
+Place the sleep/wake reconnection note above them. Keep inline errors/progress and a
+visible action footer at the minimum window size. Explain separate pairing and
+connection ports, preserve an unavailable USB selection, and distinguish paired
+trust from a ready connection. USB setup reports reused authorization and avoids
+repeated pairing when the existing connection works. Disable writes in preview and setup while tasks
+are active. Completing setup selects the verified Wi-Fi transport.
+
 Applications keeps system type separate from installation source. Source labels
 are explicitly inferred and unknown installer records stay unknown. Source and
 system filters operate on the session inventory without clearing names/icons.

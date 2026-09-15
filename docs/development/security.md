@@ -15,6 +15,21 @@ must not silently broaden them.
   and test relevant metacharacters when changing command construction.
 - Preserve child-process cleanup, query/task timeouts, and cooperative transfer
   cancellation. A UI action must not launch a hidden unbounded background job.
+- Wireless setup accepts only numeric IP/port endpoints and a strict tagged
+  request. Pairing codes go through piped stdin and never into returned process
+  diagnostics. Keep setup explicit and under the global mutation permit; never
+  turn discovery errors into automatic pairing, TCP/IP enabling or server resets.
+- QR credentials use OS randomness and local SVG encoding. Discover only the
+  exact generated mDNS service, keep the secret on stdin, and verify the paired
+  GUID on the ready connection, allowing an exact authenticated TLS service
+  transport when the property is hidden. Preserve the two-minute deadline, cancellation,
+  queue exclusion, and image clearing; never log or persist QR credentials.
+- USB setup reuses a ready matching physical device or tries existing trust on
+  the USB-reported TLS port before pairing. Network errors do not prove pairing.
+  Its first-party DEX helper is an explicit exception under `/data/local/tmp`,
+  with random directory ownership, read-only DEX bytes, private stdin inputs,
+  a shell deadline, and awaited cleanup. Never accept helper paths/code from IPC,
+  overwrite a colliding directory, or interpret cleanup as trust revocation.
 - Extend Tauri permissions or CSP only for a concrete feature. Current
   capabilities provide core behavior and native dialogs; there is no shell or
   general filesystem plugin exposed to JavaScript.

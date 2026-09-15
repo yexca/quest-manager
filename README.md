@@ -36,6 +36,9 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
 
 ## Key Features
 
+- **Wireless connection.** Use USB setup to reuse existing authorization or pair
+  and connect automatically. QR and six-digit code pairing are also available
+  when supported by headset settings. Setup is accessible when disconnected.
 - **Device overview.** Inspect the model, Android version, battery, and shared
   storage. Group USB and existing Wi-Fi connections when device identity is
   available, with USB preferred by default. Quest 3, Quest 3S, and Quest 2 have
@@ -99,8 +102,20 @@ debugging inside the headset. Choose the headset in **Overview**.
 
 Use **Applications** to install or inspect APKs and **Files** to browse shared
 storage. Follow operations in **Task queue** and wait for active work to finish
-before closing the app. Existing ADB Wi-Fi connections appear automatically;
-this version does not configure wireless debugging.
+before closing the app. **Connect via Wi-Fi** is available in the top bar and
+the disconnected screen. Its three tabs are **USB setup**, **QR code**, and
+**Pairing code**. USB setup checks existing authorization first, then pairs only
+if needed and connects automatically. Code and QR pairing also connect after
+verification. Keep both devices on the same local network; deep sleep disconnects
+Wi-Fi, and ADB can reconnect on wake while wireless debugging remains enabled.
+QR setup has a two-minute deadline and cancellation. In Lightning Launcher,
+open **Android Settings → System → Developer options → Debugging → Wireless
+debugging → Pair device with QR code**. Use **Lightning Launcher setup** in
+Quest Manager to obtain the launcher. Availability varies by headset OS; the
+Meta mobile app's QR pairing does not establish debugging scanner support.
+Use USB setup if that entry is absent.
+Wait for active tasks to finish before setup. Existing ADB connections also
+appear automatically. See [wireless setup](docs/product/workflows.md#wireless-setup).
 
 See [Troubleshooting](docs/operations/troubleshooting.md) if setup or connection
 fails.
@@ -197,6 +212,7 @@ layout and [Privacy](PRIVACY.md) before sharing local records.
 | Android AAPT2 | 9.4.0-15978811 (2.20-15978811); fixed Maven archive URL and SHA-256 |
 | APK preparation | Apktool 3.0.3, Android Build Tools 37.0.0 (apksigner/zipalign), Temurin JRE 21.0.12.1+1; fixed URLs and SHA-256 |
 | APK editing crates | quick-xml 0.42.0, png 0.18.1, getrandom 0.3.4; exact versions in `Cargo.toml` |
+| Local debugging QR encoding | qrcode 0.14.1; default features disabled |
 | APK metadata crates | zip 4.6.1, sha2 0.10.9, base64 0.22.1; exact versions in `Cargo.toml` |
 | Tauri Rust / CLI / JS API | 2.11.5 / 2.11.4 / 2.11.1 |
 | HTTPS / reqwest | 0.13.5; rustls |

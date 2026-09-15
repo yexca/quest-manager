@@ -30,8 +30,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-dev.ps1
 ```
 
 Enable developer mode on the Quest, attach a USB data cable, and allow USB
-debugging in the headset. Choose the device in Overview. Existing ADB Wi-Fi
-connections can also appear; the application does not establish them.
+debugging in the headset. Choose the device in Overview. For wireless use,
+choose **Connect via Wi-Fi** in the disconnected screen or top bar. You can
+use **USB setup** to check existing authorization and connect automatically,
+or **QR code** / **Pairing code** when offered by headset settings. Deep sleep
+disconnects Wi-Fi; ADB can reconnect on wake with wireless debugging enabled.
+See [wireless setup](product/workflows.md#wireless-setup).
 
 Use Applications to inspect packages or choose APKs to install. Use Files to
 select a destination before uploading. Check Task queue for completion and wait

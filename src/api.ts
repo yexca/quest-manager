@@ -1,6 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
 import type { LightningCatalog, LightningRecommendation } from './types';
+import type { WirelessRequest, WirelessResult, WirelessQrSnapshot } from './types';
 import { lightningPackage, navigatorPackage, previewLightningCatalog } from './lightningState';
 
 export const isDesktop = isTauri();
@@ -71,6 +72,10 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const api = {
+  wirelessConnection: (request: WirelessRequest): Promise<WirelessResult> => call('wireless_connection', { request }),
+  startWirelessQr: (): Promise<WirelessQrSnapshot> => call('start_wireless_qr'),
+  wirelessQrStatus: (id: string): Promise<WirelessQrSnapshot> => call('wireless_qr_status', { id }),
+  cancelWirelessQr: (id: string): Promise<void> => call('cancel_wireless_qr', { id }),
   lightningReleases: (refresh = false): Promise<LightningCatalog> => isPreview ? Promise.resolve(previewLightningCatalog) : call('lightning_releases', { refresh }),
   lightningRecommendation: (tag: string): Promise<LightningRecommendation> => isPreview ? Promise.resolve({ launcherTag: tag, navigatorTag: `addons${tag}` }) : call('lightning_recommendation', { tag }),
   navigatorEnabled: (device: string): Promise<boolean> => isPreview ? Promise.resolve(false) : call('navigator_enabled', { device }),
@@ -86,7 +91,7 @@ export const api = {
     return Promise.resolve({ packageName, versionName: system ? '' : versionCode === '110' ? '1.3.0' : versionCode === '90' ? '1.1.0' : '1.2.0', versionCode, size: (unknown || system ? 0.15 : 2.94) * gib, sourceStamp: 'DEMO-APK-STAMP', split: false, veritySigning: !unknown && !system,
       assets: { ...previewDetails(unknown ? 'com.example.explorer' : packageName).assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
   },
-  devices: (): Promise<Device[]> => isPreview ? Promise.resolve(previewDevices) : call('list_devices'),
+  devices: (): Promise<Device[]> => isPreview ? Promise.resolve(new URLSearchParams(location.search).get('connection') === 'none' ? [] : new URLSearchParams(location.search).get('connection') === 'unauthorized' ? [{ id: 'DEMO-DEVICE-001', model: 'Quest 3', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'unauthorized' }] }] : previewDevices) : call('list_devices'),
   inspectObbs: (sources: string[]): Promise<LocalObb[]> => isPreview
     ? Promise.resolve(sources.map((source, index) => ({ source, sourceStamp: 'DEMO-OBB-STAMP', name: source.split(/[\\/]/).pop() || source, size: (index + 1) * 128 * 1024 ** 2 })))
     : call('inspect_obb_files', { sources }),

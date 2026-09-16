@@ -1,7 +1,10 @@
 # Data Model and IPC
 
-These are in-memory IPC structures, not database entities. Rust definitions in
-[adb.rs](../../src-tauri/src/adb.rs), [metadata.rs](../../src-tauri/src/metadata.rs), and [tasks.rs](../../src-tauri/src/tasks.rs)
+These are IPC structures rather than database entities. Discovery, task, and
+headset read models are in memory; named device profiles and connection
+preferences are persisted by [device_profiles.rs](../../src-tauri/src/device_profiles.rs).
+Rust definitions in [adb.rs](../../src-tauri/src/adb.rs), [device_profiles.rs](../../src-tauri/src/device_profiles.rs),
+[metadata.rs](../../src-tauri/src/metadata.rs), and [tasks.rs](../../src-tauri/src/tasks.rs)
 must agree with [src/types.ts](../../src/types.ts). Serde exposes struct fields
 as camelCase; task kinds are lowercase strings.
 
@@ -9,8 +12,10 @@ as camelCase; task kinds are lowercase strings.
 
 | Model | Meaning and fields |
 | --- | --- |
-| `Device` | `id`, `model`, and `transports`; grouping of discovered connections |
+| `Device` | `id`, `model`, optional saved `displayName` and `connectionPreference`, and `transports`; grouping of discovered connections |
 | `Transport` | `serial` for command targeting, `kind` (`usb` or `wifi`), raw ADB `state` |
+| `DeviceProfile` | Physical `id`, model, user-facing `displayName`, and `connectionPreference` (`auto`, `usb`, or `wifi`) |
+| `DevicePreferences` | Saved `profiles` plus the `autoSwitch` setting; stored in the private device-settings file |
 | `DeviceInfo` | Model, Android version, nullable battery percentage, charging state, storage byte counts |
 | `DevicePowerSettings` | Nullable `stayAwake` value read from the headset's charging sleep setting, plus raw setting text |
 | `AppPackage` | `packageName`, string `versionCode`, `system` flag, nullable `installer` and `apkPath` |
@@ -43,6 +48,9 @@ calls them through [api.ts](../../src/api.ts).
 | Command | Frontend arguments | Result |
 | --- | --- | --- |
 | `list_devices` | None | `Device[]` |
+| `device_preferences` | None | `DevicePreferences` |
+| `save_device_profile` | `profile: DeviceProfile` | Updated `DevicePreferences` |
+| `set_device_auto_switch` | `enabled` | Updated `DevicePreferences` |
 | `wireless_connection` | `request: WirelessRequest` | `WirelessResult` |
 | `start_wireless_qr` | None | `WirelessQrSnapshot` |
 | `wireless_qr_status` | `id` | `WirelessQrSnapshot` |
@@ -91,6 +99,13 @@ setting. `set_device_stay_awake` invokes the named `svc power stayon` command,
 then rereads the setting under the same global mutation permit. The value is
 headset state, not an app preference; it is not persisted by Quest Manager.
 
+`device_preferences` loads the private local profile file at startup. Saving a
+profile trims and validates the physical identity, display name, and connection
+preference, rejects case-insensitive duplicate names, writes a temporary file,
+and replaces the settings file before publishing the new in-memory state.
+`set_device_auto_switch` uses the same persistence path. The file contains no
+pairing codes, ADB keys, transport addresses, or task history.
+
 ## Optional Setup IPC
 
 - `lightning_releases(refresh: boolean)` returns `LightningCatalog` with Launcher
@@ -106,7 +121,8 @@ headset state, not an app preference; it is not persisted by Quest Manager.
 At least one is required. This field is exclusive with local source/destination,
 package hint, preparation and OBB options; `kind` remains `install`. The normal
 queue and `apkInstalled` partial-completion flag apply. It supplies no package hint
-because the task can install two packages. No new persistent device state exists.
+because the task can install two packages. Device profiles are independent of
+task state and never retarget a queued task.
 
 ## Task Requests
 

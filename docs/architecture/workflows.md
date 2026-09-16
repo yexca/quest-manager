@@ -46,14 +46,27 @@ A numeric address alone is insufficient in this case. Cancel or expiry drops the
 already submitted pairing can still finish in the shared server. See
 [ADR-0008](../decisions/ADR-0008-explicit-wireless-setup.md).
 
-The UI keeps a physical selection and applies a fixed USB-first transport rule.
-It uses a ready USB transport when present, then a ready Wi-Fi transport for
-future queries. Discovered devices and transports remain as offline entries for
-the current session after they disappear from ADB. Device information and
-power settings are queried on selection/refresh and device information every 30
-seconds. The complete app list reloads on connection selection or refresh;
-system/source filters operate on the in-memory list. Files load
-when the Files page is active and its path/selection/refresh changes.
+The UI keeps a physical selection and merges the discovery snapshot with saved
+device profiles. Known profiles without a current transport remain visible as
+offline devices. An explicit selection is preserved; with no selection, the UI
+chooses a ready known profile and otherwise an offline known profile. A ready
+device without a profile stays unselected and produces an add-device notice.
+Each profile's `connectionPreference` controls transport choice: `auto` uses
+USB before Wi-Fi, while `usb` and `wifi` require that transport and report the
+device as disconnected if it is unavailable. The selected transport serial is
+the only value passed to device commands.
+
+When a newly ready known device appears, `autoSwitch` selects it immediately if
+no task is active. Active tasks defer the switch until they finish. With
+auto-switch disabled, or for an unknown device, the UI keeps the current
+selection and offers an explicit switch or profile creation. This notification
+does not retarget existing tasks.
+
+Device information and power settings are queried on selection/refresh and
+device information every 30 seconds. The complete app list reloads on
+connection selection or refresh; system/source filters operate on the in-memory
+list. Files load when the Files page is active and its path/selection/refresh
+changes.
 
 Queries use the 30-second timeout in `Adb::run`. Metadata and directory output
 are buffered. Listings use NUL-separated fields so spaces, quotes, tabs, and

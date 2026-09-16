@@ -61,22 +61,33 @@ with every headset OS. Preview versions are fictional and downloads/writes disab
 Overview shows the selected headset, connection method, Android version,
 third-party app count, shared-storage capacity, battery, and recent tasks.
 The **Devices** page is the connection and headset settings surface. It lists
-USB and Wi-Fi transports, opens wireless setup through **Add connection**, and
-shows which transport is active. When both transports are ready for one device,
-USB is selected first and Wi-Fi is used as the fallback.
+USB and Wi-Fi transports, opens device registration through **Add connection**,
+and shows which transport is active. A registered device keeps its display name,
+preferred connection, and offline entry between launches. When both transports
+are ready, **Automatic** uses USB first and Wi-Fi as the fallback; **USB only**
+and **Wi-Fi only** restrict the selected transport.
 
-Without a matching explicit selection, the app prefers a device with a ready
-connection over an offline entry. An explicitly selected device is not replaced
-by another headset just because it goes offline. Devices and their transports
-remain in the current session as offline records after disconnection. Manual
-refresh waits for a fresh device snapshot; an older pending poll cannot overwrite
-that refresh.
+**Add connection** offers three methods: **USB**, **QR code**, and **Pairing
+code**. USB lists detected USB transports and requires the user to accept the
+headset's debugging prompt before continuing. After the USB profile is saved,
+the dialog asks whether to run USB-assisted wireless setup so both transports
+can be available. QR and pairing-code flows connect first, then ask for the
+device name and preferred connection. Names default to the model and must be
+unique; an existing profile can be renamed from its device settings.
+
+The selected device remains selected when another headset appears or when its
+transports go offline. A newly detected device that is not registered produces
+an **Add device** notice. For another registered device, the notice offers a
+manual switch. The **Automatic device switching** setting can switch to a newly
+ready registered device when no task is active; an active task defers the switch.
+Manual refresh waits for a fresh device snapshot; an older pending poll cannot
+overwrite that refresh.
 
 After selecting a ready device, the Devices page can read its stay-awake setting
 and toggle whether the headset stays awake while charging. This updates the
-headset's global Android setting to help long Wi-Fi transfers; the app does not
-persist a separate preference. The page also contains the Lightning Launcher
-setup entry.
+headset's global Android setting to help long Wi-Fi transfers; it is device state,
+not a saved app preference. The page also contains the Lightning Launcher setup
+entry.
 
 The headset illustration follows the selected device's discovered model: Quest 3,
 Quest 3S, or Quest 2. Case, spaces, underscores, hyphens, and Meta/Oculus prefixes
@@ -97,8 +108,8 @@ measurements in desktop mode.
 
 The dialog offers three icon-and-text tabs in one row, in this order:
 
-- **USB setup** requires an explicitly selected, authorized USB headset. It first
-  reuses a ready wireless connection whose physical identity matches. Otherwise
+- **USB setup** requires a detected USB headset and an accepted debugging prompt.
+  It first reuses a ready wireless connection whose physical identity matches. Otherwise
   it enables system wireless debugging for the current network and tries existing
   trust before pairing. A working authenticated connection reports that pairing
   is already available; an authentication failure starts pairing and connection.

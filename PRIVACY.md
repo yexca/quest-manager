@@ -10,6 +10,7 @@ of Windows, WebView2, ADB, or the headset operating system.
 | Data | Purpose | App-managed retention |
 | --- | --- | --- |
 | Device serials, transport addresses, model, Android version | Discovery, selection, and command targeting | Current process and UI state |
+| Named device profiles, display names, connection preference, and auto-switch setting | Keep known headsets identifiable and choose a transport across launches | Private `device-settings.json` on this computer |
 | Entered pairing addresses and codes | Explicit wireless pairing and connection | Dialog/request memory only; codes clear on submission or method change |
 | Current Wi-Fi route/BSSID and generated USB setup credentials | Enable wireless debugging on the selected USB headset and reuse trust or pair | Request/private stdin memory only; not logged or persisted by the app |
 | Generated debugging QR and shared secret | Explicit QR pairing and matching ADB mDNS discovery | Local encoding and session memory only; two-minute deadline; QR clears when pairing starts or the session ends |
@@ -29,6 +30,15 @@ operation is undone when the app closes. Completed installs, uninstalls,
 renames, deletions, and transfers remain effective. Interrupted operations can
 leave temporary files. WebView2 and ADB may keep their own runtime data outside
 the application's state.
+
+Device profiles are the one small persisted application setting. In development
+they are stored in `env/local-data/device-settings.json`; in a release build
+they are stored in `%LOCALAPPDATA%/dev.questmanager.desktop/device-settings.json`.
+The file contains physical device identities, model names, user-entered display
+names, `auto`/`usb`/`wifi` connection preferences, and the auto-switch flag. It
+does not contain pairing codes, ADB authorization keys, transport addresses,
+package inventories, or task history. Treat the file as private local data
+because device identities and chosen names can identify the user's headsets.
 
 Applications retains the selected transport's complete package list and loaded
 details in memory across filters and ordinary task refreshes. Removed entries

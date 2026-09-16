@@ -25,13 +25,13 @@ flowchart LR
 | [src/App.tsx](../../src/App.tsx) | Pages, selection, dialogs, data reads, native file pickers and drag/drop |
 | [src/Headset.tsx](../../src/Headset.tsx) | Model matching and Overview headset SVG illustrations |
 | [src/useDeviceDiscovery.ts](../../src/useDeviceDiscovery.ts) | Device polling and its lifetime guard |
-| [src/deviceState.ts](../../src/deviceState.ts) | Ready-device fallback selection and serialized discovery with fresh manual refreshes |
-| [src/WirelessSetup.tsx](../../src/WirelessSetup.tsx) | USB, QR and pairing-code tabs with verified connection feedback |
+| [src/deviceState.ts](../../src/deviceState.ts) | Profile merging, known-device selection, preferred transport selection, and serialized discovery |
+| [src/DeviceAddWizard.tsx](../../src/DeviceAddWizard.tsx) | USB, QR, and pairing-code device registration with profile naming and wireless offer |
 | [src/QrPairing.tsx](../../src/QrPairing.tsx) | QR session display, status polling and cancellation |
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
 | [src/useApplications.ts](../../src/useApplications.ts) | Complete package inventory, session cache lifecycle and incremental enrichment |
-| [src/Devices.tsx](../../src/Devices.tsx) | Device connection list, USB-first transport status, stay-awake and Launcher settings |
-| [src/deviceState.ts](../../src/deviceState.ts) | Physical device selection, USB-first transport selection and session offline merging |
+| [src/Devices.tsx](../../src/Devices.tsx) | Device profile list, connection status, preferred transport, auto-switch, stay-awake and Launcher settings |
+| [src-tauri/src/device_profiles.rs](../../src-tauri/src/device_profiles.rs) | Validated private device profiles and auto-switch persistence |
 | [src/applicationState.ts](../../src/applicationState.ts) | Installer classification, package invalidation and cache reconciliation |
 | [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
@@ -77,10 +77,16 @@ Do not put ADB command text or validation policy in the UI.
 
 Device discovery shares periodic reads. An explicit refresh supersedes any older
 pending snapshot and starts a fresh read after that request settles; repeated
-refreshes share that fresh read. Disposal prevents late publication. Default
-device selection prefers a ready connection over an offline list entry, while
-an explicitly selected device remains selected. These rules do not change an
-existing task's captured transport or reconnect a device.
+refreshes share that fresh read. Disposal prevents late publication. Saved
+profiles are merged with discovery so known offline devices remain visible, but
+no transport is invented for them. Automatic selection considers saved devices
+only; an explicitly selected device remains selected. A newly ready unknown
+device is shown as a candidate for adding rather than silently selected.
+Per-device `auto` preference chooses USB before Wi-Fi; `usb` and `wifi` restrict
+selection to that transport. The global auto-switch setting may select a newly
+ready known device when no task is active; otherwise the UI asks before a
+switch. These rules do not change an existing task's captured transport or
+reconnect a device.
 
 In a normal browser, calls fail with a desktop-app instruction. Only the explicit
 `?preview=1` mode returns sample read data. `canWrite` requires both a ready

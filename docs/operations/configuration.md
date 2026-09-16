@@ -1,7 +1,8 @@
 # Runtime Configuration
 
-The current app has no settings file, account, database connection, custom ADB
-path picker, or persistent device preference. Device selection and UI state
+The current app has no account, database connection, or custom ADB path picker.
+Named device profiles and connection preferences are stored in a private
+`device-settings.json`; discovery, device selection, and UI state otherwise
 belong to the current process.
 
 ## ADB and Device Selection
@@ -18,14 +19,15 @@ and USB-assisted TCP/IP enabling occur only through explicit setup actions.
 It can share the server with Android Studio and other ADB clients.
 
 The **Devices** page is the connection and headset settings surface. It lists
-USB and Wi-Fi transports, keeps devices seen during the current session as
-offline entries, and opens wireless setup through **Add connection**. When both
-transports are ready for one physical device, USB is selected first; Wi-Fi is
-the fallback. New tasks capture the selected transport, and changing the
-selected device does not migrate already queued work. The page also reads the
-headset's stay-awake setting and can install Lightning Launcher. The stay-awake
-toggle changes the headset's global charging setting but is not stored by the
-app. See [Data model](../architecture/data-model.md).
+USB and Wi-Fi transports, keeps saved devices visible as offline entries, and
+opens registration through **Add connection**. Each profile stores a display
+name and `auto`, `usb`, or `wifi` connection preference. Automatic selection
+uses USB first; Wi-Fi is the fallback. The optional auto-switch setting can
+select another known ready device when no task is active. New tasks capture the
+selected transport, and changing the selected device does not migrate already
+queued work. The page also reads the headset's stay-awake setting and can
+install Lightning Launcher. The stay-awake toggle changes the headset's global
+charging setting but is not stored by the app. See [Data model](../architecture/data-model.md).
 
 ## Development Environment
 

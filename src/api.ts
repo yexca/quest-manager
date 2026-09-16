@@ -1,5 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AppDetails, AppPackage, Device, DeviceInfo, DevicePowerSettings, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
+import type { AppDetails, AppPackage, Device, DeviceInfo, DevicePowerSettings, DevicePreferences, DeviceProfile, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
 import type { LightningCatalog, LightningRecommendation } from './types';
 import type { WirelessRequest, WirelessResult, WirelessQrSnapshot } from './types';
 import { lightningPackage, navigatorPackage, previewLightningCatalog } from './lightningState';
@@ -16,6 +16,10 @@ const previewDevices: Device[] = [
   { id: 'DEMO-DEVICE-003', model: 'Quest 2', transports: [{ serial: 'DEMO-USB-003', kind: 'usb', state: 'device' }] },
   { id: 'DEMO-DEVICE-004', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-004', kind: 'usb', state: 'device' }] },
 ];
+let previewDevicePreferences: DevicePreferences = {
+  profiles: previewDevices.map(device => ({ id: device.id, displayName: device.model, model: device.model, connectionPreference: 'auto' })),
+  autoSwitch: false,
+};
 const previewApps: AppPackage[] = [
   'com.example.orbit', 'com.example.rhythm', 'com.example.minigolf',
   'com.example.paint', 'com.example.puzzle', 'com.example.explorer',
@@ -92,6 +96,22 @@ export const api = {
       assets: { ...previewDetails(unknown ? 'com.example.explorer' : packageName).assets, notes: ['Preview uses APK default launcher resources. Quest language and launcher artwork may differ.'] } });
   },
   devices: (): Promise<Device[]> => isPreview ? Promise.resolve(new URLSearchParams(location.search).get('connection') === 'none' ? [] : new URLSearchParams(location.search).get('connection') === 'unauthorized' ? [{ id: 'DEMO-DEVICE-001', model: 'Quest 3', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'unauthorized' }] }] : previewDevices) : call('list_devices'),
+  devicePreferences: (): Promise<DevicePreferences> => isPreview ? Promise.resolve(structuredClone(previewDevicePreferences)) : call('device_preferences'),
+  saveDeviceProfile: (profile: DeviceProfile): Promise<DevicePreferences> => {
+    if (!isPreview) return call('save_device_profile', { profile });
+    const duplicate = previewDevicePreferences.profiles.some(item => item.id !== profile.id && item.displayName.trim().toLowerCase() === profile.displayName.trim().toLowerCase());
+    if (duplicate) return Promise.reject(new Error('That device name is already in use. Choose a different name.'));
+    const profiles = previewDevicePreferences.profiles.some(item => item.id === profile.id)
+      ? previewDevicePreferences.profiles.map(item => item.id === profile.id ? profile : item)
+      : [...previewDevicePreferences.profiles, profile];
+    previewDevicePreferences = { ...previewDevicePreferences, profiles };
+    return Promise.resolve(structuredClone(previewDevicePreferences));
+  },
+  setDeviceAutoSwitch: (enabled: boolean): Promise<DevicePreferences> => {
+    if (!isPreview) return call('set_device_auto_switch', { enabled });
+    previewDevicePreferences = { ...previewDevicePreferences, autoSwitch: enabled };
+    return Promise.resolve(structuredClone(previewDevicePreferences));
+  },
   inspectObbs: (sources: string[]): Promise<LocalObb[]> => isPreview
     ? Promise.resolve(sources.map((source, index) => ({ source, sourceStamp: 'DEMO-OBB-STAMP', name: source.split(/[\\/]/).pop() || source, size: (index + 1) * 128 * 1024 ** 2 })))
     : call('inspect_obb_files', { sources }),

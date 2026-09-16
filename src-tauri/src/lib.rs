@@ -2,6 +2,7 @@ mod adb;
 mod apk;
 mod apk_edit;
 mod apk_install;
+mod device_profiles;
 mod lightning;
 mod metadata;
 mod obb;
@@ -9,6 +10,7 @@ mod qr_pairing;
 mod tasks;
 
 use adb::{Adb, AppPackage, Device, DeviceInfo, DevicePowerSettings, FileEntry};
+use device_profiles::{DevicePreferences, DeviceProfile, DeviceProfileStore};
 use metadata::{AppDetails, MetadataService};
 use tasks::{TaskManager, TaskRequest, TaskSnapshot};
 use tauri::{Emitter, Manager};
@@ -91,6 +93,27 @@ async fn inspect_obb_files(sources: Vec<String>) -> Result<Vec<obb::LocalObb>, S
 #[tauri::command]
 async fn list_devices(adb: tauri::State<'_, Adb>) -> Result<Vec<Device>, String> {
     adb.devices().await
+}
+
+#[tauri::command]
+fn device_preferences(store: tauri::State<'_, DeviceProfileStore>) -> DevicePreferences {
+    store.get()
+}
+
+#[tauri::command]
+fn save_device_profile(
+    store: tauri::State<'_, DeviceProfileStore>,
+    profile: DeviceProfile,
+) -> Result<DevicePreferences, String> {
+    store.save_profile(profile)
+}
+
+#[tauri::command]
+fn set_device_auto_switch(
+    store: tauri::State<'_, DeviceProfileStore>,
+    enabled: bool,
+) -> Result<DevicePreferences, String> {
+    store.set_auto_switch(enabled)
 }
 
 #[tauri::command]
@@ -249,6 +272,14 @@ pub fn run() {
                 )
             };
             let installer = apk_install::Installer::new(apk_tools, aapt.clone(), apk_storage);
+            let device_settings = if cfg!(debug_assertions) {
+                let env = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../env");
+                env.join("local-data/device-settings.json")
+            } else {
+                app.path()
+                    .app_local_data_dir()?
+                    .join("device-settings.json")
+            };
             app.manage(MetadataService::new(aapt, cache));
             let lightning = lightning::Lightning::default();
             app.manage(TaskManager::with_lightning(
@@ -257,6 +288,7 @@ pub fn run() {
             ));
             app.manage(lightning);
             app.manage(installer);
+            app.manage(DeviceProfileStore::new(device_settings));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -266,6 +298,9 @@ pub fn run() {
             lightning_recommendation,
             navigator_enabled,
             list_devices,
+            device_preferences,
+            save_device_profile,
+            set_device_auto_switch,
             wireless_connection,
             start_wireless_qr,
             wireless_qr_status,

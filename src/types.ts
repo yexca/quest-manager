@@ -1,4 +1,5 @@
 export interface Transport { serial: string; kind: 'usb' | 'wifi'; state: string }
+export type ConnectionPreference = 'auto' | 'usb' | 'wifi';
 export type WirelessRequest = { method: 'pair'; address: string; code: string } | { method: 'usb'; device: string };
 export interface WirelessResult { serial: string | null; message: string }
 export interface WirelessQrSnapshot {
@@ -9,7 +10,9 @@ export interface WirelessQrSnapshot {
   expiresAt: number;
   serial: string | null;
 }
-export interface Device { id: string; model: string; transports: Transport[] }
+export interface Device { id: string; model: string; transports: Transport[]; displayName?: string; connectionPreference?: ConnectionPreference }
+export interface DeviceProfile { id: string; displayName: string; model: string; connectionPreference: ConnectionPreference }
+export interface DevicePreferences { profiles: DeviceProfile[]; autoSwitch: boolean }
 export interface DeviceInfo {
   model: string; androidVersion: string; batteryLevel: number | null; charging: boolean;
   storageTotal: number; storageUsed: number; storageAvailable: number;

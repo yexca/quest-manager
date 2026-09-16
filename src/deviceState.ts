@@ -1,9 +1,46 @@
-import type { Device, Transport } from './types.ts';
+import type { ConnectionPreference, Device, DevicePreferences, Transport } from './types.ts';
+
+export function applyDeviceProfiles(devices: Device[], preferences: DevicePreferences): Device[] {
+  const profiles = new Map(preferences.profiles.map(profile => [profile.id, profile]));
+  return devices.map(device => {
+    const profile = profiles.get(device.id);
+    return profile
+      ? { ...device, displayName: profile.displayName, connectionPreference: profile.connectionPreference }
+      : { ...device, connectionPreference: device.connectionPreference ?? 'auto' };
+  });
+}
+
+/** Keep saved devices visible between sessions without inventing a transport. */
+export function includeDeviceProfiles(devices: Device[], preferences: DevicePreferences): Device[] {
+  const applied = applyDeviceProfiles(devices, preferences);
+  const seen = new Set(applied.map(device => device.id));
+  for (const profile of preferences.profiles) {
+    if (seen.has(profile.id)) continue;
+    applied.push({
+      id: profile.id,
+      model: profile.model,
+      displayName: profile.displayName,
+      connectionPreference: profile.connectionPreference,
+      transports: [],
+    });
+  }
+  return applied;
+}
+
+/** Select a ready device from the saved profiles, leaving unregistered candidates alone. */
+export function selectKnownDevice(devices: Device[], deviceId: string, knownIds: ReadonlySet<string>) {
+  if (deviceId) return devices.find(device => device.id === deviceId);
+  const known = devices.filter(device => knownIds.has(device.id));
+  return known.find(device => selectTransport(device)) ?? known[0];
+}
 
 /** Select the active transport for a physical device. USB is the stable default. */
 export function selectTransport(device: Device | undefined): Transport | undefined {
-  return device?.transports.find(transport => transport.state === 'device' && transport.kind === 'usb')
-    ?? device?.transports.find(transport => transport.state === 'device');
+  const ready = device?.transports.filter(transport => transport.state === 'device') ?? [];
+  const preference: ConnectionPreference = device?.connectionPreference ?? 'auto';
+  if (preference === 'usb') return ready.find(transport => transport.kind === 'usb');
+  if (preference === 'wifi') return ready.find(transport => transport.kind === 'wifi');
+  return ready.find(transport => transport.kind === 'usb') ?? ready.find(transport => transport.kind === 'wifi');
 }
 
 /** Keep devices seen during this session so a disconnect does not retarget work. */

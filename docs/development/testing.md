@@ -83,6 +83,18 @@ connection, explicit device selection, stale polls during manual refresh,
 refresh coalescing, read failure recovery, and disposal. These host-only tests
 do not establish wireless network stability or headset sleep behavior.
 
+Saved device profile coverage should include the private-file load path, profile
+merge with discovered transports, case-insensitive name collision refusal,
+renaming while retaining the physical device ID, and persistence of `auto`,
+`usb`, and `wifi` connection preferences. Verify that a saved device remains
+visible after discovery no longer reports its transport, that automatic mode
+selects USB before Wi-Fi, and that USB-only or Wi-Fi-only modes leave the device
+offline when the requested transport is absent. The auto-switch workflow should
+cover a newly ready known device with no active task, deferral while a task is
+active, and the notice shown for an unknown device. These checks use fictional
+`DEMO-*` identities and a temporary settings file; they do not require a
+headset or persist live device data.
+
 Wireless setup has host-only tests in
 [wireless_tests.rs](../../src-tauri/src/wireless_tests.rs), using a separate
 [mock executable](../../tests/fixtures/mock-wireless-adb.rs) that cannot contact

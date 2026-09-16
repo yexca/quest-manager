@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDeviceDiscovery, mergeDeviceSnapshots, selectDevice, selectTransport } from '../../src/deviceState.ts';
-import type { Device } from '../../src/types.ts';
+import { applyDeviceProfiles, createDeviceDiscovery, includeDeviceProfiles, mergeDeviceSnapshots, selectDevice, selectKnownDevice, selectTransport } from '../../src/deviceState.ts';
+import type { Device, DevicePreferences } from '../../src/types.ts';
 
 const ready: Device = { id: 'DEMO-HEADSET', model: 'Quest 3', transports: [
   { serial: 'DEMO-GUID._adb-tls-connect._tcp', kind: 'wifi', state: 'device' },
@@ -38,6 +38,43 @@ test('USB is preferred over Wi-Fi for a device with two ready transports', () =>
   ] };
   assert.equal(selectTransport(mixed)?.kind, 'usb');
   assert.equal(selectTransport({ ...mixed, transports: [mixed.transports[0]] })?.kind, 'wifi');
+});
+
+test('saved profiles merge names and preserve offline devices', () => {
+  const preferences: DevicePreferences = {
+    profiles: [
+      { id: 'DEMO-HEADSET', displayName: 'Living room', model: 'Quest 3', connectionPreference: 'wifi' },
+      { id: 'DEMO-OFFLINE', displayName: 'Office', model: 'Quest 2', connectionPreference: 'auto' },
+    ],
+    autoSwitch: false,
+  };
+  const merged = includeDeviceProfiles([{ ...ready, transports: [
+    { serial: 'DEMO-USB-001', kind: 'usb', state: 'device' },
+    { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' },
+  ] }], preferences);
+  assert.equal(merged[0].displayName, 'Living room');
+  assert.equal(selectTransport(merged[0])?.kind, 'wifi');
+  assert.deepEqual(merged.find(device => device.id === 'DEMO-OFFLINE')?.transports, []);
+  assert.equal(selectKnownDevice(merged, '', new Set(preferences.profiles.map(profile => profile.id)))?.id, 'DEMO-HEADSET');
+});
+
+test('connection preferences restrict the active transport', () => {
+  const mixed = { ...ready, transports: [
+    { serial: 'DEMO-WIFI-001', kind: 'wifi' as const, state: 'device' },
+    { serial: 'DEMO-USB-001', kind: 'usb' as const, state: 'device' },
+  ] };
+  const profiles: DevicePreferences = {
+    profiles: [
+      { id: mixed.id, displayName: 'USB only', model: mixed.model, connectionPreference: 'usb' },
+    ],
+    autoSwitch: false,
+  };
+  const usbOnly = applyDeviceProfiles([mixed], profiles)[0];
+  assert.equal(selectTransport(usbOnly)?.kind, 'usb');
+  const wifiOnly = applyDeviceProfiles([mixed], { ...profiles, profiles: [{ ...profiles.profiles[0], connectionPreference: 'wifi' }] })[0];
+  assert.equal(selectTransport(wifiOnly)?.kind, 'wifi');
+  const noWifi = { ...wifiOnly, transports: [mixed.transports[1]] };
+  assert.equal(selectTransport(noWifi), undefined);
 });
 
 test('a disconnected device remains in the session directory as offline', () => {

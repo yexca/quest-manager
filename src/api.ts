@@ -1,5 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
+import type { AppDetails, AppPackage, Device, DeviceInfo, DevicePowerSettings, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
 import type { LightningCatalog, LightningRecommendation } from './types';
 import type { WirelessRequest, WirelessResult, WirelessQrSnapshot } from './types';
 import { lightningPackage, navigatorPackage, previewLightningCatalog } from './lightningState';
@@ -96,6 +96,17 @@ export const api = {
     ? Promise.resolve(sources.map((source, index) => ({ source, sourceStamp: 'DEMO-OBB-STAMP', name: source.split(/[\\/]/).pop() || source, size: (index + 1) * 128 * 1024 ** 2 })))
     : call('inspect_obb_files', { sources }),
   info: (device: string): Promise<DeviceInfo> => isPreview ? Promise.resolve({ model: previewDevices.find(item => item.transports.some(transport => transport.serial === device))?.model ?? 'Demo headset', androidVersion: '14', batteryLevel: 80, charging: true, storageTotal: 128 * gib, storageUsed: 64 * gib, storageAvailable: 64 * gib }) : call('device_info', { device }),
+  powerSettings: (device: string): Promise<DevicePowerSettings> => {
+    if (isPreview) {
+      const mode = new URLSearchParams(location.search).get('stayawake');
+      return Promise.resolve({ stayAwake: mode === 'unknown' ? null : mode !== 'off', raw: mode === 'unknown' ? 'unknown' : mode === 'off' ? '0' : '15' });
+    }
+    return call('device_power_settings', { device });
+  },
+  setStayAwake: (device: string, enabled: boolean): Promise<DevicePowerSettings> => {
+    if (isPreview) return Promise.resolve({ stayAwake: enabled, raw: enabled ? '15' : '0' });
+    return call('set_device_stay_awake', { device, enabled });
+  },
   apps: (device: string, includeSystem: boolean): Promise<AppPackage[]> => isPreview ? Promise.resolve(includeSystem ? [...previewApps, { packageName: 'com.example.systemshell', versionCode: '100', system: true, installer: null, apkPath: '/system/app/ExampleShell/base.apk' }] : previewApps) : call('list_apps', { device, includeSystem }),
   details,
   clearMetadataCache: (): Promise<void> => isPreview ? Promise.resolve() : call('clear_metadata_cache'),

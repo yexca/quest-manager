@@ -59,7 +59,7 @@ Do not paste its unredacted output into tracked files.
 - Paired but did not connect: wake the headset and refresh, or use **USB setup**
   to reuse authorization. Cancellation/expiry can leave a completed pairing trusted.
 
-Open **Connect via Wi-Fi** from the disconnected screen, top bar, or Help.
+Open **Devices** and choose **Add connection**.
 Pairing cannot start while the headset is in deep sleep. Put it on or press its
 power button to wake it, and keep the display on until setup completes. Keep it
 on the same reachable local network as the computer.

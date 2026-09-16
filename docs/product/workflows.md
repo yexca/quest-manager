@@ -11,18 +11,14 @@ Help remains a separate dialog for connection, transfer and signing-key guidance
 
 ## Lightning Launcher
 
-Applications shows a compact optional installation suggestion above its table
-only after the selected transport's complete inventory successfully confirms
-absence of all recognized Launcher editions. Search/source/system filters do not
-affect detection. Installed or unknown states hide the suggestion. **Don't show
-again** persists a local, computer-wide preference; uninstalling a launcher can
-show the suggestion again only if that preference remains enabled. Applications'
-**Optional apps** menu always provides manual setup and **Show install suggestions**.
+The **Devices** page contains the Lightning Launcher setup entry for the
+selected ready transport. It can install or update the Launcher and its
+optional Navigator service without depending on the Applications inventory.
 
 The setup dialog captures its target connection when opened. It fetches releases
 only on opening/refresh and reads current installed versions. It can install the
 GitHub Launcher edition, the Navigator service, or both. Recognized store editions
-suppress the suggestion; installing the GitHub edition alongside one is explicit.
+do not prevent an explicit GitHub edition install.
 The optional service checkbox starts off. Existing installations show versions;
 Navigator activation is queried separately and failures remain unknown.
 Release options mark the installed version, and selecting it shows an inline
@@ -64,13 +60,23 @@ with every headset OS. Preview versions are fictional and downloads/writes disab
 
 Overview shows the selected headset, connection method, Android version,
 third-party app count, shared-storage capacity, battery, and recent tasks.
-Users can choose a device, and choose a connection when several ready
-transports belong to that device. USB is preferred by default.
+The **Devices** page is the connection and headset settings surface. It lists
+USB and Wi-Fi transports, opens wireless setup through **Add connection**, and
+shows which transport is active. When both transports are ready for one device,
+USB is selected first and Wi-Fi is used as the fallback.
 
 Without a matching explicit selection, the app prefers a device with a ready
 connection over an offline entry. An explicitly selected device is not replaced
-by another headset just because it goes offline. Manual refresh waits for a
-fresh device snapshot; an older pending poll cannot overwrite that refresh.
+by another headset just because it goes offline. Devices and their transports
+remain in the current session as offline records after disconnection. Manual
+refresh waits for a fresh device snapshot; an older pending poll cannot overwrite
+that refresh.
+
+After selecting a ready device, the Devices page can read its stay-awake setting
+and toggle whether the headset stays awake while charging. This updates the
+headset's global Android setting to help long Wi-Fi transfers; the app does not
+persist a separate preference. The page also contains the Lightning Launcher
+setup entry.
 
 The headset illustration follows the selected device's discovered model: Quest 3,
 Quest 3S, or Quest 2. Case, spaces, underscores, hyphens, and Meta/Oculus prefixes
@@ -78,11 +84,10 @@ are normalized for artwork selection. Unknown models use a generic illustration
 and retain the same device operations. Artwork does not indicate tested support
 for every feature on that model.
 
-No-device and authorization-required states provide connection guidance and a
-**Connect via Wi-Fi** action. The top bar and Help keep this entry available
-when a headset is connected. Discovery refreshes automatically and can be
-requested manually. Developer mode and headset debugging authorization are
-required. Existing Wi-Fi connections also appear through ADB.
+No-device and authorization-required states provide a link to **Devices**.
+Discovery refreshes automatically and can be requested manually. Developer mode
+and headset debugging authorization are required. Existing Wi-Fi connections
+also appear through ADB.
 
 The app distinguishes shared capacity from private app storage. Battery or
 version information can be unavailable; it must not be replaced with sample
@@ -135,9 +140,9 @@ Connection success requires a matching ready transport (and ADB's success
 response for explicit connect). QR/code verify the paired GUID through a readable
 device property or its exact authenticated TLS service transport when the
 property is hidden. USB verifies the same physical identity over both connections.
-Discovery then refreshes and selects that Wi-Fi transport for future
-operations. Already queued tasks keep their original transport. USB remains
-the default for ordinary discovery; explicit wireless selection takes priority.
+Discovery then refreshes and makes that transport available on the Devices page.
+Already queued tasks keep their original transport. USB remains the default when
+both transports are ready; Wi-Fi is selected after USB is unavailable.
 Preview exposes all forms but disables connection and pairing actions.
 
 ## Manage Applications

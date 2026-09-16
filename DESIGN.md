@@ -6,8 +6,8 @@ file, and see the result of an operation without losing their place.
 
 ## Current Interface
 
-- A dark green sidebar holds Overview, Applications, Files, the installation
-  entry, Task queue, Help, and About.
+- A dark green sidebar holds Overview, Devices, Applications, Files, the
+  installation entry, Task queue, Help, and About.
 - A light workspace contains the connection status, page heading, and content.
   Overview summarizes the device; Applications and Files use compact tables.
 - Green is the primary action color, amber indicates attention, and red marks
@@ -48,15 +48,16 @@ Distinguish disconnected, authorization-required, loading, empty, and failed
 states. A failed live query must not turn the desktop app into a preview or
 display fictional values as device data. Unknown values should remain unknown.
 
-The disconnected card offers **Connect via Wi-Fi** alongside a USB connection
-check. Keep wireless setup available in the top bar and Help. Its dialog has
-one row of icon-and-text tabs: **USB setup**, **QR code**, **Pairing code**.
-Place the sleep/wake reconnection note above them. Keep inline errors/progress and a
-visible action footer at the minimum window size. Explain separate pairing and
-connection ports, preserve an unavailable USB selection, and distinguish paired
-trust from a ready connection. USB setup reports reused authorization and avoids
-repeated pairing when the existing connection works. Disable writes in preview and setup while tasks
-are active. Completing setup selects the verified Wi-Fi transport.
+The Devices page lists physical devices and their USB/Wi-Fi transports. **Add
+connection** opens wireless setup, whose dialog has one row of icon-and-text
+tabs: **USB setup**, **QR code**, **Pairing code**. Place the sleep/wake
+reconnection note above them. Keep inline errors/progress and a visible action
+footer at the minimum window size. Explain separate pairing and connection
+ports, preserve offline session entries, and distinguish paired trust from a
+ready connection. USB is selected before Wi-Fi when both are ready. The page
+also contains the stay-awake-while-charging toggle and Lightning Launcher setup.
+Disable writes in preview and setup while tasks are active. Completing setup
+makes the verified Wi-Fi transport available for selection.
 
 Applications keeps system type separate from installation source. Source labels
 are explicitly inferred and unknown installer records stay unknown. Source and
@@ -101,10 +102,8 @@ display cancellation when the backend supports it for that task state.
 
 ## Optional Application Setup
 
-Place the dismissible Lightning Launcher suggestion above the Applications table.
-Retain Install APK as the primary page action and expose manual Launcher setup and
-suggestion preferences in the adjacent Optional apps menu. Detection uses the
-complete successful inventory, independent of visible table filters.
+Keep Lightning Launcher setup on the Devices page alongside other headset
+settings. Retain Install APK as the primary page action for application work.
 
 The setup dialog uses separate Launcher and optional Navigator cards, a captured
 target, release selectors, author/source link, and inline progress. Expand the

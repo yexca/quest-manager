@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDeviceDiscovery, selectDevice } from '../../src/deviceState.ts';
+import { createDeviceDiscovery, mergeDeviceSnapshots, selectDevice, selectTransport } from '../../src/deviceState.ts';
 import type { Device } from '../../src/types.ts';
 
 const ready: Device = { id: 'DEMO-HEADSET', model: 'Quest 3', transports: [
@@ -29,6 +29,25 @@ test('explicit device selection is preserved even when only another headset is r
   const mixed = { ...ready, transports: [...offline.transports, ...ready.transports] };
   assert.equal(selectDevice([offline, mixed], ''), mixed);
   assert.equal(mixed.transports[0].state, 'offline');
+});
+
+test('USB is preferred over Wi-Fi for a device with two ready transports', () => {
+  const mixed = { ...ready, transports: [
+    { serial: 'DEMO-WIFI-001', kind: 'wifi' as const, state: 'device' },
+    { serial: 'DEMO-USB-001', kind: 'usb' as const, state: 'device' },
+  ] };
+  assert.equal(selectTransport(mixed)?.kind, 'usb');
+  assert.equal(selectTransport({ ...mixed, transports: [mixed.transports[0]] })?.kind, 'wifi');
+});
+
+test('a disconnected device remains in the session directory as offline', () => {
+  const first = { ...ready, transports: [
+    { serial: 'DEMO-USB-001', kind: 'usb' as const, state: 'device' },
+    { serial: 'DEMO-WIFI-001', kind: 'wifi' as const, state: 'device' },
+  ] };
+  const merged = mergeDeviceSnapshots([first], []);
+  assert.equal(merged.length, 1);
+  assert.ok(merged[0].transports.every(transport => transport.state === 'offline'));
 });
 
 test('manual refresh suppresses an older offline poll and waits for a new snapshot', async () => {

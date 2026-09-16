@@ -59,6 +59,13 @@ pub struct DeviceInfo {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DevicePowerSettings {
+    pub stay_awake: Option<bool>,
+    pub raw: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppPackage {
     pub package_name: String,
     pub version_code: String,
@@ -548,6 +555,32 @@ impl Adb {
             storage_used,
             storage_available,
         })
+    }
+
+    pub async fn power_settings(&self, device: &str) -> Result<DevicePowerSettings, String> {
+        let raw = self
+            .shell(device, "settings get global stay_on_while_plugged_in")
+            .await?;
+        let value = raw.trim();
+        let stay_awake = parse_stay_awake(value);
+        Ok(DevicePowerSettings {
+            stay_awake,
+            raw: value.to_string(),
+        })
+    }
+
+    pub async fn set_stay_awake(
+        &self,
+        device: &str,
+        enabled: bool,
+    ) -> Result<DevicePowerSettings, String> {
+        let command = if enabled {
+            "svc power stayon true"
+        } else {
+            "svc power stayon false"
+        };
+        self.shell(device, command).await?;
+        self.power_settings(device).await
     }
 
     pub async fn navigator_enabled(&self, device: &str) -> Result<bool, String> {
@@ -1070,6 +1103,14 @@ fn parse_storage(raw: &str) -> Result<(u64, u64, u64), String> {
     Ok((number(1)?, number(2)?, number(3)?))
 }
 
+fn parse_stay_awake(raw: &str) -> Option<bool> {
+    match raw.trim() {
+        "0" => Some(false),
+        "null" | "" => None,
+        value => value.parse::<u32>().ok().map(|mask| mask != 0),
+    }
+}
+
 fn parse_files(raw: &[u8], parent: &str) -> Result<Vec<FileEntry>, String> {
     if raw.is_empty() {
         return Ok(Vec::new());
@@ -1194,6 +1235,14 @@ mod tests {
         assert_eq!(devices[1].0.kind, "wifi");
         assert_eq!(devices[2].0.state, "unauthorized");
         assert_eq!(parse_storage("Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/fuse 120 100 20 84% /storage/emulated").unwrap(), (122880, 102400, 20480));
+    }
+
+    #[test]
+    fn stay_awake_parser_handles_android_power_masks() {
+        assert_eq!(parse_stay_awake("0"), Some(false));
+        assert_eq!(parse_stay_awake("15"), Some(true));
+        assert_eq!(parse_stay_awake("null"), None);
+        assert_eq!(parse_stay_awake("unexpected"), None);
     }
 
     #[tokio::test]

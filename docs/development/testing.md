@@ -106,10 +106,11 @@ actions. Default preview includes fictional authorized USB choices. Connection
 success, headset settings, radio behavior and native IPC require separate
 opt-in device testing; preview does not simulate successful pairing/writes.
 
-Overview preview defaults to a fictional Quest 3. Use the device selector to
-check Quest 3, Quest 3S, Quest 2, and the generic headset illustration at both
-1280 by 850 and 1000 by 680. Confirm that the model name and illustration follow
-selection, USB/Wi-Fi changes preserve the model, and preview writes stay disabled.
+Overview preview defaults to a fictional Quest 3. Use the Devices page and
+device selector to check Quest 3, Quest 3S, Quest 2, and the generic headset
+illustration at both 1280 by 850 and 1000 by 680. Confirm that the model name
+and illustration follow selection, USB remains preferred when both transports
+are ready, offline entries remain visible, and preview writes stay disabled.
 
 After installation, start `npm run dev` and open
 [preview](http://127.0.0.1:1420/?preview=1). Check the changed page at supported
@@ -229,8 +230,8 @@ cleans them up, and never invokes ADB:
 cargo test --locked --manifest-path src-tauri/Cargo.toml github_release_download_and_signature_smoke -- --ignored
 ```
 
-Inspect the suggestion, dismissal/restoration and setup dialog at both supported
-sizes. Changing Launcher versions must update the recommended service. Other
+Inspect the Devices page Launcher entry and setup dialog at both supported sizes.
+Changing Launcher versions must update the recommended service. Other
 versions require an explicit choice and remain labeled unverified; preview install
 stays disabled. Native IPC and real installation require separate device testing.
 Use `?preview=1&lightning=installed` for fictional older installations, or

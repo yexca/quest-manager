@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import { createDeviceDiscovery } from './deviceState';
+import { createDeviceDiscovery, mergeDeviceSnapshots } from './deviceState';
 import type { Device } from './types';
 
 export function useDeviceDiscovery(refreshToken: number, fail: (error: unknown) => void) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const discovery = useRef<ReturnType<typeof createDeviceDiscovery> | null>(null);
+  const knownDevices = useRef<Device[]>([]);
   const visibleRequest = useRef(0);
   const loadDevices = useCallback((quiet = false): Promise<Device[]> => {
     const current = discovery.current;
@@ -23,7 +24,11 @@ export function useDeviceDiscovery(refreshToken: number, fail: (error: unknown) 
     return current.refresh().finally(() => { if (discovery.current === current && visibleRequest.current === request) setLoadingDevices(false); });
   }, []);
   useEffect(() => {
-    const current = createDeviceDiscovery(api.devices, setDevices);
+    knownDevices.current = [];
+    const current = createDeviceDiscovery(api.devices, snapshot => {
+      knownDevices.current = mergeDeviceSnapshots(knownDevices.current, snapshot);
+      setDevices(knownDevices.current);
+    });
     discovery.current = current;
     const report = (error: unknown) => { if (discovery.current === current) fail(error); };
     void loadDevices().catch(report);

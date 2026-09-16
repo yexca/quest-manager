@@ -174,6 +174,21 @@ impl TaskManager {
             .map_err(|_| "Wireless setup timed out. Check the headset's debugging settings before trying again; pairing or Wi-Fi mode may already have been enabled.".to_string())?
     }
 
+    pub async fn set_stay_awake(
+        &self,
+        adb: &Adb,
+        device: String,
+        enabled: bool,
+    ) -> Result<crate::adb::DevicePowerSettings, String> {
+        let _permit = self.wireless_permit()?;
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            adb.set_stay_awake(&device, enabled),
+        )
+        .await
+        .map_err(|_| "Changing the headset's stay-awake setting timed out.".to_string())?
+    }
+
     pub fn start_wireless_qr(&self, adb: Adb) -> Result<qr_pairing::Snapshot, String> {
         self.start_qr_with_lifetime(adb, Duration::from_secs(qr_pairing::LIFETIME_SECS))
     }

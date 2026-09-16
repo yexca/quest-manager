@@ -30,6 +30,8 @@ flowchart LR
 | [src/QrPairing.tsx](../../src/QrPairing.tsx) | QR session display, status polling and cancellation |
 | [src/useTaskQueue.ts](../../src/useTaskQueue.ts) | Task subscription, clearing and batched refresh signals |
 | [src/useApplications.ts](../../src/useApplications.ts) | Complete package inventory, session cache lifecycle and incremental enrichment |
+| [src/Devices.tsx](../../src/Devices.tsx) | Device connection list, USB-first transport status, stay-awake and Launcher settings |
+| [src/deviceState.ts](../../src/deviceState.ts) | Physical device selection, USB-first transport selection and session offline merging |
 | [src/applicationState.ts](../../src/applicationState.ts) | Installer classification, package invalidation and cache reconciliation |
 | [src/taskState.ts](../../src/taskState.ts) | Revision merging, stream initialization and refresh policy |
 | [src/InstallReview.tsx](../../src/InstallReview.tsx) | Per-file APK preview, appearance/crop controls and compatibility options |
@@ -38,7 +40,7 @@ flowchart LR
 | [src/About.tsx](../../src/About.tsx) | Offline project credits/license, manifest-derived dependencies and repository link |
 | [src/AppMetadata.tsx](../../src/AppMetadata.tsx) | Application artwork and details tabs |
 | [src/LightningSetup.tsx](../../src/LightningSetup.tsx) | Optional Launcher setup, release selection and activation guidance |
-| [src/lightningState.ts](../../src/lightningState.ts) | Suggestion eligibility, release matching and fictional preview catalog |
+| [src/lightningState.ts](../../src/lightningState.ts) | Release matching and fictional preview catalog |
 | [src-tauri/src/lightning.rs](../../src-tauri/src/lightning.rs) | Fixed GitHub catalog, addon recommendations and HTTPS downloads |
 | [src/api.ts](../../src/api.ts) | Typed IPC calls and explicit fictional browser preview |
 | [src/types.ts](../../src/types.ts) | Frontend data and task contracts |

@@ -476,5 +476,67 @@ th { font-size: 10px; color: #748568; }
 .task-target { display: block; margin-top: 5px; font-size: 10px; color: #6b8159; overflow-wrap: anywhere; }
 .queue-toolbar { display: flex; justify-content: flex-end; margin: 12px 0 4px; }
 
+.devices-page { display: grid; gap: 18px; max-width: 1080px; }
+.devices-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.devices-toolbar strong { display: block; font-size: 13px; color: #405b34; }
+.devices-toolbar span { display: block; margin-top: 5px; color: #85957a; font-size: 11px; }
+.devices-toolbar-actions { display: flex; gap: 8px; }
+.devices-layout { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(0, 1.5fr); gap: 17px; align-items: start; }
+.device-list-panel { overflow: hidden; }
+.devices-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 19px; border-bottom: 1px solid #edf1e7; }
+.devices-panel-heading h2, .device-setting-card h2 { font-size: 14px; font-weight: 600; color: #405b34; }
+.devices-panel-heading > span { min-width: 22px; padding: 3px 7px; border-radius: 12px; background: #edf4e8; color: #6b875b; text-align: center; font-size: 10px; }
+.device-list-item { display: flex; align-items: flex-start; gap: 11px; width: 100%; padding: 15px 17px; border: 0; border-bottom: 1px solid #edf1e7; background: #fff; color: #405b34; text-align: left; }
+.device-list-item:last-child { border-bottom: 0; }
+.device-list-item:hover, .device-list-item.selected { background: #f4f8f0; }
+.device-list-icon { display: grid; place-items: center; width: 33px; height: 33px; flex-shrink: 0; border-radius: 9px; background: #f0f2ed; color: #879883; }
+.device-list-icon.connected { background: #eaf3e5; color: #668a58; }
+.device-list-copy { min-width: 0; flex: 1; }
+.device-list-copy strong { display: block; font-size: 12px; font-weight: 600; }
+.device-list-copy > small { display: block; margin-top: 4px; color: #8b9982; font-size: 9px; overflow-wrap: anywhere; }
+.device-transport-summary { display: grid; gap: 4px; margin-top: 9px; }
+.device-transport-summary > span { display: flex; align-items: center; gap: 5px; color: #a0aa99; font-size: 9px; }
+.device-transport-summary > span.ready { color: #6b875b; }
+.device-list-check { margin-top: 2px; color: #78a269; }
+.device-settings-column { display: grid; gap: 17px; }
+.device-connection-card, .device-setting-card { padding: 20px; }
+.devices-panel-heading > div { min-width: 0; }
+.devices-panel-heading .eyebrow { margin-bottom: 5px; }
+.device-connection-card .devices-panel-heading { padding: 0 0 13px; border-bottom: 0; }
+.device-connection-card .devices-panel-heading > svg { color: #809577; }
+.device-id { margin: 0 0 15px; color: #84947a; font-size: 10px; overflow-wrap: anywhere; }
+.transport-list { display: grid; gap: 8px; }
+.transport-row { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid #e8ede4; border-radius: 8px; background: #fafcf9; }
+.transport-row.ready { border-color: #d1e3c7; background: #f4f9f1; }
+.transport-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #78906d; background: #eef3eb; }
+.transport-row > span:nth-child(2) { min-width: 0; flex: 1; }
+.transport-row strong { display: block; font-size: 11px; color: #4c6843; }
+.transport-row small { display: block; margin-top: 4px; color: #95a38e; font-size: 9px; overflow-wrap: anywhere; }
+.transport-state { color: #9b9f91; font-size: 10px; white-space: nowrap; }
+.transport-state.ready { color: #628552; }
+.connection-priority { display: flex; align-items: flex-start; gap: 7px; margin: 14px 0 0; color: #718568; font-size: 10px; line-height: 1.6; }
+.connection-priority svg { flex-shrink: 0; margin-top: 2px; color: #76a166; }
+.setting-heading { display: flex; align-items: flex-start; gap: 11px; }
+.setting-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; color: #6d8c62; background: #edf4e9; }
+.setting-icon.lightning { color: #ad8a4a; background: #fbf2df; }
+.setting-heading h2 { margin-top: 2px; }
+.setting-heading p { margin-top: 6px; color: #7c8c73; font-size: 11px; line-height: 1.7; }
+.device-toggle { display: flex; align-items: center; gap: 12px; margin-top: 17px; cursor: pointer; }
+.device-toggle > span:first-child { min-width: 0; flex: 1; }
+.device-toggle strong { display: block; font-size: 12px; color: #4d6a44; }
+.device-toggle small { display: block; margin-top: 5px; color: #8b9982; font-size: 10px; }
+.device-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-track { width: 37px; height: 21px; padding: 2px; flex-shrink: 0; border-radius: 12px; background: #d8ded3; transition: background .15s; }
+.toggle-track span { display: block; width: 17px; height: 17px; border-radius: 50%; background: white; box-shadow: 0 1px 3px #26382430; transition: transform .15s; }
+.device-toggle input:checked + .toggle-track { background: #6e9a5d; }
+.device-toggle input:checked + .toggle-track span { transform: translateX(16px); }
+.device-toggle input:disabled + .toggle-track { opacity: .55; }
+.setting-unavailable { display: flex; align-items: flex-start; gap: 7px; margin-top: 15px; color: #988d68; font-size: 11px; line-height: 1.6; }
+.devices-empty { display: flex; align-items: center; flex-direction: column; padding: 70px 30px; text-align: center; color: #81916d; }
+.devices-empty h2 { margin-top: 15px; color: #405b34; font-size: 20px; }
+.devices-empty p { max-width: 390px; margin: 9px 0 21px; color: #85947b; font-size: 12px; line-height: 1.7; }
+.connection-method-label { color: #6f875f; font-size: 10px; }
+@media (max-width: 820px) { .devices-layout { grid-template-columns: 1fr; } .devices-toolbar { align-items: flex-start; flex-direction: column; } }
+
 .lightning-target .quiet-label { margin-left: 0; }
 .lightning-setup .modal-actions { position: sticky; bottom: -25px; z-index: 1; background: #fff; padding-bottom: 12px; box-shadow: 0 -8px 12px #ffffffed; }

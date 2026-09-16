@@ -14,6 +14,7 @@ export interface DeviceInfo {
   model: string; androidVersion: string; batteryLevel: number | null; charging: boolean;
   storageTotal: number; storageUsed: number; storageAvailable: number;
 }
+export interface DevicePowerSettings { stayAwake: boolean | null; raw: string }
 export interface AppPackage { packageName: string; versionCode: string; system: boolean; installer: string | null; apkPath: string | null }
 export interface AppAssets {
   displayName: string | null; iconDataUrl: string | null; vrFeatures: string[];

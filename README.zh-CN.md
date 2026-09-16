@@ -63,14 +63,15 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 ## 功能
 
-- **无线连接**：USB 设置会先检查已有授权，需要时自动配对并连接；也支持头显提供的六位配对码或 Android 调试二维码。未连接时也可打开设置入口。
+- **设备管理**：在 **Devices** 页面添加 USB 或 Wi-Fi 连接，查看两种传输方式，并管理头显设置。两者同时就绪时优先使用 USB，Wi-Fi 作为回退；页面还提供充电时保持唤醒开关和 Lightning Launcher 安装入口。
+- **无线连接**：Devices 页面提供 USB 设置、二维码和六位配对码连接方式。
 - **Overview**：自动发现设备；按设备序列号合并 USB / 已建立的 Wi-Fi 连接；显示 Android 版本、电量和共享存储容量。
 - **Applications**：第三方 / 系统应用列表、名称或包名搜索、图标、版本、APK 大小、启用状态；按推断的 Meta 商店安装 / 侧载等来源筛选，来源不明时保留未知；会话缓存保留筛选、卸载时其他应用的名称和图标；详情包含安装时间、SDK/ABI、权限、split、签名证书和 VR 声明；选择或拖入普通 APK 安装；兼容签名的覆盖更新；导出全部已安装 APK；卸载第三方应用。
 - **Files**：浏览共享存储；上传文件或整个目录；下载文件或目录；创建目录、重命名、删除；Downloads、Movies、OBB 快捷入口。
 - **安装前预览与编辑**：无需连接头显即可读取本地 APK 的预计名称和图标；连接后对照设备上的安装状态与版本，提示新版、同版、旧版及同批重复包名；可修改显示名称、裁剪替换图标，或开启兼容安装，创建关闭 verity 的重签名副本。
 - **Task queue**：后台串行执行变更任务；显示进度、实际错误和固定的目标连接；取消排队任务，以及正在进行的上传、下载和 APK 导出；可清除已结束记录。存在活动任务时，关闭窗口会提示继续等待，也可明确选择退出。
 
-使用前在 Quest 上启用开发者模式。可连接 USB 数据线并在头显中允许 USB 调试，也可从顶部栏或未连接页面打开 **Connect via Wi-Fi**。三个页签依次为 **USB setup**、**QR code**、**Pairing code**。USB 设置先检查现有连接和授权，只有需要时才配对，随后自动连接；二维码和配对码也会在配对后验证并连接。电脑与头显需要处于同一局域网；头显深度休眠时 Wi-Fi 会断开，保持无线调试开启时，ADB 可在唤醒后重新连接。配置前需等待活动任务结束；已有 ADB 连接也会自动显示。详见[无线连接流程](docs/product/workflows.md#wireless-setup)。
+使用前在 Quest 上启用开发者模式。可连接 USB 数据线并在头显中允许 USB 调试；打开 **Devices** 后选择 **Add connection** 进行无线设置。三个页签依次为 **USB setup**、**QR code**、**Pairing code**。USB 设置先检查现有连接和授权，只有需要时才配对，随后自动连接；二维码和配对码也会在配对后验证并连接。电脑与头显需要处于同一局域网；头显深度休眠时 Wi-Fi 会断开，保持无线调试开启时，ADB 可在唤醒后重新连接。配置前需等待活动任务结束；已有 ADB 连接也会自动显示。详见[无线连接流程](docs/product/workflows.md#wireless-setup)。
 
 二维码配对提供两分钟有效期和取消操作。在 Lightning Launcher 中打开 **Android Settings → System → Developer options → Debugging → Wireless debugging → Pair device with QR code** 扫码；可通过 Quest Manager 的 **Lightning Launcher setup** 获取启动器。入口是否可用取决于头显系统；Meta 手机应用的二维码配对属于另一套协议，不能据此判断是否支持 ADB 扫码。缺少该入口时，请使用 USB 设置。
 
@@ -218,9 +219,8 @@ Copyright © 2026 yexca。本项目使用 [GNU Affero General Public License 第
 
 ## 可选的 Lightning Launcher 安装
 
-Applications 在成功读取完整应用列表、确认未安装任何受识别的 Launcher
-发行版本后显示 **Install Lightning Launcher**。**Don't show again** 会在本机
-记住隐藏偏好；右上角 **Optional apps**（`...`）菜单保留手动安装入口和恢复提示的选项。
+**Devices** 页面为当前选中的头显提供 **Lightning Launcher** 安装和更新入口，
+不依赖 Applications 列表是否已读取完成。
 
 安装窗口按需从作者的 GitHub 获取稳定版 APK，默认选择最新 Launcher。
 可选安装 Navigator Button Redirection Service，默认匹配所选 Launcher 源码

@@ -17,10 +17,15 @@ the server's lifecycle or reset authorization keys. Wireless connection/pairing
 and USB-assisted TCP/IP enabling occur only through explicit setup actions.
 It can share the server with Android Studio and other ADB clients.
 
-Overview lets the user select a physical device and a ready transport. USB is
-preferred for ordinary discovery; explicit wireless setup selects its verified
-Wi-Fi transport. New tasks capture that transport; changing a selector
-does not migrate already queued work. See [Data model](../architecture/data-model.md).
+The **Devices** page is the connection and headset settings surface. It lists
+USB and Wi-Fi transports, keeps devices seen during the current session as
+offline entries, and opens wireless setup through **Add connection**. When both
+transports are ready for one physical device, USB is selected first; Wi-Fi is
+the fallback. New tasks capture the selected transport, and changing the
+selected device does not migrate already queued work. The page also reads the
+headset's stay-awake setting and can install Lightning Launcher. The stay-awake
+toggle changes the headset's global charging setting but is not stored by the
+app. See [Data model](../architecture/data-model.md).
 
 ## Development Environment
 

@@ -12,6 +12,7 @@ as camelCase; task kinds are lowercase strings.
 | `Device` | `id`, `model`, and `transports`; grouping of discovered connections |
 | `Transport` | `serial` for command targeting, `kind` (`usb` or `wifi`), raw ADB `state` |
 | `DeviceInfo` | Model, Android version, nullable battery percentage, charging state, storage byte counts |
+| `DevicePowerSettings` | Nullable `stayAwake` value read from the headset's charging sleep setting, plus raw setting text |
 | `AppPackage` | `packageName`, string `versionCode`, `system` flag, nullable `installer` and `apkPath` |
 | `AppDetails` | Package/version, `apkPaths`, `apkFiles` with nullable size/modified time, nullable `apkSize`, install/update times, installer, SDK/ABI, app ID, Android user, enabled state, state flags, permissions, `assets` |
 | `AppAssets` | Nullable `displayName`/`iconDataUrl`, VR declarations, signing schemes, certificate SHA-256 fingerprints and availability notes; persisted in a bounded private cache |
@@ -47,6 +48,8 @@ calls them through [api.ts](../../src/api.ts).
 | `wireless_qr_status` | `id` | `WirelessQrSnapshot` |
 | `cancel_wireless_qr` | `id` | None |
 | `device_info` | `device` | `DeviceInfo` |
+| `device_power_settings` | `device` | `DevicePowerSettings` |
+| `set_device_stay_awake` | `device`, `enabled` | `DevicePowerSettings` |
 | `list_apps` | `device`, `includeSystem` | `AppPackage[]` |
 | `app_details` | `device`, `package` | `AppDetails` |
 | `clear_metadata_cache` | None | Success or error; deletes cached JSON under the service gate |
@@ -82,6 +85,11 @@ worker. Start takes the global queue permit; status reads stored state only.
 Cancellation and replacement require the exact session ID. QR images clear
 when pairing starts or cancellation/completion occurs; raw secrets are not
 separate IPC fields. Only one session snapshot is retained, in memory.
+
+`device_power_settings` reads Android's `stay_on_while_plugged_in` global
+setting. `set_device_stay_awake` invokes the named `svc power stayon` command,
+then rereads the setting under the same global mutation permit. The value is
+headset state, not an app preference; it is not persisted by Quest Manager.
 
 ## Optional Setup IPC
 

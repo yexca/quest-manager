@@ -46,9 +46,11 @@ A numeric address alone is insufficient in this case. Cancel or expiry drops the
 already submitted pairing can still finish in the shared server. See
 [ADR-0008](../decisions/ADR-0008-explicit-wireless-setup.md).
 
-The UI keeps a physical selection and optional preferred transport. It uses a
-ready preferred transport when present, then another ready transport for future
-queries. Device information is queried on selection/refresh and every 30
+The UI keeps a physical selection and applies a fixed USB-first transport rule.
+It uses a ready USB transport when present, then a ready Wi-Fi transport for
+future queries. Discovered devices and transports remain as offline entries for
+the current session after they disappear from ADB. Device information and
+power settings are queried on selection/refresh and device information every 30
 seconds. The complete app list reloads on connection selection or refresh;
 system/source filters operate on the in-memory list. Files load
 when the Files page is active and its path/selection/refresh changes.

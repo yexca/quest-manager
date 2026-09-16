@@ -143,12 +143,11 @@ under the existing APK installation storage's `downloads` directory. They are
 removed after completion or failure; an interrupted process may leave files here.
 These folders contain public APK bytes, not signing keys, and are not bundled.
 
-The **Show install suggestions** boolean is persisted in WebView2 localStorage
-under `quest-manager.show-lightning-suggestion`. It contains no headset identity
-and survives restarts and artwork-cache clearing. Preview uses a separate key.
 Navigator activation state is read from the active Android user's Accessibility
 settings and retained only in the open setup dialog. No activation or permission
-settings are written. The project link opens the fixed upstream GitHub page in
+settings are written. The Devices page's stay-awake control changes the
+headset's global charging setting and is not stored as an app preference. The
+project link opens the fixed upstream GitHub page in
 the default browser.
 
 ## Diagnostics and Sharing

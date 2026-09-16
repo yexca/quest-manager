@@ -2,28 +2,28 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, Ellipsis, Zap, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
+import { Activity, AppWindow, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpFromLine, BatteryCharging, Box, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, Download, File, FileArchive, FileImage, FileText, Film, Folder, FolderOpen, FolderPlus, HardDrive, Info, LayoutDashboard, ListTodo, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, Unplug, Usb, Wifi, X, XCircle } from 'lucide-react';
 import { api, isDesktop, isPreview } from './api';
 import { AppIcon, ApplicationDetails, UninstallSummary, formatBytes, type UninstallSelection } from './AppMetadata';
 import { InstallReview, type InstallDropHandler } from './InstallReview';
 import { About, appVersion } from './About';
 import { Headset } from './Headset';
 import { LightningSetup } from './LightningSetup';
+import { Devices } from './Devices';
 import { WirelessSetup } from './WirelessSetup';
-import { showLightningSuggestion, suggestionKey } from './lightningState';
 import { useDeviceDiscovery } from './useDeviceDiscovery';
-import { selectDevice } from './deviceState';
+import { selectDevice, selectTransport } from './deviceState';
 import { useTaskQueue } from './useTaskQueue';
 import { useApplications } from './useApplications';
 import { installSource, sourceLabels, type InstallSource } from './applicationState';
 import { isActiveTask as active } from './taskState';
 import appLogo from '../src-tauri/icons/icon.png';
-import type { AppDetails, AppPackage, Device, DeviceInfo, FileEntry, Task, TaskRequest } from './types';
+import type { AppDetails, AppPackage, Device, DeviceInfo, DevicePowerSettings, FileEntry, Task, TaskRequest } from './types';
 
-type Page = 'overview' | 'apps' | 'files' | 'about';
+type Page = 'overview' | 'devices' | 'apps' | 'files' | 'about';
 type ConfirmAction = { title: string; description: string; action: string; danger?: boolean; uninstall?: UninstallSelection; run: () => Promise<void> };
 type NameAction = { title: string; initial: string; run: (name: string) => Promise<void> };
-const pageNames: Record<Page, string> = { overview: 'Overview', apps: 'Applications', files: 'Files', about: 'About' };
+const pageNames: Record<Page, string> = { overview: 'Overview', devices: 'Devices', apps: 'Applications', files: 'Files', about: 'About' };
 const ErrorContext = createContext<string | null>(null);
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 function bytes(value: number, digits = 1) {
@@ -88,13 +88,11 @@ function TaskRow({ task, devices, cancel }: { task: Task; devices: Device[]; can
 }
 
 export default function App() {
-  const preferenceKey = `${isPreview ? 'preview.' : ''}${suggestionKey}`;
-  const [lightningSuggestions, setLightningSuggestions] = useState(() => { try { return localStorage.getItem(preferenceKey) !== 'false'; } catch { return true; } });
   const [lightningTarget, setLightningTarget] = useState<{ device: string; label: string } | null>(null);
-  const setSuggestions = (enabled: boolean) => { setLightningSuggestions(enabled); try { localStorage.setItem(preferenceKey, String(enabled)); } catch { /* The current session still honors the choice. */ } };
   const [page, setPage] = useState<Page>('overview');
   const [deviceId, setDeviceId] = useState('');
-  const [preferredTransport, setPreferredTransport] = useState('');
+  const [power, setPower] = useState<DevicePowerSettings | null>(null);
+  const [powerLoading, setPowerLoading] = useState(false);
   const [info, setInfo] = useState<DeviceInfo | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [path, setPath] = useState('/sdcard');
@@ -127,14 +125,14 @@ export default function App() {
   const fail = useCallback((cause: unknown) => setError(errorText(cause)), []);
   const { devices, loadingDevices, refreshDevices } = useDeviceDiscovery(refreshToken, fail);
   const selectedDevice = selectDevice(devices, deviceId);
-  const transport = selectedDevice?.transports.find(t => t.serial === preferredTransport && t.state === 'device') ?? selectedDevice?.transports.find(t => t.state === 'device');
+  const transport = selectTransport(selectedDevice);
   const serial = transport?.serial ?? '';
   const ready = Boolean(serial);
   const canWrite = ready && isDesktop;
   const openLightning = () => { if (serial) setLightningTarget({ device: serial, label: `${selectedDevice.model} · ${transport?.kind === 'wifi' ? 'Wi-Fi' : 'USB'}` }); };
   const uninstallReady = !confirmAction?.uninstall || (isDesktop && devices.some(device => device.transports.some(item => item.serial === confirmAction.uninstall?.device && item.state === 'device')));
   const { tasks, appMutations, versions, start: startTask, clearCompleted, clearing } = useTaskQueue(selectedDevice?.transports.map(transport => transport.serial) ?? [], fail);
-  const { apps, metadata: appMetadata, errors: metadataErrors, sources, loadingApps, inventoryReady, loadingMetadata, metadataPaused, setMetadataPaused, resumeMetadata, readDetails } = useApplications(
+  const { apps, metadata: appMetadata, errors: metadataErrors, sources, loadingApps, loadingMetadata, metadataPaused, setMetadataPaused, resumeMetadata, readDetails } = useApplications(
     serial, selectedDevice?.transports.map(item => item.serial) ?? [], page === 'apps', includeSystem, refreshToken, versions.apps, appMutations, fail,
   );
   const running = tasks.filter(active).length;
@@ -151,7 +149,22 @@ export default function App() {
     const latest = await refreshDevices();
     const target = latest.find(d => d.transports.some(t => t.serial === connection && t.state === 'device'));
     if (!target) throw new Error('The Wi-Fi connection is no longer ready. Check the headset and connect again.');
-    setDeviceId(target.id); setPreferredTransport(connection); setPath('/sdcard'); setPathInput('/sdcard');
+    setDeviceId(target.id); setPath('/sdcard'); setPathInput('/sdcard');
+  };
+
+  useEffect(() => {
+    let alive = true;
+    setPower(null);
+    if (!serial) { setPowerLoading(false); return; }
+    setPowerLoading(true);
+    void api.powerSettings(serial).then(value => { if (alive) setPower(value); }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setPowerLoading(false); });
+    return () => { alive = false; };
+  }, [serial, fail, refreshToken]);
+
+  const setStayAwake = (enabled: boolean) => {
+    if (!serial || !isDesktop) return;
+    setPowerLoading(true);
+    void api.setStayAwake(serial, enabled).then(value => setPower(value)).catch(fail).finally(() => setPowerLoading(false));
   };
 
   useEffect(() => {
@@ -305,14 +318,14 @@ export default function App() {
   const cancelTask = (id: string) => { void api.cancel(id).catch(fail); };
   const choosePage = (nextPage: Page) => { setPage(nextPage); setError(null); };
   const storageRatio = info && info.storageTotal > 0 ? info.storageUsed / info.storageTotal : 0;
-  const statusLabel = ready ? 'Connected' : selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Authorization needed' : 'No device connected';
+  const statusLabel = ready ? `Connected · ${transport?.kind === 'wifi' ? 'Wi-Fi' : 'USB'}` : selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Authorization needed' : 'Disconnected';
 
   return <ErrorContext.Provider value={error}><div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e => { e.preventDefault(); choosePage('overview'); }}><span className="brand-icon"><img src={appLogo} alt="" width="39" height="39" /></span><span>quest<span className="brand-secondary">manager</span></span></a>
       <div className="sidebar-label">YOUR WORKSPACE</div>
       <nav aria-label="Main navigation">
-        {([{ id: 'overview', icon: LayoutDashboard }, { id: 'apps', icon: AppWindow }, { id: 'files', icon: FolderOpen }] as const).map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => choosePage(item.id)}><item.icon size={19} /><span>{pageNames[item.id]}</span>{item.id === 'apps' && ready && <span className="nav-count">{userApps.length}</span>}</button>)}
+        {([{ id: 'overview', icon: LayoutDashboard }, { id: 'devices', icon: HardDrive }, { id: 'apps', icon: AppWindow }, { id: 'files', icon: FolderOpen }] as const).map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => choosePage(item.id)}><item.icon size={19} /><span>{pageNames[item.id]}</span>{item.id === 'apps' && ready && <span className="nav-count">{userApps.length}</span>}</button>)}
       </nav>
       <button className="sidebar-install" onClick={() => void selectApks()} disabled={(!isDesktop && !isPreview) || installing}><Plus size={18} />Install an APK<ArrowRight size={16} /></button>
       <div className="sidebar-bottom">
@@ -325,14 +338,14 @@ export default function App() {
     </aside>
 
     <div className="main-shell">
-      <header className="topbar"><div className="breadcrumb-top">Workspace<ChevronRight size={14} /><span>{pageNames[page]}</span></div><div className="topbar-actions">{isPreview && <span className="preview-badge">Preview · sample data</span>}<button className="text-button" onClick={openWireless}><Wifi size={16} />Connect via Wi-Fi</button><span className={`connection-pill ${ready ? '' : 'offline'}`}><span className="status-dot online" />{statusLabel}</span><IconButton label="Refresh device data" onClick={refresh} disabled={loadingDevices}><RefreshCw size={17} className={loadingDevices ? 'spin' : ''} /></IconButton></div></header>
+      <header className="topbar"><div className="breadcrumb-top">Workspace<ChevronRight size={14} /><span>{pageNames[page]}</span></div><div className="topbar-actions">{isPreview && <span className="preview-badge">Preview · sample data</span>}<span className={`connection-pill ${ready ? '' : 'offline'}`}><span className={`status-dot ${ready ? 'online' : ''}`} />{statusLabel}</span><IconButton label="Refresh device data" onClick={refresh} disabled={loadingDevices}><RefreshCw size={17} className={loadingDevices ? 'spin' : ''} /></IconButton></div></header>
       <main>
         {error && <div className="error-banner" role="alert"><Info size={18} /><p>{error}</p><IconButton label="Dismiss error" onClick={() => setError(null)}><X size={16} /></IconButton></div>}
-        <div className="page-heading"><div><p className="eyebrow">{page === 'about' ? 'THE PROJECT BEHIND THE APP.' : page === 'overview' ? 'A LITTLE ORDER. MORE ROOM TO PLAY.' : 'YOUR HEADSET, ORGANIZED.'}</p><h1>{page === 'about' ? 'About Quest Manager' : page === 'overview' ? 'Device overview' : page === 'apps' ? 'Your applications' : 'File explorer'}</h1><p className="page-description">{page === 'about' ? 'The people, tools and license behind your workspace.' : page === 'overview' ? 'Everything on your Quest, within reach.' : page === 'apps' ? 'Install, inspect and manage the apps on your headset.' : 'Move files between your computer and your Quest.'}</p></div>{page === 'apps' && <details className="optional-apps-menu"><summary aria-label="Optional apps" title="Optional apps"><Ellipsis size={20} /></summary><div><button disabled={!ready} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); openLightning(); }}><Zap size={16} />Lightning Launcher…</button><label><input type="checkbox" checked={lightningSuggestions} onChange={event => setSuggestions(event.target.checked)} />Show install suggestions</label></div></details>}{(page === 'overview' || page === 'apps') && <button className="button primary" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><Plus size={17} />Install APK</button>}</div>
+        <div className="page-heading"><div><p className="eyebrow">{page === 'about' ? 'THE PROJECT BEHIND THE APP.' : page === 'overview' ? 'A LITTLE ORDER. MORE ROOM TO PLAY.' : page === 'devices' ? 'CONNECTIONS AND DEVICE SETTINGS.' : 'YOUR HEADSET, ORGANIZED.'}</p><h1>{page === 'about' ? 'About Quest Manager' : page === 'overview' ? 'Device overview' : page === 'devices' ? 'Devices' : page === 'apps' ? 'Your applications' : 'File explorer'}</h1><p className="page-description">{page === 'about' ? 'The people, tools and license behind your workspace.' : page === 'overview' ? 'Everything on your Quest, within reach.' : page === 'devices' ? 'Add connections and manage settings for your headsets.' : page === 'apps' ? 'Install, inspect and manage the apps on your headset.' : 'Move files between your computer and your Quest.'}</p></div>{(page === 'overview' || page === 'apps') && <button className="button primary" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><Plus size={17} />Install APK</button>}</div>
 
-        {page === 'about' ? <About /> : !ready ? <div className="empty-device card"><div className="empty-device-icon"><Unplug size={36} /></div><h2>{loadingDevices ? 'Looking for your headset…' : statusLabel}</h2><p>{selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Put on your headset and accept its debugging prompt. For wireless debugging, you can also pair with a code.' : 'Connect your Quest using Wi-Fi or a USB data cable. Enable developer mode and allow debugging in the headset to get started.'}</p><div className="connection-actions"><button className="button primary" onClick={openWireless}><Wifi size={16} />Connect via Wi-Fi</button><button className="button secondary" onClick={refresh} disabled={loadingDevices}><RefreshCw size={16} />Check USB connection</button></div></div> : <>
+        {page === 'about' ? <About /> : page === 'devices' ? <Devices devices={devices} selectedId={selectedDevice?.id ?? ''} onSelect={id => { setDeviceId(id); setPath('/sdcard'); setPathInput('/sdcard'); }} onAddConnection={openWireless} onRefresh={refresh} loading={loadingDevices} power={power} powerLoading={powerLoading} onStayAwake={setStayAwake} onLightning={openLightning} /> : !ready ? <div className="empty-device card"><div className="empty-device-icon"><Unplug size={36} /></div><h2>{loadingDevices ? 'Looking for your headset…' : statusLabel}</h2><p>{selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Put on your headset and accept its debugging prompt. For wireless debugging, you can also pair with a code.' : 'Open Devices to add a USB or Wi-Fi connection.'}</p><div className="connection-actions"><button className="button primary" onClick={() => choosePage('devices')}><HardDrive size={16} />Open Devices</button><button className="button secondary" onClick={refresh} disabled={loadingDevices}><RefreshCw size={16} />Refresh</button></div></div> : <>
           {page === 'overview' && <>
-            <section className="device-hero"><div className="hero-copy"><div className="hero-kicker"><span className="status-dot online" />CONNECTED DEVICE</div><h2>{info?.model ?? selectedDevice?.model}</h2><p>Your next session starts here.</p><div className="device-badges"><span>{transport?.kind === 'wifi' ? <Wifi size={14} /> : <Usb size={14} />}{transport?.kind === 'wifi' ? 'Wi-Fi connection' : 'USB connection'}</span><span>Android {info?.androidVersion ?? '—'}</span></div><div className="hero-device-picker"><label htmlFor="device-picker">Device</label><select id="device-picker" value={selectedDevice?.id ?? ''} onChange={e => { setDeviceId(e.target.value); setPreferredTransport(''); setPath('/sdcard'); setPathInput('/sdcard'); }}>{devices.map(device => <option key={device.id} value={device.id}>{device.model} · {device.id}</option>)}</select>{selectedDevice && selectedDevice.transports.filter(t => t.state === 'device').length > 1 && <select aria-label="Connection method" value={serial} onChange={e => setPreferredTransport(e.target.value)}>{selectedDevice.transports.filter(t => t.state === 'device').map(t => <option key={t.serial} value={t.serial}>{t.kind === 'usb' ? 'USB' : 'Wi-Fi'}</option>)}</select>}</div></div><div className="hero-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Headset model={selectedDevice?.model} /><div className="hero-art-caption"><ShieldCheck size={13} />Ready for your next adventure</div></div></section>
+            <section className="device-hero"><div className="hero-copy"><div className="hero-kicker"><span className="status-dot online" />CONNECTED DEVICE</div><h2>{info?.model ?? selectedDevice?.model}</h2><p>Your next session starts here.</p><div className="device-badges"><span>{transport?.kind === 'wifi' ? <Wifi size={14} /> : <Usb size={14} />}{transport?.kind === 'wifi' ? 'Wi-Fi connection' : 'USB connection'}</span><span>Android {info?.androidVersion ?? '—'}</span></div><div className="hero-device-picker"><label htmlFor="device-picker">Device</label><select id="device-picker" value={selectedDevice?.id ?? ''} onChange={e => { setDeviceId(e.target.value); setPath('/sdcard'); setPathInput('/sdcard'); }}>{devices.map(device => <option key={device.id} value={device.id}>{device.model} · {device.id}</option>)}</select><span className="connection-method-label">Using {transport?.kind === 'wifi' ? 'Wi-Fi' : 'USB'}</span></div></div><div className="hero-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Headset model={selectedDevice?.model} /><div className="hero-art-caption"><ShieldCheck size={13} />Ready for your next adventure</div></div></section>
             <div className="stats-grid"><div className="stat card"><div className="stat-heading"><span>Installed apps</span><span className="stat-icon lilac"><AppWindow size={18} /></span></div><div className="stat-value">{loadingApps ? '—' : userApps.length}<span>apps</span></div><button className="text-button" onClick={() => choosePage('apps')}>Manage applications<ArrowRight size={14} /></button></div><div className="stat card"><div className="stat-heading"><span>Available storage</span><span className="stat-icon peach"><HardDrive size={18} /></span></div><div className="stat-value">{info ? bytes(info.storageAvailable).split(' ')[0] : '—'}<span>{info ? bytes(info.storageAvailable).split(' ')[1] : 'GB'}</span></div><div className="storage-foot"><div className={`storage-meter ${storageRatio > .9 ? 'low-space' : ''}`}><span style={{ width: `${storageRatio * 100}%` }} /></div><span>{Math.round(storageRatio * 100)}% used</span></div></div><div className="stat card"><div className="stat-heading"><span>Battery level</span><span className="stat-icon mint"><BatteryCharging size={19} /></span></div><div className="stat-value">{info?.batteryLevel ?? '—'}<span>%</span></div><p className="stat-note"><span className="status-dot online" />{info?.charging ? 'Connected to power' : 'Running on battery'}</p></div></div>
             <div className="section-heading"><h2>Make yourself at home</h2><span>The essentials, one click away</span></div>
             <div className="quick-grid"><button className="quick-card card" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><span className="quick-icon"><Package size={24} /></span><span><strong>Something new to play</strong><small>Choose an APK from your computer</small></span><ArrowRight size={18} /></button><button className="quick-card card" onClick={() => goToFolder('/sdcard')}><span className="quick-icon"><FolderOpen size={24} /></span><span><strong>A place for every file</strong><small>Browse, transfer and organize</small></span><ArrowRight size={18} /></button></div>
@@ -340,7 +353,6 @@ export default function App() {
           </>}
 
           {page === 'apps' && <>
-            {showLightningSuggestion(ready, inventoryReady, lightningSuggestions, apps) && <section className="lightning-suggestion"><div className="lightning-mark"><Zap size={23} /></div><div className="lightning-suggestion-copy"><strong>Lightning Launcher</strong><p>Your installed apps, together in your headset. Add an optional Meta button shortcut.</p></div><button className="button secondary small" onClick={openLightning}>Install Lightning Launcher<ArrowRight size={15} /></button><button className="text-button lightning-dismiss" onClick={() => setSuggestions(false)}>Don’t show again</button></section>}
             <section className="card list-card">
             <div className="list-toolbar app-filters"><div className="search-field"><Search size={17} /><input aria-label="Search applications" placeholder="Search by app name or package…" value={query} onChange={e => setQuery(e.target.value)} /></div><label className="source-filter">Install source<select aria-label="Filter by install source" value={sourceFilter} onChange={e => setSourceFilter(e.target.value as InstallSource | 'all')}><option value="all">All sources</option>{Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox-label"><input type="checkbox" checked={includeSystem} onChange={e => setIncludeSystem(e.target.checked)} />Show system apps</label><span className="result-count">{visibleApps.length} applications</span></div>
             <p className="source-explanation">Sources are inferred from the reported installer or installs completed here this session. Missing records stay unknown; they do not prove an app came from outside the store.</p>
@@ -381,7 +393,7 @@ export default function App() {
     </Modal>}
     {nameAction && <NameDialog action={nameAction} onClose={() => setNameAction(null)} onError={fail} />}
     {inspecting && <Modal title="Application details" wide onClose={() => { setInspecting(null); setDetails(null); detailsRequest.current += 1; }}><ApplicationDetails key={inspecting.packageName} app={inspecting} source={sources[inspecting.packageName]} data={details} error={detailsError} onRetry={() => void inspectApp(inspecting)} /></Modal>}
-    {showHelp && <Modal title="A little help getting connected" onClose={() => setShowHelp(false)}><div className="help-section"><Usb size={21} /><div><h3>Connect your headset</h3><p>Enable developer mode for your Quest. Connect a USB data cable, put on the headset and allow USB debugging.</p></div></div><div className="help-section"><Wifi size={21} /><div><h3>Connect over Wi-Fi</h3><p>Choose Connect via Wi-Fi in the top bar. Use USB setup to check existing pairing and connect automatically, or pair with a QR code or six-digit code from the headset. Keep both devices on the same local network. Wi-Fi disconnects during deep sleep and reconnects after the headset wakes.</p><button className="text-button" onClick={() => { setShowHelp(false); openWireless(); }}>Open wireless setup<ArrowRight size={14} /></button></div></div><div className="help-section"><HardDrive size={21} /><div><h3>Know your storage</h3><p>Files manages shared storage, including accessible Android/data and Android/obb folders. Access depends on the headset's permissions.</p></div></div><div className="help-section"><Package size={21} /><div><h3>Install and transfer</h3><p>Drop APK files into this window to install them. Other files and folders can be dropped into File explorer. Existing files are never silently replaced.</p></div></div><div className="help-section"><ShieldCheck size={21} /><div><h3>Local APK signing keys</h3><p>Modified APKs use a stable key for each application. Back up the entire signing-keys folder, including its password files. In development it is in env/local-data/apk-install; in the installed app it is in %LOCALAPPDATA%/dev.questmanager.desktop/apk-install. Keep backups private. Clearing artwork does not delete keys. Restoring the same keys allows compatible modified updates; losing them can prevent updates without reinstalling.</p></div></div><div className="about-footer">Quest Manager {appVersion}<span>Tauri 2 · Local ADB connection</span></div></Modal>}
+    {showHelp && <Modal title="A little help getting connected" onClose={() => setShowHelp(false)}><div className="help-section"><Usb size={21} /><div><h3>Connect your headset</h3><p>Enable developer mode for your Quest. Connect a USB data cable, put on the headset and allow USB debugging.</p></div></div><div className="help-section"><Wifi size={21} /><div><h3>Connect over Wi-Fi</h3><p>Open Devices to add a Wi-Fi connection, check existing pairing, or connect with a QR code or six-digit code from the headset. Keep both devices on the same local network. Wi-Fi disconnects during deep sleep and reconnects after the headset wakes.</p><button className="text-button" onClick={() => { setShowHelp(false); choosePage('devices'); }}>Open Devices<ArrowRight size={14} /></button></div></div><div className="help-section"><HardDrive size={21} /><div><h3>Know your storage</h3><p>Files manages shared storage, including accessible Android/data and Android/obb folders. Access depends on the headset's permissions.</p></div></div><div className="help-section"><Package size={21} /><div><h3>Install and transfer</h3><p>Drop APK files into this window to install them. Other files and folders can be dropped into File explorer. Existing files are never silently replaced.</p></div></div><div className="help-section"><ShieldCheck size={21} /><div><h3>Local APK signing keys</h3><p>Modified APKs use a stable key for each application. Back up the entire signing-keys folder, including its password files. In development it is in env/local-data/apk-install; in the installed app it is in %LOCALAPPDATA%/dev.questmanager.desktop/apk-install. Keep backups private. Clearing artwork does not delete keys. Restoring the same keys allows compatible modified updates; losing them can prevent updates without reinstalling.</p></div></div><div className="about-footer">Quest Manager {appVersion}<span>Tauri 2 · Local ADB connection</span></div></Modal>}
     {dragging && <div className="drop-overlay"><div><ArrowUpFromLine size={45} /><h2>Drop it here</h2><p>APKs install on your headset. Other files upload to the open folder.</p></div></div>}
     {running > 0 && !showTasks && <button className="floating-queue" onClick={() => setShowTasks(true)}><LoaderCircle size={17} className="spin" />{running} task{running > 1 ? 's' : ''} in progress<ChevronRight size={16} /></button>}
     {exitBlocked && <Modal title="Work is still in progress" onClose={() => setExitBlocked(false)}><p className="modal-description">Wait for tasks and wireless setup to finish before closing Quest Manager. Exiting now can interrupt work and leave temporary files. Tasks cannot resume after restart, and changes already made are not undone.</p><div className="modal-actions"><button className="button danger" onClick={() => void api.exitWithActiveTasks().catch(fail)}>Exit anyway</button><button autoFocus className="button primary" onClick={() => setExitBlocked(false)}>Keep waiting</button></div></Modal>}

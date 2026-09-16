@@ -36,13 +36,15 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
 
 ## Key Features
 
-- **Wireless connection.** Use USB setup to reuse existing authorization or pair
-  and connect automatically. QR and six-digit code pairing are also available
-  when supported by headset settings. Setup is accessible when disconnected.
+- **Device management.** Use the Devices page to add USB or Wi-Fi connections,
+  see both transports, and manage headset settings. USB is preferred when both
+  transports are ready, with Wi-Fi as fallback. The page also controls stay
+  awake while charging and opens Lightning Launcher setup.
+- **Wireless connection.** Devices opens USB setup, QR pairing, and six-digit
+  code pairing when supported by headset settings.
 - **Device overview.** Inspect the model, Android version, battery, and shared
-  storage. Group USB and existing Wi-Fi connections when device identity is
-  available, with USB preferred by default. Quest 3, Quest 3S, and Quest 2 have
-  model-specific headset illustrations, with generic artwork for unknown models.
+  storage. Quest 3, Quest 3S, and Quest 2 have model-specific headset
+  illustrations, with generic artwork for unknown models.
 - **Install from your computer.** Select or drop ordinary APK files, review the
   expected name/icon, target headset and installed-version comparison, and queue
   installations or compatible updates. Optionally customize the display name/icon
@@ -98,12 +100,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-dev.ps1
 ### 3. Connect the headset
 
 Enable developer mode on the Quest, connect a USB data cable, and allow USB
-debugging inside the headset. Choose the headset in **Overview**.
+debugging inside the headset. Choose the headset in **Devices**.
 
 Use **Applications** to install or inspect APKs and **Files** to browse shared
 storage. Follow operations in **Task queue** and wait for active work to finish
-before closing the app. **Connect via Wi-Fi** is available in the top bar and
-the disconnected screen. Its three tabs are **USB setup**, **QR code**, and
+before closing the app. Open **Devices** and choose **Add connection** for
+wireless setup. Its three tabs are **USB setup**, **QR code**, and
 **Pairing code**. USB setup checks existing authorization first, then pairs only
 if needed and connects automatically. Code and QR pairing also connect after
 verification. Keep both devices on the same local network; deep sleep disconnects
@@ -172,10 +174,8 @@ See [Privacy](PRIVACY.md) for cache locations and retention.
 
 ## Optional Lightning Launcher Setup
 
-Applications offers **Install Lightning Launcher** when a successful inventory
-read confirms no supported Launcher edition is installed. **Don't show again**
-remembers the choice on this computer. The **Optional apps** (`...`) menu keeps
-manual setup available and can restore suggestions.
+The **Devices** page offers **Lightning Launcher** setup for the selected
+headset. It remains available regardless of the Applications inventory.
 
 Setup fetches stable APK releases from the author's public GitHub repository on
 demand. Select a Launcher version and optionally the Navigator Button Redirection

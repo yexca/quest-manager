@@ -8,7 +8,7 @@ mod obb;
 mod qr_pairing;
 mod tasks;
 
-use adb::{Adb, AppPackage, Device, DeviceInfo, FileEntry};
+use adb::{Adb, AppPackage, Device, DeviceInfo, DevicePowerSettings, FileEntry};
 use metadata::{AppDetails, MetadataService};
 use tasks::{TaskManager, TaskRequest, TaskSnapshot};
 use tauri::{Emitter, Manager};
@@ -105,6 +105,24 @@ async fn wireless_connection(
 #[tauri::command]
 async fn device_info(adb: tauri::State<'_, Adb>, device: String) -> Result<DeviceInfo, String> {
     adb.device_info(&device).await
+}
+
+#[tauri::command]
+async fn device_power_settings(
+    adb: tauri::State<'_, Adb>,
+    device: String,
+) -> Result<DevicePowerSettings, String> {
+    adb.power_settings(&device).await
+}
+
+#[tauri::command]
+async fn set_device_stay_awake(
+    adb: tauri::State<'_, Adb>,
+    tasks: tauri::State<'_, TaskManager>,
+    device: String,
+    enabled: bool,
+) -> Result<DevicePowerSettings, String> {
+    tasks.set_stay_awake(&adb, device, enabled).await
 }
 
 #[tauri::command]
@@ -253,6 +271,8 @@ pub fn run() {
             wireless_qr_status,
             cancel_wireless_qr,
             device_info,
+            device_power_settings,
+            set_device_stay_awake,
             list_apps,
             app_details,
             clear_metadata_cache,

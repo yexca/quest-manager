@@ -67,6 +67,15 @@ preferred connection, and offline entry between launches. When both transports
 are ready, **Automatic** uses USB first and Wi-Fi as the fallback; **USB only**
 and **Wi-Fi only** restrict the selected transport.
 
+Devices uses a single-column layout. Each row includes the device name, model,
+connection status, name editing and a device-scoped Add Wi-Fi action. The list
+shows up to three rows before scrolling and highlights the selected headset.
+Preferred connection appears below the list; with multiple devices, Automatic
+device switching appears alongside it. Switching defaults to enabled for new
+settings while retaining saved choices. Keep awake and Lightning Launcher
+controls below the list follow the selected connection; Launcher setup captures
+that connection when opened and reloads its installed state on each opening.
+
 **Add connection** offers three methods: **USB**, **QR code**, and **Pairing
 code**. USB lists detected USB transports and requires the user to accept the
 headset's debugging prompt before continuing. After the USB profile is saved,
@@ -84,7 +93,9 @@ Manual refresh waits for a fresh device snapshot; an older pending poll cannot
 overwrite that refresh.
 
 After selecting a ready device, the Devices page can read its stay-awake setting
-and toggle whether the headset stays awake while charging. This updates the
+and toggle whether the headset stays awake while charging. Entering Devices or
+refreshing rereads the setting. A failed or unreadable query shows an inline
+explanation and Retry action instead of treating the setting as disabled. This updates the
 headset's global Android setting to help long Wi-Fi transfers; it is device state,
 not a saved app preference. The page also contains the Lightning Launcher setup
 entry.

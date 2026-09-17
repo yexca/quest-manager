@@ -10,6 +10,7 @@ import { About, appVersion } from './About';
 import { Headset } from './Headset';
 import { LightningSetup } from './LightningSetup';
 import { Devices } from './Devices';
+import { WirelessSetup } from './WirelessSetup';
 import { DeviceAddWizard } from './DeviceAddWizard';
 import { useDeviceDiscovery } from './useDeviceDiscovery';
 import { applyDeviceProfiles, includeDeviceProfiles, selectKnownDevice, selectTransport } from './deviceState';
@@ -91,8 +92,11 @@ export default function App() {
   const [lightningTarget, setLightningTarget] = useState<{ device: string; label: string } | null>(null);
   const [page, setPage] = useState<Page>('overview');
   const [deviceId, setDeviceId] = useState('');
+  const [wirelessDevice, setWirelessDevice] = useState<Device | null>(null);
+  const powerRequest = useRef(0);
   const [power, setPower] = useState<DevicePowerSettings | null>(null);
   const [powerLoading, setPowerLoading] = useState(false);
+  const [powerError, setPowerError] = useState<string | null>(null);
   const [info, setInfo] = useState<DeviceInfo | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [path, setPath] = useState('/sdcard');
@@ -122,7 +126,7 @@ export default function App() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [devicePreferences, setDevicePreferences] = useState<DevicePreferences>({ profiles: [], autoSwitch: false });
+  const [devicePreferences, setDevicePreferences] = useState<DevicePreferences>({ profiles: [], autoSwitch: true });
   const [devicePreferencesLoaded, setDevicePreferencesLoaded] = useState(false);
   const [deviceNotice, setDeviceNotice] = useState<Device | null>(null);
   const [pendingAutoSwitch, setPendingAutoSwitch] = useState<Device | null>(null);
@@ -221,17 +225,24 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
+    const request = ++powerRequest.current;
     setPower(null);
+    setPowerError(null);
     if (!serial) { setPowerLoading(false); return; }
     setPowerLoading(true);
-    void api.powerSettings(serial).then(value => { if (alive) setPower(value); }).catch(cause => { if (alive) fail(cause); }).finally(() => { if (alive) setPowerLoading(false); });
-    return () => { alive = false; };
-  }, [serial, fail, refreshToken]);
+    void api.powerSettings(serial).then(value => { if (alive && request === powerRequest.current) setPower(value); }).catch(cause => { if (alive && request === powerRequest.current) setPowerError(errorText(cause)); }).finally(() => { if (alive && request === powerRequest.current) setPowerLoading(false); });
+    return () => { alive = false; ++powerRequest.current; };
+  }, [serial, page, refreshToken]);
 
   const setStayAwake = (enabled: boolean) => {
     if (!serial || !isDesktop) return;
     setPowerLoading(true);
-    void api.setStayAwake(serial, enabled).then(value => setPower(value)).catch(fail).finally(() => setPowerLoading(false));
+    setPowerError(null);
+    const request = ++powerRequest.current;
+    void api.setStayAwake(serial, enabled)
+      .then(value => { if (request === powerRequest.current) setPower(value); })
+      .catch(cause => { if (request === powerRequest.current) fail(cause); })
+      .finally(() => { if (request === powerRequest.current) setPowerLoading(false); });
   };
 
   useEffect(() => {
@@ -411,7 +422,7 @@ export default function App() {
         {deviceNotice && <div className="device-candidate-banner" role="status"><Info size={17} /><p><strong>{deviceNotice.displayName || deviceNotice.model}</strong> is connected while you are viewing <strong>{selectedDevice?.displayName || selectedDevice?.model || 'another device'}</strong>.</p>{knownDeviceIds.has(deviceNotice.id) ? <button className="text-button" onClick={() => { setDeviceId(deviceNotice.id); setPath('/sdcard'); setPathInput('/sdcard'); setPendingAutoSwitch(null); setDeviceNotice(null); }}>Switch</button> : <button className="text-button" onClick={() => { setDeviceNotice(null); setShowWireless(true); }}>Add device</button>}<button className="text-button" onClick={() => { setPendingAutoSwitch(null); setDeviceNotice(null); }}>Keep current</button></div>}
         <div className="page-heading"><div><p className="eyebrow">{page === 'about' ? 'THE PROJECT BEHIND THE APP.' : page === 'overview' ? 'A LITTLE ORDER. MORE ROOM TO PLAY.' : page === 'devices' ? 'CONNECTIONS AND DEVICE SETTINGS.' : 'YOUR HEADSET, ORGANIZED.'}</p><h1>{page === 'about' ? 'About Quest Manager' : page === 'overview' ? 'Device overview' : page === 'devices' ? 'Devices' : page === 'apps' ? 'Your applications' : 'File explorer'}</h1><p className="page-description">{page === 'about' ? 'The people, tools and license behind your workspace.' : page === 'overview' ? 'Everything on your Quest, within reach.' : page === 'devices' ? 'Add connections and manage settings for your headsets.' : page === 'apps' ? 'Install, inspect and manage the apps on your headset.' : 'Move files between your computer and your Quest.'}</p></div>{(page === 'overview' || page === 'apps') && <button className="button primary" disabled={(!isDesktop && !isPreview) || installing} onClick={() => void selectApks()}><Plus size={17} />Install APK</button>}</div>
 
-        {page === 'about' ? <About /> : page === 'devices' ? <Devices devices={devices} selectedId={selectedDevice?.id ?? ''} autoSwitch={devicePreferences.autoSwitch} onAutoSwitch={enabled => void setAutoSwitch(enabled).catch(fail)} onSelect={id => { setDeviceId(id); setPath('/sdcard'); setPathInput('/sdcard'); setPendingAutoSwitch(null); setDeviceNotice(null); }} onAddConnection={openWireless} onRefresh={refresh} loading={loadingDevices} power={power} powerLoading={powerLoading} onStayAwake={setStayAwake} onLightning={openLightning} onSaveProfile={profile => saveDeviceProfile(profile).catch(fail)} onRename={device => { setNameAction({ title: 'Rename device', initial: device.displayName || device.model, maxLength: 80, run: name => saveDeviceProfile({ id: device.id, model: device.model, displayName: name, connectionPreference: device.connectionPreference || 'auto' }) }); }} /> : !ready ? <div className="empty-device card"><div className="empty-device-icon"><Unplug size={36} /></div><h2>{loadingDevices ? 'Looking for your headset…' : statusLabel}</h2><p>{selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Put on your headset and accept its debugging prompt. For wireless debugging, you can also pair with a code.' : 'Open Devices to add a USB or Wi-Fi connection.'}</p><div className="connection-actions"><button className="button primary" onClick={() => choosePage('devices')}><HardDrive size={16} />Open Devices</button><button className="button secondary" onClick={refresh} disabled={loadingDevices}><RefreshCw size={16} />Refresh</button></div></div> : <>
+        {page === 'about' ? <About /> : page === 'devices' ? <Devices devices={devices} selectedId={selectedDevice?.id ?? ''} autoSwitch={devicePreferences.autoSwitch} onAutoSwitch={enabled => void setAutoSwitch(enabled).catch(fail)} onSelect={id => { setDeviceId(id); setPath('/sdcard'); setPathInput('/sdcard'); setPendingAutoSwitch(null); setDeviceNotice(null); }} onAddConnection={openWireless} onAddWireless={device => { setError(null); setWirelessDevice(device); }} onRefresh={refresh} loading={loadingDevices} power={power} powerLoading={powerLoading} powerError={powerError} onStayAwake={setStayAwake} onLightning={openLightning} onSaveProfile={profile => saveDeviceProfile(profile).catch(fail)} onRename={device => { setNameAction({ title: 'Rename device', initial: device.displayName || device.model, maxLength: 80, run: name => saveDeviceProfile({ id: device.id, model: device.model, displayName: name, connectionPreference: device.connectionPreference || 'auto' }) }); }} /> : !ready ? <div className="empty-device card"><div className="empty-device-icon"><Unplug size={36} /></div><h2>{loadingDevices ? 'Looking for your headset…' : statusLabel}</h2><p>{selectedDevice?.transports.some(t => t.state === 'unauthorized') ? 'Put on your headset and accept its debugging prompt. For wireless debugging, you can also pair with a code.' : 'Open Devices to add a USB or Wi-Fi connection.'}</p><div className="connection-actions"><button className="button primary" onClick={() => choosePage('devices')}><HardDrive size={16} />Open Devices</button><button className="button secondary" onClick={refresh} disabled={loadingDevices}><RefreshCw size={16} />Refresh</button></div></div> : <>
           {page === 'overview' && <>
             <section className="device-hero"><div className="hero-copy"><div className="hero-kicker"><span className="status-dot online" />CONNECTED DEVICE</div><h2>{selectedDevice?.displayName || info?.model || selectedDevice?.model}</h2><p>{info?.model ?? selectedDevice?.model} · Your next session starts here.</p><div className="device-badges"><span>{transport?.kind === 'wifi' ? <Wifi size={14} /> : <Usb size={14} />}{transport?.kind === 'wifi' ? 'Wi-Fi connection' : 'USB connection'}</span><span>Android {info?.androidVersion ?? '—'}</span></div><div className="hero-device-picker"><label htmlFor="device-picker">Device</label><select id="device-picker" value={selectedDevice?.id ?? ''} onChange={e => { setDeviceId(e.target.value); setPath('/sdcard'); setPathInput('/sdcard'); }}>{devices.map(device => <option key={device.id} value={device.id}>{device.displayName || device.model}</option>)}</select><span className="connection-method-label">Using {transport?.kind === 'wifi' ? 'Wi-Fi' : 'USB'}</span></div></div><div className="hero-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Headset model={selectedDevice?.model} /><div className="hero-art-caption"><ShieldCheck size={13} />Ready for your next adventure</div></div></section>
             <div className="stats-grid"><div className="stat card"><div className="stat-heading"><span>Installed apps</span><span className="stat-icon lilac"><AppWindow size={18} /></span></div><div className="stat-value">{loadingApps ? '—' : userApps.length}<span>apps</span></div><button className="text-button" onClick={() => choosePage('apps')}>Manage applications<ArrowRight size={14} /></button></div><div className="stat card"><div className="stat-heading"><span>Available storage</span><span className="stat-icon peach"><HardDrive size={18} /></span></div><div className="stat-value">{info ? bytes(info.storageAvailable).split(' ')[0] : '—'}<span>{info ? bytes(info.storageAvailable).split(' ')[1] : 'GB'}</span></div><div className="storage-foot"><div className={`storage-meter ${storageRatio > .9 ? 'low-space' : ''}`}><span style={{ width: `${storageRatio * 100}%` }} /></div><span>{Math.round(storageRatio * 100)}% used</span></div></div><div className="stat card"><div className="stat-heading"><span>Battery level</span><span className="stat-icon mint"><BatteryCharging size={19} /></span></div><div className="stat-value">{info?.batteryLevel ?? '—'}<span>%</span></div><p className="stat-note"><span className="status-dot online" />{info?.charging ? 'Connected to power' : 'Running on battery'}</p></div></div>
@@ -449,6 +460,11 @@ export default function App() {
       </main>
     </div>
 
+    {wirelessDevice && <Modal title={`Add Wi-Fi · ${wirelessDevice.displayName || wirelessDevice.model}`} busy={wirelessBusy} onClose={() => { if (!wirelessBusy) setWirelessDevice(null); }}><WirelessSetup devices={devices.filter(device => device.id === wirelessDevice.id)} initialUsb={wirelessDevice.transports.find(item => item.kind === 'usb' && item.state === 'device')?.serial} activeTasks={isDesktop && running > 0} onConnected={async connection => {
+      const latest = await refreshDevices();
+      if (!latest.some(device => device.id === wirelessDevice.id && device.transports.some(item => item.serial === connection && item.state === 'device'))) throw new Error('The connected headset does not match this device. Its connection has not been assigned to this profile.');
+      setDeviceId(wirelessDevice.id);
+    }} onBusy={setWirelessBusy} onClose={() => setWirelessDevice(null)} /></Modal>}
     {showWireless && <Modal title="Add a device" busy={wirelessBusy} onClose={() => { if (!wirelessBusy) setShowWireless(false); }}><DeviceAddWizard devices={devices} activeTasks={isDesktop && running > 0} onRefresh={refreshDevices} onSave={saveDeviceProfile} onConnected={wirelessConnected} onBusy={setWirelessBusy} onClose={() => setShowWireless(false)} /></Modal>}
     {lightningTarget && <Modal title="Lightning Launcher setup" onClose={() => setLightningTarget(null)} wide><LightningSetup device={lightningTarget.device} target={lightningTarget.label} available={devices.some(device => device.transports.some(item => item.serial === lightningTarget.device && item.state === 'device'))} revision={versions.apps} tasks={tasks} onQueue={startTask} onClose={() => setLightningTarget(null)} /></Modal>}
     {showTasks && <Modal title="Task queue" onClose={() => setShowTasks(false)} wide><p className="modal-description">{running ? `${running} task(s) in progress. You can keep browsing while they run.` : 'Installs, transfers and file operations from this session.'}</p><div className="queue-toolbar"><button className="button secondary small" disabled={!isDesktop || clearing || !tasks.some(task => !active(task))} onClick={() => void clearCompleted()}>{clearing ? 'Clearing…' : 'Clear completed'}</button></div><div className="task-list">{orderedTasks.length ? orderedTasks.map(task => <TaskRow key={task.id} task={task} devices={devices} cancel={cancelTask} />) : <div className="list-empty"><ListTodo size={32} /><p>No tasks yet</p><span>Your next install or transfer will appear here.</span></div>}</div></Modal>}

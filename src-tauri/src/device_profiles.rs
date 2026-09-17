@@ -18,11 +18,20 @@ pub struct DeviceProfile {
     pub connection_preference: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DevicePreferences {
     pub profiles: Vec<DeviceProfile>,
     pub auto_switch: bool,
+}
+
+impl Default for DevicePreferences {
+    fn default() -> Self {
+        Self {
+            profiles: Vec::new(),
+            auto_switch: true,
+        }
+    }
 }
 
 pub struct DeviceProfileStore {
@@ -160,9 +169,10 @@ mod tests {
             .save_profile(profile("DEMO-A", "Living room"))
             .unwrap();
         store.save_profile(profile("DEMO-A", "Office")).unwrap();
-        store.set_auto_switch(true).unwrap();
+        assert!(store.get().auto_switch);
+        store.set_auto_switch(false).unwrap();
         let loaded = DeviceProfileStore::new(path.clone()).get();
-        assert!(loaded.auto_switch);
+        assert!(!loaded.auto_switch);
         assert_eq!(loaded.profiles.len(), 1);
         assert_eq!(loaded.profiles[0].display_name, "Office");
         let _ = fs::remove_file(path);

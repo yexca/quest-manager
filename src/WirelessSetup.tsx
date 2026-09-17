@@ -5,14 +5,15 @@ import type { Device, WirelessRequest, WirelessResult } from './types';
 import { QrPairing } from './QrPairing';
 
 type Method = WirelessRequest['method'] | 'qr';
-export function WirelessSetup({ devices, activeTasks, onConnected, onBusy, onClose }: {
+export function WirelessSetup({ devices, initialUsb, activeTasks, onConnected, onBusy, onClose }: {
+  initialUsb?: string;
   devices: Device[]; activeTasks: boolean; onConnected: (serial: string) => Promise<void>;
   onBusy: (busy: boolean) => void; onClose: () => void;
 }) {
   const [method, setMethod] = useState<Method>('usb');
   const [pairAddress, setPairAddress] = useState('');
   const [code, setCode] = useState('');
-  const [usb, setUsb] = useState('');
+  const [usb, setUsb] = useState(initialUsb ?? '');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [result, setResult] = useState<WirelessResult | null>(null);

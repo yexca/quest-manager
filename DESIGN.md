@@ -59,6 +59,15 @@ also contains the stay-awake-while-charging toggle and Lightning Launcher setup.
 Disable writes in preview and setup while tasks are active. Completing setup
 makes the verified Wi-Fi transport available for selection.
 
+Devices uses a single-column layout. Each row includes the device name, model,
+connection status, name editing and a device-scoped Add Wi-Fi action. The list
+shows up to three rows before scrolling and highlights the selected headset.
+Preferred connection appears below the list; with multiple devices, Automatic
+device switching appears alongside it. Switching defaults to enabled for new
+settings while retaining saved choices. Keep awake and Lightning Launcher
+controls below the list follow the selected connection; Launcher setup captures
+that connection when opened and reloads its installed state on each opening.
+
 Applications keeps system type separate from installation source. Source labels
 are explicitly inferred and unknown installer records stay unknown. Source and
 system filters operate on the session inventory without clearing names/icons.

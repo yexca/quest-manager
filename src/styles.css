@@ -481,7 +481,7 @@ th { font-size: 10px; color: #748568; }
 .devices-toolbar strong { display: block; font-size: 13px; color: #405b34; }
 .devices-toolbar span { display: block; margin-top: 5px; color: #85957a; font-size: 11px; }
 .devices-toolbar-actions { display: flex; gap: 8px; }
-.devices-layout { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(0, 1.5fr); gap: 17px; align-items: start; }
+.devices-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 17px; align-items: start; }
 .device-list-panel { overflow: hidden; }
 .devices-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 19px; border-bottom: 1px solid #edf1e7; }
 .devices-panel-heading h2, .device-setting-card h2 { font-size: 14px; font-weight: 600; color: #405b34; }
@@ -553,3 +553,19 @@ th { font-size: 10px; color: #748568; }
 
 .lightning-target .quiet-label { margin-left: 0; }
 .lightning-setup .modal-actions { position: sticky; bottom: -25px; z-index: 1; background: #fff; padding-bottom: 12px; box-shadow: 0 -8px 12px #ffffffed; }
+
+/* Physical devices share one list; settings below follow its selection. */
+.device-rows { max-height: 336px; overflow-y: auto; }
+.device-list-item { align-items: center; min-height: 112px; padding: 14px 18px; gap: 16px; }
+.device-list-item.selected { box-shadow: inset 3px 0 #70995c; }
+.device-select { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; padding: 0; }
+.device-list-copy strong { overflow-wrap: anywhere; }
+.device-selected-label { display: inline-block; margin-left: 9px; font-size: 9px; color: #668a58; font-weight: 500; }
+.device-transport-summary { display: flex; flex-wrap: wrap; gap: 5px 14px; }
+.device-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.device-list-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; padding: 18px; border-top: 1px solid #edf1e7; }
+.device-list-footer .device-preference { flex: 1; max-width: 300px; }
+.device-auto-switch { margin: 0 0 0 auto; }
+.device-list-footer .connection-priority { width: 100%; margin: 0; }
+.device-toggle input:focus-visible + .toggle-track { outline: 2px solid #405b34; outline-offset: 3px; }
+@media (max-width: 1100px) { .device-row-actions { flex-direction: column; } .device-auto-switch small { max-width: 225px; line-height: 1.5; } }

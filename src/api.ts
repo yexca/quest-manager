@@ -18,7 +18,7 @@ const previewDevices: Device[] = [
 ];
 let previewDevicePreferences: DevicePreferences = {
   profiles: previewDevices.map(device => ({ id: device.id, displayName: device.model, model: device.model, connectionPreference: 'auto' })),
-  autoSwitch: false,
+  autoSwitch: true,
 };
 const previewApps: AppPackage[] = [
   'com.example.orbit', 'com.example.rhythm', 'com.example.minigolf',

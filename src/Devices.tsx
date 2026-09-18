@@ -1,6 +1,6 @@
-import { CheckCircle2, CircleHelp, Pencil, Plus, RefreshCw, Smartphone, Usb, Wifi, Zap } from 'lucide-react';
+import { CheckCircle2, CircleHelp, Pencil, Plus, RefreshCw, Settings2, Smartphone, Usb, Wifi, Zap } from 'lucide-react';
 import { isDesktop } from './api';
-import { selectTransport } from './deviceState';
+import { connectionSummary, selectTransport } from './deviceState';
 import type { ConnectionPreference, Device, DevicePowerSettings, DeviceProfile } from './types';
 
 function transportLabel(kind: string) { return kind === 'usb' ? 'USB' : 'Wi-Fi'; }
@@ -8,7 +8,7 @@ function transportLabel(kind: string) { return kind === 'usb' ? 'USB' : 'Wi-Fi';
 export function Devices({
   devices, selectedId, onSelect, onAddConnection, onRefresh, loading, power, powerLoading, powerError,
   onStayAwake, onLightning, autoSwitch, onAutoSwitch, onSaveProfile,
-  onRename, onAddWireless,
+  onRename, onManageConnections,
 }: {
   devices: Device[];
   selectedId: string;
@@ -25,9 +25,9 @@ export function Devices({
   onAutoSwitch: (enabled: boolean) => void;
   onSaveProfile: (profile: DeviceProfile) => Promise<void>;
   onRename: (device: Device) => void;
-  onAddWireless: (device: Device) => void;
+  onManageConnections: (device: Device) => void;
 }) {
-  const selected = devices.find(device => device.id === selectedId) ?? devices[0];
+  const selected = devices.find(device => device.id === selectedId);
   const current = selectTransport(selected);
   const ready = Boolean(current);
   return <div className="devices-page">
@@ -35,7 +35,7 @@ export function Devices({
       <div><strong>{devices.length} {devices.length === 1 ? 'device' : 'devices'}</strong><span>Known device names and connection preferences are saved locally.</span></div>
       <div className="devices-toolbar-actions"><button className="button secondary small" onClick={onRefresh} disabled={loading}><RefreshCw size={15} className={loading ? 'spin' : ''} />Refresh</button><button className="button primary small" onClick={onAddConnection}><Plus size={15} />Add connection</button></div>
     </div>
-    {!devices.length ? <section className="card devices-empty"><Smartphone size={30} /><h2>No devices found</h2><p>Connect a Quest with a USB data cable or add a Wi-Fi connection.</p><button className="button primary" onClick={onAddConnection}><Plus size={16} />Add connection</button></section> : <div className="devices-layout">
+    {!devices.length ? <section className="card devices-empty"><Smartphone size={30} /><h2>No saved devices</h2><p>Connect a Quest with a USB data cable or add a Wi-Fi connection.</p><button className="button primary" onClick={onAddConnection}><Plus size={16} />Add connection</button></section> : <div className="devices-layout">
       <section className="card device-list-panel">
         <div className="devices-panel-heading"><h2>Your devices</h2><span>{devices.length}</span></div>
         <div className="device-rows" role="group" aria-label="Your devices">
@@ -46,10 +46,10 @@ export function Devices({
               <button className="device-select" aria-pressed={active} onClick={() => onSelect(device.id)}>
                 <span className={`device-list-icon ${connection ? 'connected' : ''}`}><Smartphone size={19} /></span>
                 <span className="device-list-copy"><strong>{device.displayName || device.model}{active && <span className="device-selected-label">Selected</span>}</strong><small>{device.model} · {device.id}</small>
-                  <span className="device-transport-summary">{device.transports.length ? device.transports.map(transport => <span key={transport.serial} title={transport.serial} className={transport.state === 'device' ? 'ready' : ''}>{transport.kind === 'usb' ? <Usb size={12} /> : <Wifi size={12} />}{transportLabel(transport.kind)} · {transport.state === 'device' ? 'Connected' : transport.state === 'unauthorized' ? 'Authorization needed' : 'Offline'}{connection?.serial === transport.serial ? ' · In use' : ''}</span>) : <span>Offline</span>}</span>
+                  <span className="device-transport-summary">{device.transports.length ? connectionSummary(device).map(transport => <span key={transport.serial} title={transport.serial} className={transport.state === 'device' ? 'ready' : ''}>{transport.kind === 'usb' ? <Usb size={12} /> : <Wifi size={12} />}{transportLabel(transport.kind)} · {transport.state === 'device' ? 'Connected' : transport.state === 'unauthorized' ? 'Authorization needed' : 'Offline'}{active && connection?.serial === transport.serial ? ' · In use' : ''}</span>) : <span>Offline</span>}</span>
                 </span>
               </button>
-              <div className="device-row-actions"><button className="button secondary small" aria-label={`Rename ${device.displayName || device.model}`} onClick={() => onRename(device)}><Pencil size={14} />Edit name</button><button className="button secondary small" aria-label={`Add Wi-Fi for ${device.displayName || device.model}`} onClick={() => onAddWireless(device)}><Wifi size={14} />Add Wi-Fi</button></div>
+              <div className="device-row-actions"><button className="button secondary small" aria-label={`Rename ${device.displayName || device.model}`} onClick={() => onRename(device)}><Pencil size={14} />Edit name</button><button className="button secondary small" aria-label={`Manage connections for ${device.displayName || device.model}`} onClick={() => onManageConnections(device)}><Settings2 size={14} />Manage connections</button></div>
             </div>;
           })}
         </div>

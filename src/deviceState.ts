@@ -29,9 +29,71 @@ export function includeDeviceProfiles(devices: Device[], preferences: DevicePref
 
 /** Select a ready device from the saved profiles, leaving unregistered candidates alone. */
 export function selectKnownDevice(devices: Device[], deviceId: string, knownIds: ReadonlySet<string>) {
-  if (deviceId) return devices.find(device => device.id === deviceId);
   const known = devices.filter(device => knownIds.has(device.id));
+  const selected = known.find(device => device.id === deviceId);
+  if (selected) return selected;
   return known.find(device => selectTransport(device)) ?? known[0];
+}
+
+/** A detected transport is a candidate, not an implicitly saved device. */
+export function unregisteredDevices(devices: Device[], knownIds: ReadonlySet<string>): Device[] {
+  return devices.filter(device => !knownIds.has(device.id)
+    && device.transports.some(transport => transport.state === 'device' || transport.state === 'unauthorized'));
+}
+
+export type DeviceArrivalAction =
+  | { kind: 'baseline'; readyIds: Set<string>; devices: Device[] }
+  | { kind: 'none'; readyIds: Set<string>; devices: Device[] }
+  | { kind: 'autoSwitch'; readyIds: Set<string>; devices: Device[]; device: Device }
+  | { kind: 'notify'; readyIds: Set<string>; devices: Device[]; device: Device }
+  | { kind: 'defer'; readyIds: Set<string>; devices: Device[]; device: Device };
+
+/**
+ * Decide what a newly ready saved device should do. The first snapshot is only
+ * a baseline, so devices already connected when the app starts never look new.
+ * Unknown devices are deliberately excluded; their registration prompt is
+ * driven by `unregisteredDevices` and must never be selected implicitly.
+ */
+export function decideDeviceArrival(
+  devices: Device[],
+  previousReadyIds: ReadonlySet<string> | null,
+  knownIds: ReadonlySet<string>,
+  selectedId: string | undefined,
+  autoSwitch: boolean,
+  activeTasks: boolean,
+): DeviceArrivalAction {
+  const readyIds = new Set(devices.filter(device => Boolean(selectTransport(device))).map(device => device.id));
+  if (previousReadyIds === null) return { kind: 'baseline', readyIds, devices: [] };
+  const newcomers = devices.filter(device => knownIds.has(device.id)
+    && readyIds.has(device.id)
+    && !previousReadyIds.has(device.id)
+    && device.id !== selectedId);
+  if (!newcomers.length) return { kind: 'none', readyIds, devices: [] };
+  const device = newcomers[0];
+  if (autoSwitch && !activeTasks) return { kind: 'autoSwitch', readyIds, devices: newcomers, device };
+  if (autoSwitch) return { kind: 'defer', readyIds, devices: newcomers, device };
+  return { kind: 'notify', readyIds, devices: newcomers, device };
+}
+
+/** One status per connection method; retain every actual transport for IPC/tasks. */
+export function connectionSummary(device: Device): Transport[] {
+  const current = selectTransport(device);
+  return (['usb', 'wifi'] as const).flatMap(kind => {
+    const candidates = device.transports.filter(transport => transport.kind === kind);
+    const representative = candidates.find(transport => transport.serial === current?.serial)
+      ?? candidates.find(transport => transport.state === 'device')
+      ?? candidates.find(transport => transport.state === 'unauthorized')
+      ?? candidates[0];
+    return representative ? [representative] : [];
+  });
+}
+
+/** Resolve a previously observed service at its current port; never guess from an old address. */
+export function reconnectHint(device: Device): { service?: string; address?: string } {
+  const wifi = device.transports.filter(transport => transport.kind === 'wifi');
+  const service = wifi.find(transport => /\._adb-tls-connect\._tcp\.?$/.test(transport.serial));
+  if (service) return { service: service.serial.replace(/\._adb-tls-connect\._tcp\.?$/, '') };
+  return {};
 }
 
 /** Select the active transport for a physical device. USB is the stable default. */

@@ -174,6 +174,29 @@ impl TaskManager {
             .map_err(|_| "Wireless setup timed out. Check the headset's debugging settings before trying again; pairing or Wi-Fi mode may already have been enabled.".to_string())?
     }
 
+    pub async fn reconnect_wireless(
+        &self,
+        adb: &Adb,
+        request: crate::adb::ReconnectWirelessRequest,
+    ) -> Result<crate::adb::ReconnectWirelessResult, String> {
+        let _permit = self.wireless_permit()?;
+        tokio::time::timeout(Duration::from_secs(30), adb.reconnect_wireless(request))
+            .await.unwrap_or_else(|_| Ok(crate::adb::ReconnectWirelessResult::outcome("unavailable", "Connection timed out. Check the headset's wake state, network and current connection port. Pairing status is unverified.")))
+    }
+
+    pub async fn disconnect_wireless(
+        &self,
+        adb: &Adb,
+        request: crate::adb::DisconnectWirelessRequest,
+    ) -> Result<(), String> {
+        let _permit = self.wireless_permit()?;
+        tokio::time::timeout(Duration::from_secs(30), adb.disconnect_wireless(request))
+            .await
+            .map_err(|_| {
+                "Disconnecting Wi-Fi timed out. Refresh connections to check its state.".to_string()
+            })?
+    }
+
     pub async fn set_stay_awake(
         &self,
         adb: &Adb,
@@ -1376,6 +1399,68 @@ mod tests {
         }
         insert_snapshot(&manager, "EXAMPLE-TASK", "failed");
         assert!(manager.wireless_permit().is_ok());
+    }
+
+    #[tokio::test]
+    async fn disconnect_is_blocked_by_tasks_and_wireless_setup() {
+        let fixture = crate::adb::wireless_tests::Fixture::new("disconnect-success");
+        let request = || crate::adb::DisconnectWirelessRequest {
+            device: "192.0.2.10:37001".into(),
+            physical_id: "DEMO-HEADSET".into(),
+        };
+        for status in ["queued", "running"] {
+            let manager = TaskManager::new();
+            insert_snapshot(&manager, "EXAMPLE-TASK", status);
+            assert!(
+                manager
+                    .reconnect_wireless(
+                        &fixture.adb,
+                        crate::adb::ReconnectWirelessRequest {
+                            physical_id: "DEMO-HEADSET".into(),
+                            service: None,
+                            address: None
+                        }
+                    )
+                    .await
+                    .is_err()
+            );
+            assert!(
+                manager
+                    .disconnect_wireless(&fixture.adb, request())
+                    .await
+                    .is_err()
+            );
+        }
+        let manager = TaskManager::new();
+        let permit = manager.wireless_permit().unwrap();
+        assert!(
+            manager
+                .disconnect_wireless(&fixture.adb, request())
+                .await
+                .is_err()
+        );
+        assert!(
+            manager
+                .reconnect_wireless(
+                    &fixture.adb,
+                    crate::adb::ReconnectWirelessRequest {
+                        physical_id: "DEMO-HEADSET".into(),
+                        service: None,
+                        address: None
+                    }
+                )
+                .await
+                .is_err()
+        );
+        assert!(fixture.commands().is_empty());
+        drop(permit);
+        assert!(
+            manager
+                .disconnect_wireless(&fixture.adb, request())
+                .await
+                .is_err()
+        );
+        assert!(!manager.has_active_work());
     }
 
     #[tokio::test]

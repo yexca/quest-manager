@@ -78,3 +78,21 @@ and cleanup. Hardware radio behavior and platform support require opt-in tests.
 Protocol references: [AOSP ADB Wi-Fi architecture](https://android.googlesource.com/platform/packages/modules/adb/+/HEAD/docs/dev/adb_wifi.md),
 [ADB pairing client](https://android.googlesource.com/platform/packages/modules/adb/+/HEAD/client/adb_wifi.cpp),
 and [Android 14 IAdbManager](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-14.0.0_r1/core/java/android/debug/IAdbManager.aidl).
+
+## Connection Management Extension
+
+Manage connections exposes actual transport entries while the main device list
+summarizes each connection method. Reuse performs a fresh discovery check before
+setup. Explicit disconnect is a dedicated typed IPC under the same mutation
+permit and busy-task exclusion, with fresh identity/transport checks and an
+exact serial argument. Pairing is retained and automatic ADB reconnection is
+reported honestly; there is no persistent blocklist or automatic duplicate
+disconnection.
+
+Connect/Reconnect is a separate explicit operation from pairing. A previously
+observed service may resolve a new connection port; unidentified discovered
+services require user selection. Every new connection verifies physical
+identity. Network absence or timeout never proves lost pairing, and no app
+profile field is treated as authoritative pairing state. Reconnect retains
+connection preferences and performs no automatic pairing, debugging setup,
+subnet scan or shared-server reset.

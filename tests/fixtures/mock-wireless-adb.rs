@@ -7,11 +7,17 @@ fn main() {
     writeln!(fs::OpenOptions::new().create(true).append(true).open(root.join("commands")).unwrap(), "{}", args.join(" ")).unwrap();
     let connected = root.join("connected");
     match args[0].as_str() {
+        "disconnect" => {
+            assert_eq!(args.len(), 2, "Never disconnect all network transports");
+            assert_eq!(fs::read_to_string(&connected).unwrap(), args[1]);
+            if mode != "disconnect-reconnect" { fs::remove_file(&connected).unwrap(); }
+            println!("disconnected {}", args[1]);
+        }
         "mdns" => {
             assert_eq!(args, ["mdns", "services"]);
             println!("List of discovered mdns services");
             println!("studio-DEMO-OLD _adb-tls-pairing._tcp 192.0.2.11:37123");
-            println!("DEMO-OTHER _adb-tls-connect._tcp 192.0.2.11:5555");
+            if mode != "reconnect-missing" && mode != "reconnect-unique" { println!("DEMO-OTHER _adb-tls-connect._tcp 192.0.2.11:5555"); }
             if mode != "qr-idle" {
                 println!("studio-DEMO-QR _adb-tls-pairing._tcp 192.0.2.10:37123");
             }
@@ -21,13 +27,15 @@ fn main() {
             if mode == "qr-ambiguous" {
                 println!("studio-DEMO-QR _adb-tls-pairing._tcp 192.0.2.12:37123");
             }
-            if mode != "qr-no-connect" {
+            if mode != "qr-no-connect" && mode != "reconnect-missing" {
                 println!("DEMO-GUID _adb-tls-connect._tcp 192.0.2.10:5555");
             }
+            if mode == "reconnect-ambiguous" { println!("DEMO-GUID _adb-tls-connect._tcp 192.0.2.12:5555"); }
         }
         "connect" => {
             assert_eq!(args.len(), 2);
             if mode == "refused" { println!("cannot connect to {}: Example refusal", args[1]); return; }
+            if mode == "reconnect-auth" { println!("failed to authenticate to {}", args[1]); return; }
             if args[1] == "192.0.2.10:37001" && mode != "usb-existing-trust" && mode != "usb-wrong-device"
                 && !root.join("paired").exists() {
                 println!("failed to authenticate to {}", args[1]); return;
@@ -50,9 +58,15 @@ fn main() {
         }
         "devices" => {
             assert_eq!(args, ["devices", "-l"]);
+            if (mode == "connect-query-fail" || mode == "usb-connect-query-fail") && connected.exists() {
+                eprintln!("device inventory failed");
+                std::process::exit(1);
+            }
             println!("List of devices attached");
-            println!("DEMO-USB-OTHER device usb:1 model:Quest_2");
-            println!("DEMO-USB-TARGET {} usb:2 model:Quest_3", if mode == "usb-unauthorized" { "unauthorized" } else if mode == "usb-offline" { "offline" } else { "device" });
+            if !mode.starts_with("reconnect-") {
+                println!("DEMO-USB-OTHER device usb:1 model:Quest_2");
+                println!("DEMO-USB-TARGET {} usb:2 model:Quest_3", if mode == "usb-unauthorized" { "unauthorized" } else if mode == "usb-offline" { "offline" } else { "device" });
+            }
             if matches!(mode.as_str(), "usb-existing-ready" | "usb-unrelated-ready") {
                 println!("DEMO-GUID._adb-tls-connect._tcp device model:Quest_3");
             }
@@ -74,12 +88,21 @@ fn main() {
             }
             assert_eq!(args[2], "shell");
             if args[3] == "getprop ro.serialno" {
+                if mode == "reconnect-query-fail" {
+                    eprintln!("identity query failed");
+                    std::process::exit(1);
+                }
+                if mode == "reconnect-wrong-device" { println!("DEMO-OTHER"); return; }
+                if args[1] == "192.0.2.10:5555" { println!("DEMO-HEADSET"); return; }
+                if args[1] == "192.0.2.11:5555" { println!("DEMO-OTHER"); return; }
+                if args[1] == "DEMO-USB-OTHER" { println!("DEMO-OTHER"); return; }
                 assert!(args[1] == "DEMO-USB-TARGET" || args[1] == "192.0.2.10:37001" || args[1] == "DEMO-GUID._adb-tls-connect._tcp");
                 println!("{}", if (mode == "usb-wrong-device" && args[1].contains(':')) || (mode == "usb-unrelated-ready" && args[1].contains("_adb-tls-")) { "DEMO-OTHER" } else { "DEMO-HEADSET" });
                 return;
             }
             if args[3] == "getprop persist.adb.wifi.guid" {
-                println!("{}", if mode == "qr-wrong-guid" { "DEMO-OTHER" } else if mode.starts_with("qr-hidden-guid") || mode.starts_with("usb-") { "" } else { "DEMO-GUID" });
+                if mode == "qr-query-fail" { eprintln!("identity query failed"); std::process::exit(1); }
+                println!("{}", if mode == "qr-wrong-guid" || mode == "usb-wrong-guid" { "DEMO-OTHER" } else if mode.starts_with("qr-hidden-guid") || mode.starts_with("usb-") { "" } else { "DEMO-GUID" });
                 return;
             }
             assert_eq!(args[1], "DEMO-USB-TARGET", "Never substitute another USB headset");

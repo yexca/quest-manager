@@ -5,11 +5,12 @@ import type { ConnectionPreference, Device, DeviceProfile, WirelessRequest, Wire
 import { QrPairing } from './QrPairing';
 
 type Method = WirelessRequest['method'] | 'qr';
-type Stage = 'choose' | 'wireless-offer' | 'done';
+type Stage = 'detected' | 'choose' | 'wireless-offer' | 'done';
 
 function errorText(cause: unknown) { return cause instanceof Error ? cause.message : String(cause); }
 
-export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onConnected, onBusy, onClose }: {
+export function DeviceAddWizard({ initialDevice, devices, activeTasks, onRefresh, onSave, onConnected, onBusy, onClose }: {
+  initialDevice?: Device | null;
   devices: Device[];
   activeTasks: boolean;
   onRefresh: () => Promise<Device[]>;
@@ -19,11 +20,11 @@ export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onCon
   onClose: () => void;
 }) {
   const [method, setMethod] = useState<Method>('usb');
-  const [stage, setStage] = useState<Stage>('choose');
+  const [stage, setStage] = useState<Stage>(initialDevice ? 'detected' : 'choose');
   const [usb, setUsb] = useState('');
   const [pairAddress, setPairAddress] = useState('');
   const [code, setCode] = useState('');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialDevice?.displayName || initialDevice?.model || '');
   const [preference, setPreference] = useState<ConnectionPreference>('auto');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onCon
     if (method === 'usb' && selectedUsb && !name) setName(selectedUsb.device.displayName || selectedUsb.device.model);
   }, [method, selectedUsb, name]);
   useEffect(() => {
-    if (method !== 'usb' || stage !== 'choose') return;
+    if (stage !== 'detected' && (method !== 'usb' || stage !== 'choose')) return;
     const timer = window.setInterval(() => { void onRefresh().catch(() => {}); }, 2500);
     return () => window.clearInterval(timer);
   }, [method, stage, onRefresh]);
@@ -62,7 +63,7 @@ export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onCon
     try {
       await onSave(profile);
       await onConnected(serial);
-      setCandidate(device); setWirelessSerial(serial); setStage(offerWireless ? 'wireless-offer' : 'done');
+      setCandidate(device); setWirelessSerial(serial); setStage(offerWireless && !device.transports.some(transport => transport.kind === 'wifi' && transport.state === 'device') ? 'wireless-offer' : 'done');
     } catch (cause) { setError(errorText(cause)); }
     finally { setBusy(false); onBusy(false); }
   };
@@ -93,6 +94,31 @@ export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onCon
     } catch (cause) { setError(errorText(cause)); }
     finally { setBusy(false); onBusy(false); }
   };
+  const profileFields = <><label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="text-input" value={name} onChange={event => setName(event.target.value)} placeholder={candidate?.model || 'Quest 3'} maxLength={80} required /><p className="wireless-hint">Names must be unique. The model is used as the initial suggestion.</p>
+    <label className="field-label" htmlFor="connection-preference">Preferred connection</label><select id="connection-preference" className="text-input" value={preference} onChange={event => setPreference(event.target.value as ConnectionPreference)}><option value="auto">Automatic (USB first, Wi-Fi fallback)</option><option value="usb">USB only</option><option value="wifi">Wi-Fi only</option></select></>;
+  const detectedDevice = initialDevice && devices.find(device => device.id === initialDevice.id
+    || device.transports.some(transport => initialDevice.transports.some(initial => initial.serial === transport.serial)));
+  const detectedTransport = detectedDevice?.transports.find(transport => transport.state === 'device');
+  const addDetected = async () => {
+    if (busy || !isDesktop || activeTasks || !initialDevice) return;
+    setBusy(true); onBusy(true); setError(null);
+    try {
+      const latest = await onRefresh();
+      const device = latest.find(item => item.id === initialDevice.id
+        || item.transports.some(transport => initialDevice.transports.some(initial => initial.serial === transport.serial)));
+      const connection = device?.transports.find(transport => transport.state === 'device');
+      if (!device || !connection) throw new Error('This headset is not ready. Connect it and accept USB debugging in the headset, then retry.');
+      await complete(connection.serial, device, connection.kind === 'usb');
+    } catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); onBusy(false); }
+  };
+  if (stage === 'detected') return <div className="device-add-wizard">
+    <p className="modal-description">Add {initialDevice?.model} to your saved devices. It will load automatically when you reconnect it.</p>
+    {!detectedTransport && <p className="wireless-hint">Connect this headset and accept its USB debugging prompt to continue.</p>}
+    {profileFields}
+    {error && <p className="dialog-error" role="alert">{error}</p>}
+    <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={onClose}>Cancel</button><button className="button primary" disabled={busy || !isDesktop || activeTasks || !detectedTransport} onClick={() => void addDetected()}>{busy && <LoaderCircle size={16} className="spin" />}Add device</button></div>
+  </div>;
   if (stage === 'wireless-offer') return <div className="device-add-wizard">
     <div className="wireless-success" role="status"><CheckCircle2 size={19} /><p><strong>{candidate?.displayName || candidate?.model || 'Device'} added.</strong> USB is ready and the profile is saved.</p></div>
     <h3>Try wireless connection too?</h3>
@@ -108,8 +134,7 @@ export function DeviceAddWizard({ devices, activeTasks, onRefresh, onSave, onCon
     {method === 'usb' && <section role="tabpanel"><h3>Add through USB</h3><p className="wireless-guidance">Connect the headset with a USB data cable. If the status is unauthorized, put on the headset and allow USB debugging, then refresh.</p><label className="field-label" htmlFor="add-usb">USB connection</label><select id="add-usb" className="text-input" value={usb} onChange={event => { setUsb(event.target.value); setError(null); }}><option value="">Choose a USB connection</option>{usbDevices.map(({ device, transport }) => <option key={transport.serial} value={transport.serial}>{device.model} · {transport.state === 'device' ? 'Authorized' : 'Authorization needed'} · {transport.serial}</option>)}</select>{!usbDevices.length && <p className="wireless-hint"><RefreshCw size={14} />Waiting for a USB headset…</p>}{selectedUsb?.transport.state === 'unauthorized' && <p className="wireless-hint" role="alert">USB debugging authorization is required. Accept the prompt in the headset, then choose Next.</p>}</section>}
     {method === 'pair' && <section role="tabpanel"><h3>Add with a pairing code</h3><p className="wireless-guidance">Open Wireless debugging → Pair device with pairing code in the headset and keep it visible.</p><label className="field-label" htmlFor="add-address">IP address and pairing port</label><input id="add-address" className="text-input" value={pairAddress} onChange={event => setPairAddress(event.target.value)} placeholder="192.0.2.10:37123" required /><label className="field-label" htmlFor="add-code">Pairing code</label><input id="add-code" className="text-input pairing-code" value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="6 digits" required /></section>}
     {method === 'qr' && <section role="tabpanel"><h3>Add with a QR code</h3><p className="wireless-guidance">Scan the generated code from the headset's Wireless debugging settings.</p><QrPairing activeTasks={activeTasks} onBusy={value => { setBusy(value); onBusy(value); }} onConnected={serial => complete(serial)} onClose={onClose} /></section>}
-    <label className="field-label" htmlFor="device-name">Device name</label><input id="device-name" className="text-input" value={name} onChange={event => setName(event.target.value)} placeholder={candidate?.model || 'Quest 3'} maxLength={80} required /><p className="wireless-hint">Names must be unique. The model is used as the initial suggestion.</p>
-    <label className="field-label" htmlFor="connection-preference">Preferred connection</label><select id="connection-preference" className="text-input" value={preference} onChange={event => setPreference(event.target.value as ConnectionPreference)}><option value="auto">Automatic (USB first, Wi-Fi fallback)</option><option value="usb">USB only</option><option value="wifi">Wi-Fi only</option></select>
+    {profileFields}
     {result && <p className="wireless-success" role="status"><CheckCircle2 size={18} /><span>{result.message}</span></p>}{error && <p className="dialog-error" role="alert">{error}</p>}
     <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={onClose}>Cancel</button>{method === 'qr' ? null : <button className="button primary" disabled={busy || !isDesktop || activeTasks || (method === 'usb' && !selectedUsb) || (method === 'pair' && (!pairAddress.trim() || code.length !== 6))} onClick={() => void (method === 'usb' ? submitUsb() : runPair({ method: 'pair', address: pairAddress.trim(), code: code.trim() }))}>{busy && <LoaderCircle size={16} className="spin" />}{method === 'usb' ? 'Next' : 'Pair and add'}</button>}</div>
   </div>;

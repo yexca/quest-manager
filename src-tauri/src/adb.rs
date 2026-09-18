@@ -64,6 +64,47 @@ pub struct DevicePowerSettings {
     pub raw: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisconnectWirelessRequest {
+    pub device: String,
+    pub physical_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReconnectWirelessRequest {
+    pub physical_id: String,
+    pub service: Option<String>,
+    pub address: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WirelessEndpoint {
+    pub service: String,
+    pub address: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconnectWirelessResult {
+    pub status: &'static str,
+    pub serial: Option<String>,
+    pub message: String,
+    pub endpoints: Vec<WirelessEndpoint>,
+}
+
+impl ReconnectWirelessResult {
+    pub fn outcome(status: &'static str, message: &str) -> Self {
+        Self {
+            status,
+            serial: None,
+            message: message.into(),
+            endpoints: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPackage {
@@ -165,7 +206,183 @@ impl Adb {
         Ok(devices.into_values().collect())
     }
 
+    // Explicit reconnect never enables wireless debugging or pairs a device.
+    pub async fn reconnect_wireless(
+        &self,
+        request: ReconnectWirelessRequest,
+    ) -> Result<ReconnectWirelessResult, String> {
+        if request.physical_id.is_empty() || request.physical_id.len() > 240 {
+            return Err("Choose a saved headset to reconnect.".into());
+        }
+        let address = request
+            .address
+            .as_deref()
+            .map(wireless_address)
+            .transpose()?;
+        if let Some(service) = &request.service
+            && (service.is_empty()
+                || service.len() > 255
+                || !service
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte)))
+        {
+            return Err("Choose a discovered wireless service.".into());
+        }
+        if let Some(transport) = self
+            .devices()
+            .await?
+            .into_iter()
+            .find(|device| device.id == request.physical_id)
+            .and_then(|device| {
+                device
+                    .transports
+                    .into_iter()
+                    .find(|transport| transport.kind == "wifi" && transport.state == "device")
+            })
+        {
+            let mut result = ReconnectWirelessResult::outcome(
+                "connected",
+                "Using the existing Wi-Fi connection. No new pairing was needed.",
+            );
+            result.serial = Some(transport.serial);
+            return Ok(result);
+        }
+        let address = if let Some(address) = address {
+            address
+        } else {
+            let raw = self.run(vec!["mdns".into(), "services".into()]).await?;
+            let endpoints = reconnect_endpoints(&String::from_utf8_lossy(&raw));
+            let candidate = if let Some(service) = request.service.as_ref() {
+                let matching: Vec<_> = endpoints
+                    .iter()
+                    .filter(|endpoint| &endpoint.service == service)
+                    .collect();
+                (matching.len() == 1).then(|| matching[0].address.clone())
+            } else if endpoints.len() == 1 {
+                // A single connect service is safe to try, but its physical
+                // identity is still checked after ADB establishes the transport.
+                Some(endpoints[0].address.clone())
+            } else {
+                None
+            };
+            if let Some(address) = candidate {
+                address
+            } else {
+                let mut result = if endpoints.is_empty() {
+                    ReconnectWirelessResult::outcome(
+                        "notFound",
+                        "No wireless debugging service was found. Keep the headset awake on the same network and enable wireless debugging. You can also enter its current connection address; this does not mean pairing has been lost.",
+                    )
+                } else {
+                    ReconnectWirelessResult::outcome(
+                        "chooseAddress",
+                        "Choose the headset's wireless debugging address. Discovered services have not yet been matched to this saved headset.",
+                    )
+                };
+                result.endpoints = endpoints;
+                return Ok(result);
+            }
+        };
+        match self.connect_wireless(&address).await {
+            Ok(_) => {
+                let identity = match self.shell(&address, "getprop ro.serialno").await {
+                    Ok(identity) => identity,
+                    Err(_) => {
+                        self.disconnect_connected_address(&address).await;
+                        return Ok(ReconnectWirelessResult::outcome(
+                            "unavailable",
+                            "The connection was established, but the headset identity could not be verified. The connection was released; check the address and try again.",
+                        ));
+                    }
+                };
+                if identity != request.physical_id {
+                    self.disconnect_connected_address(&address).await;
+                    return Ok(ReconnectWirelessResult::outcome(
+                        "identityMismatch",
+                        "This connection was released because it is a different headset. Check the address and try again.",
+                    ));
+                }
+                let mut result = ReconnectWirelessResult::outcome(
+                    "connected",
+                    "Connected over Wi-Fi using existing authorization. No pairing was performed.",
+                );
+                result.serial = Some(address);
+                Ok(result)
+            }
+            Err(error) => {
+                if error.contains("failed to authenticate")
+                    || error.contains("The headset needs authorization")
+                {
+                    Ok(ReconnectWirelessResult::outcome(
+                        "pairingRequired",
+                        "ADB rejected authorization. Accept any debugging prompt in the headset, or choose Pair device to establish authorization again.",
+                    ))
+                } else {
+                    Ok(ReconnectWirelessResult::outcome(
+                        "unavailable",
+                        "The headset could not be reached at this connection address. Check its current port, wireless debugging, network and wake state, then retry. Pairing status is unverified.",
+                    ))
+                }
+            }
+        }
+    }
+
+    async fn disconnect_connected_address(&self, address: &str) {
+        // Keep cleanup scoped to the address just tested; the argument-less form would
+        // disconnect unrelated wireless transports owned by other devices.
+        let _ = self.run(vec!["disconnect".into(), address.into()]).await;
+    }
+
+    async fn disconnect_if_ready(&self, address: &str) {
+        let ready = self
+            .devices()
+            .await
+            .ok()
+            .into_iter()
+            .flatten()
+            .any(|device| {
+                device.transports.iter().any(|transport| {
+                    transport.serial == address
+                        && transport.kind == "wifi"
+                        && transport.state == "device"
+                })
+            });
+        if ready {
+            self.disconnect_connected_address(address).await;
+        }
+    }
+
     // Called under TaskManager's global queue permit, only after an explicit action.
+    pub async fn disconnect_wireless(
+        &self,
+        request: DisconnectWirelessRequest,
+    ) -> Result<(), String> {
+        validate_device(&request.device)?;
+        let devices = self.devices().await?;
+        let matched = devices.iter().any(|device| {
+            device.id == request.physical_id
+                && device.transports.iter().any(|transport| {
+                    transport.serial == request.device
+                        && transport.kind == "wifi"
+                        && transport.state == "device"
+                })
+        });
+        if !matched {
+            return Err("This Wi-Fi connection is no longer ready for this headset. Refresh connections and try again.".into());
+        }
+        // Never issue the argument-less form: it disconnects every network transport.
+        self.run(vec!["disconnect".into(), request.device.clone()])
+            .await?;
+        let raw = self.run(vec!["devices".into(), "-l".into()]).await?;
+        if parse_devices(&String::from_utf8_lossy(&raw))
+            .iter()
+            .any(|(transport, _)| transport.serial == request.device && transport.state == "device")
+        {
+            return Err("The Wi-Fi connection is still present or has reconnected automatically. Refresh connections to check its state.".into());
+        }
+        Ok(())
+    }
+
     pub async fn wireless_connection(
         &self,
         request: WirelessRequest,
@@ -256,6 +473,7 @@ impl Adb {
         let mut child = None;
         let mut owns_directory = false;
         let mut paired = false;
+        let mut connected_address: Option<String> = None;
         let outcome = tokio::time::timeout(Duration::from_secs(60), async {
             self.shell(device, &format!("umask 077; mkdir {}", shell_quote(&directory))).await
                 .map_err(|_| "Could not reserve a temporary USB setup directory. No existing files were changed.")?;
@@ -286,7 +504,10 @@ impl Adb {
             // A successful authenticated connection proves that current ADB trust is reusable.
             // Connection failures are not evidence of an existing pairing.
             let connected = match self.connect_wireless(&address).await {
-                Ok(result) => Some(result),
+                Ok(result) => {
+                    connected_address = Some(address.clone());
+                    Some(result)
+                }
                 Err(error) if error.contains("failed to authenticate") || error.contains("needs authorization") => None,
                 Err(error) => return Err(error),
             };
@@ -309,6 +530,7 @@ impl Adb {
             let guid = self.qr_pair(&pair_address, &credentials.secret).await?;
             paired = true;
             let connected = self.connect_wireless(&address).await?;
+            connected_address = Some(address.clone());
             self.verify_usb_identity(&address, &identity).await?;
             // Quest may hide persist.adb.wifi.guid from shell. USB identity remains authoritative.
             let observed = self.shell(&address, "getprop persist.adb.wifi.guid").await?;
@@ -323,6 +545,11 @@ impl Adb {
             {
                 let _ = running.start_kill();
             }
+        }
+        if outcome.is_err()
+            && let Some(address) = connected_address.as_deref()
+        {
+            self.disconnect_connected_address(address).await;
         }
         if !owns_directory {
             return outcome;
@@ -411,7 +638,16 @@ impl Adb {
                 output.trim().chars().take(500).collect::<String>()
             ));
         }
-        let raw = self.run(vec!["devices".into(), "-l".into()]).await?;
+        let raw = match self.run(vec!["devices".into(), "-l".into()]).await {
+            Ok(raw) => raw,
+            Err(error) => {
+                // `adb connect` can succeed before the follow-up inventory query
+                // fails. Release only the address just established so a failed
+                // verification cannot leave a stale wireless transport behind.
+                self.disconnect_connected_address(address).await;
+                return Err(error);
+            }
+        };
         let connections = parse_devices(&String::from_utf8_lossy(&raw));
         let state = connections
             .iter()
@@ -497,7 +733,13 @@ impl Adb {
             .into_iter()
             .find(|(t, _)| t.state == "device" && t.serial.trim_end_matches('.') == serial)
         {
-            self.qr_verify(&transport.serial, guid).await?;
+            if let Err(error) = self.qr_verify(&transport.serial, guid).await {
+                // This transport may have appeared as a result of the pairing
+                // operation. Release only the exact TLS serial if its identity
+                // cannot be verified.
+                self.disconnect_connected_address(&transport.serial).await;
+                return Err(error);
+            }
             return Ok(Some(transport.serial));
         }
         Ok(None)
@@ -509,11 +751,21 @@ impl Adb {
             "Paired, but Wi-Fi is not ready. Wake the headset and refresh, or try USB setup."
                 .to_string()
         })?;
-        if let Some(serial) = self.qr_ready_serial(guid).await? {
-            return Ok(serial);
+        let result = async {
+            if let Some(serial) = self.qr_ready_serial(guid).await? {
+                return Ok(serial);
+            }
+            self.qr_verify(&address, guid).await?;
+            Ok(address.clone())
         }
-        self.qr_verify(&address, guid).await?;
-        Ok(address)
+        .await;
+        if result.is_err() {
+            // qr_ready_serial may already have released a TLS transport. This
+            // second check avoids issuing a duplicate disconnect while still
+            // releasing the address transport when verification failed there.
+            self.disconnect_if_ready(&address).await;
+        }
+        result
     }
 
     async fn qr_verify(&self, serial: &str, guid: &str) -> Result<(), String> {
@@ -832,6 +1084,38 @@ fn mdns_address(output: &str, name: &str, pairing: bool) -> Result<Option<String
         return Err("Multiple devices advertised this QR pairing identity. Cancel and generate a new QR code.".into());
     }
     Ok(addresses.pop())
+}
+
+fn reconnect_endpoints(output: &str) -> Vec<WirelessEndpoint> {
+    let mut endpoints = Vec::new();
+    for line in output.lines() {
+        let parts: Vec<_> = line.split_whitespace().collect();
+        if parts.len() != 3 || parts[1].trim_end_matches('.') != "_adb-tls-connect._tcp" {
+            continue;
+        }
+        if parts[0].len() > 255
+            || !parts[0]
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
+        {
+            continue;
+        }
+        let Ok(address) = wireless_address(parts[2]) else {
+            continue;
+        };
+        if !endpoints.iter().any(|endpoint: &WirelessEndpoint| {
+            endpoint.service == parts[0] && endpoint.address == address
+        }) {
+            endpoints.push(WirelessEndpoint {
+                service: parts[0].into(),
+                address,
+            });
+        }
+        if endpoints.len() == 32 {
+            break;
+        }
+    }
+    endpoints
 }
 
 fn wireless_address(value: &str) -> Result<String, String> {

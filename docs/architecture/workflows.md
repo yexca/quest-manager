@@ -210,3 +210,29 @@ process has not subsequently changed the same file.
 See [Product workflows](../product/workflows.md) for user-facing behavior,
 [Core boundaries](core-boundaries.md) for guarantees, and
 [Troubleshooting](../operations/troubleshooting.md) for recovery.
+
+## Connection Management
+
+The main list summarizes USB and Wi-Fi separately without deleting transport
+records. Manage connections shows all actual serials. Reuse refreshes discovery
+and selects Wi-Fi through the saved preference before future operations.
+Explicit disconnect uses the shared queue permit and refuses queued/running
+tasks or concurrent setup. It verifies the physical identity and exact ready
+Wi-Fi serial, invokes `adb disconnect <serial>` and checks a fresh transport
+list. A still-ready transport is reported as a failed disconnect or reconnection.
+The operation has a 30-second deadline; errors require a refresh to inspect
+state. It never unpairs, stops the shared server, disconnects USB or retargets
+existing tasks. Other ADB clients may be affected by the explicit disconnect.
+
+Explicit Connect/Reconnect holds the same mutation permit for at most 30 seconds.
+It reuses a ready Wi-Fi transport with the captured physical identity first.
+Otherwise it discovers at most 32 validated TLS connection endpoints via mDNS,
+resolves an exact previously observed service at its current port, or asks the
+user to choose/enter a current numeric address. It never scans a subnet or
+automatically tries unrelated service instances. Old numeric endpoints are not
+reused automatically. After connecting, physical identity must match before
+selection; an unverified connection is never added to the selected profile.
+Authorization rejection is distinct from missing services, network failure,
+timeout and identity mismatch. Reconnect never calls pair or enables wireless
+debugging. Service/address information stays in memory; pairing status is
+unverified when offline, and no trust keys are read or written by the app.

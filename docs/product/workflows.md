@@ -68,7 +68,19 @@ are ready, **Automatic** uses USB first and Wi-Fi as the fallback; **USB only**
 and **Wi-Fi only** restrict the selected transport.
 
 Devices uses a single-column layout. Each row includes the device name, model,
-connection status, name editing and a device-scoped Add Wi-Fi action. The list
+connection status, name editing and an always-visible Manage connections action.
+USB and Wi-Fi each have one summary status even when ADB reports multiple
+transports. Manage connections lists every actual transport and marks the one
+in use. Use existing Wi-Fi refreshes discovery first, reuses a ready connection
+and sets the saved preference to Wi-Fi only. Offline devices offer Connect or
+Reconnect, which reuses authorization without pairing or requiring USB.
+Known service names resolve their current port; otherwise the user chooses a
+discovered service or enters the current numeric connection address. Pairing
+remains a separate explicit action. Ordinary reconnection preserves the saved
+connection preference.
+Disconnect requires explicit confirmation, retains pairing, and may be followed
+by automatic ADB reconnection. Connection changes are blocked while tasks run
+or wait in the queue. USB is disconnected by unplugging its cable. The list
 shows up to three rows before scrolling and highlights the selected headset.
 Preferred connection appears below the list; with multiple devices, Automatic
 device switching appears alongside it. Switching defaults to enabled for new
@@ -83,6 +95,14 @@ the dialog asks whether to run USB-assisted wireless setup so both transports
 can be available. QR and pairing-code flows connect first, then ask for the
 device name and preferred connection. Names default to the model and must be
 unique; an existing profile can be renamed from its device settings.
+
+Only saved profiles appear in Your devices and the device selector. A detected
+headset that has not been registered shows an Add device / Not now notice on
+any page, including the first launch. Add device opens naming and connection
+preferences for that exact headset, reusing an existing authorized connection.
+Unauthorized USB devices prompt for headset authorization before saving.
+The first available saved device loads automatically without visiting Devices;
+discovery polls every three seconds. New devices are never saved just by discovery.
 
 The selected device remains selected when another headset appears or when its
 transports go offline. A newly detected device that is not registered produces

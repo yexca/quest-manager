@@ -187,3 +187,16 @@ events but is not a durable event log. See [Workflows](workflows.md).
 When a native close request encounters queued/running tasks, the backend prevents
 closing and emits `app-close-blocked`. The UI defaults to keeping the app open;
 only explicit confirmation invokes `exit_with_active_tasks` to exit anyway.
+
+`disconnect_wireless` takes a `request` with `device` (the exact transport serial)
+and `physicalId` (the captured headset identity), returning no data on success.
+The backend revalidates a ready Wi-Fi transport against that identity under
+the global mutation permit. USB, stale connections and identity mismatches are
+refused; an argument-less disconnect is never issued.
+
+`reconnect_wireless` accepts `ReconnectWirelessRequest`: `physicalId`, optional
+`service` (an exact mDNS instance) or `address` (numeric connection IP/port).
+`ReconnectWirelessResult` contains `status`, nullable `serial`, `message` and
+`endpoints` (service/address pairs). Status is `connected`, `notFound`,
+`chooseAddress`, `pairingRequired`, `unavailable` or `identityMismatch`.
+Only a verified ready connection returns a serial.

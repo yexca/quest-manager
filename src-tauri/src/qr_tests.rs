@@ -99,6 +99,7 @@ async fn qr_flow_refuses_ambiguous_scanners_and_unverified_connections() {
         "qr-unknown-guid",
         "qr-wrong-guid",
         "qr-hidden-guid",
+        "qr-query-fail",
     ] {
         let fixture = Fixture::new(mode);
         let error = TaskManager::new()
@@ -106,8 +107,17 @@ async fn qr_flow_refuses_ambiguous_scanners_and_unverified_connections() {
             .await
             .unwrap_err();
         assert!(!error.contains("EXAMPLE-QR-SECRET"));
-        if mode != "qr-wrong-guid" && mode != "qr-hidden-guid" {
+        if mode != "qr-wrong-guid" && mode != "qr-hidden-guid" && mode != "qr-query-fail" {
             assert!(!fixture.commands().contains("connect "));
+        }
+        if matches!(mode, "qr-wrong-guid" | "qr-hidden-guid" | "qr-query-fail") {
+            let commands = fixture.commands();
+            let disconnects: Vec<_> = commands
+                .lines()
+                .filter(|line| line.starts_with("disconnect "))
+                .collect();
+            assert_eq!(disconnects, vec!["disconnect 192.0.2.10:5555"]);
+            assert!(!commands.contains("disconnect\n"));
         }
         if mode == "qr-ambiguous" {
             assert!(!fixture.commands().contains("pair "));

@@ -2,6 +2,15 @@ export interface Transport { serial: string; kind: 'usb' | 'wifi'; state: string
 export type ConnectionPreference = 'auto' | 'usb' | 'wifi';
 export type WirelessRequest = { method: 'pair'; address: string; code: string } | { method: 'usb'; device: string };
 export interface WirelessResult { serial: string | null; message: string }
+export interface DisconnectWirelessRequest { device: string; physicalId: string }
+export interface ReconnectWirelessRequest { physicalId: string; service?: string; address?: string }
+export interface WirelessEndpoint { service: string; address: string }
+export interface ReconnectWirelessResult {
+  status: 'connected' | 'notFound' | 'chooseAddress' | 'pairingRequired' | 'unavailable' | 'identityMismatch';
+  serial: string | null;
+  message: string;
+  endpoints: WirelessEndpoint[];
+}
 export interface WirelessQrSnapshot {
   id: string;
   status: 'waiting' | 'pairing' | 'connecting' | 'connected' | 'failed' | 'cancelled' | 'expired';

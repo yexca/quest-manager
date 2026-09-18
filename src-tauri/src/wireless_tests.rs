@@ -131,6 +131,76 @@ fn qr_mdns_matches_exact_identity_and_type_and_refuses_ambiguity() {
     );
 }
 
+#[tokio::test]
+async fn disconnect_targets_one_verified_wifi_transport_and_preserves_pairing() {
+    for serial in ["192.0.2.10:37001", "DEMO-GUID._adb-tls-connect._tcp"] {
+        let fixture = Fixture::new("disconnect-success");
+        fs::write(fixture.root.join("connected"), serial).unwrap();
+        fs::write(fixture.root.join("paired"), "").unwrap();
+        fixture
+            .adb
+            .disconnect_wireless(DisconnectWirelessRequest {
+                device: serial.into(),
+                physical_id: "DEMO-HEADSET".into(),
+            })
+            .await
+            .unwrap();
+        assert!(fixture.root.join("paired").exists());
+        let commands = fixture.commands();
+        assert_eq!(
+            commands
+                .lines()
+                .filter(|line| line.starts_with("disconnect"))
+                .collect::<Vec<_>>(),
+            vec![format!("disconnect {serial}")]
+        );
+        assert!(!commands.contains("kill-server"));
+    }
+}
+
+#[tokio::test]
+async fn disconnect_rejects_usb_unknown_wrong_device_and_automatic_reconnection() {
+    for (serial, identity) in [
+        ("DEMO-USB-TARGET", "DEMO-HEADSET"),
+        ("192.0.2.11:37001", "DEMO-HEADSET"),
+        ("192.0.2.10:37001", "DEMO-OTHER"),
+        ("", "DEMO-HEADSET"),
+        ("--all", "DEMO-HEADSET"),
+    ] {
+        let fixture = Fixture::new("disconnect-success");
+        fs::write(fixture.root.join("connected"), "192.0.2.10:37001").unwrap();
+        assert!(
+            fixture
+                .adb
+                .disconnect_wireless(DisconnectWirelessRequest {
+                    device: serial.into(),
+                    physical_id: identity.into(),
+                })
+                .await
+                .is_err()
+        );
+        assert!(
+            !fixture
+                .commands()
+                .lines()
+                .any(|line| line.starts_with("disconnect"))
+        );
+    }
+    let fixture = Fixture::new("disconnect-reconnect");
+    fs::write(fixture.root.join("connected"), "192.0.2.10:37001").unwrap();
+    assert!(
+        fixture
+            .adb
+            .disconnect_wireless(DisconnectWirelessRequest {
+                device: "192.0.2.10:37001".into(),
+                physical_id: "DEMO-HEADSET".into(),
+            })
+            .await
+            .unwrap_err()
+            .contains("reconnected")
+    );
+}
+
 #[test]
 fn wireless_addresses_reject_commands_and_invalid_endpoints() {
     assert_eq!(
@@ -172,6 +242,147 @@ fn wireless_addresses_reject_commands_and_invalid_endpoints() {
 }
 
 #[tokio::test]
+async fn reconnect_without_usb_uses_trust_and_verifies_physical_identity() {
+    for service in [Some("DEMO-GUID".to_string()), None] {
+        let fixture = Fixture::new("reconnect-success");
+        let result = fixture
+            .adb
+            .reconnect_wireless(ReconnectWirelessRequest {
+                physical_id: "DEMO-HEADSET".into(),
+                address: if service.is_none() {
+                    Some("192.0.2.10:5555".into())
+                } else {
+                    None
+                },
+                service,
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.status, "connected");
+        assert_eq!(result.serial.as_deref(), Some("192.0.2.10:5555"));
+        let commands = fixture.commands();
+        assert!(commands.contains("connect 192.0.2.10:5555"));
+        assert!(commands.contains("-s 192.0.2.10:5555 shell getprop ro.serialno"));
+        assert!(
+            !commands
+                .lines()
+                .any(|line| line.starts_with("pair ") || line.starts_with("disconnect "))
+        );
+        assert!(!commands.contains("app_process"));
+    }
+    let fixture = Fixture::new("reconnect-success");
+    fs::write(fixture.root.join("connected"), "192.0.2.10:5555").unwrap();
+    assert_eq!(
+        fixture
+            .adb
+            .reconnect_wireless(ReconnectWirelessRequest {
+                physical_id: "DEMO-HEADSET".into(),
+                service: None,
+                address: None,
+            })
+            .await
+            .unwrap()
+            .status,
+        "connected"
+    );
+    assert!(
+        !fixture
+            .commands()
+            .lines()
+            .any(|line| line.starts_with("connect "))
+    );
+}
+
+#[tokio::test]
+async fn reconnect_never_turns_missing_network_or_ambiguity_into_pairing() {
+    for (mode, service, expected) in [
+        ("reconnect-missing", None, "notFound"),
+        ("reconnect-success", None, "chooseAddress"),
+        ("reconnect-unique", None, "connected"),
+        ("reconnect-ambiguous", Some("DEMO-GUID"), "chooseAddress"),
+        ("reconnect-auth", Some("DEMO-GUID"), "pairingRequired"),
+        ("refused", Some("DEMO-GUID"), "unavailable"),
+        (
+            "reconnect-wrong-device",
+            Some("DEMO-GUID"),
+            "identityMismatch",
+        ),
+        ("reconnect-query-fail", Some("DEMO-GUID"), "unavailable"),
+    ] {
+        let fixture = Fixture::new(mode);
+        let result = fixture
+            .adb
+            .reconnect_wireless(ReconnectWirelessRequest {
+                physical_id: "DEMO-HEADSET".into(),
+                service: service.map(str::to_string),
+                address: None,
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.status, expected);
+        if expected == "connected" {
+            assert_eq!(result.serial.as_deref(), Some("192.0.2.10:5555"));
+            assert!(fixture.commands().contains("connect 192.0.2.10:5555"));
+        } else {
+            assert!(result.serial.is_none());
+        }
+        assert!(
+            !fixture
+                .commands()
+                .lines()
+                .any(|line| line.starts_with("pair "))
+        );
+        if matches!(expected, "notFound" | "chooseAddress") {
+            assert!(
+                !fixture
+                    .commands()
+                    .lines()
+                    .any(|line| line.starts_with("connect "))
+            );
+        }
+        if expected == "identityMismatch" || mode == "reconnect-query-fail" {
+            let commands = fixture.commands();
+            let cleanup: Vec<_> = commands
+                .lines()
+                .filter(|line| line.starts_with("disconnect "))
+                .collect();
+            assert_eq!(cleanup, vec!["disconnect 192.0.2.10:5555"]);
+            assert!(!fixture.commands().contains("disconnect\n"));
+        }
+    }
+}
+
+#[tokio::test]
+async fn reconnect_validates_addresses_before_adb_and_filters_discovery() {
+    let fixture = Fixture::new("reconnect-success");
+    for address in [
+        "192.0.2.10:5555;reboot",
+        "example.com:5555",
+        "127.0.0.1:5555",
+        "192.0.2.10:0",
+    ] {
+        assert!(
+            fixture
+                .adb
+                .reconnect_wireless(ReconnectWirelessRequest {
+                    physical_id: "DEMO-HEADSET".into(),
+                    service: None,
+                    address: Some(address.into()),
+                })
+                .await
+                .is_err()
+        );
+    }
+    assert!(fixture.commands().is_empty());
+    let endpoints = reconnect_endpoints(
+        "DEMO-GUID _adb-tls-connect._tcp 192.0.2.10:5555\nDEMO-GUID _adb-tls-connect._tcp. 192.0.2.10:5555\nDEMO-PAIR _adb-tls-pairing._tcp 192.0.2.10:37123\nDEMO-INVALID _adb-tls-connect._tcp 127.0.0.1:5555\nDEMO-V6 _adb-tls-connect._tcp [2001:db8::10]:5555\n",
+    );
+    assert_eq!(endpoints.len(), 2);
+    assert_eq!(endpoints[0].service, "DEMO-GUID");
+    assert_eq!(endpoints[1].address, "[2001:db8::10]:5555");
+}
+
+#[tokio::test]
 async fn wireless_connect_requires_success_text_and_ready_transport() {
     for mode in ["success", "already"] {
         let fixture = Fixture::new(mode);
@@ -185,6 +396,16 @@ async fn wireless_connect_requires_success_text_and_ready_transport() {
         assert!(fixture.connect().await.is_err(), "{mode}");
         assert!(!fixture.commands().contains("-s"));
     }
+    let fixture = Fixture::new("connect-query-fail");
+    assert!(fixture.connect().await.is_err());
+    assert_eq!(
+        fixture.commands().lines().collect::<Vec<_>>(),
+        vec![
+            "connect 192.0.2.10:5555",
+            "devices -l",
+            "disconnect 192.0.2.10:5555",
+        ]
+    );
 }
 
 #[tokio::test]
@@ -283,6 +504,34 @@ async fn wireless_usb_checks_routes_before_mutation_and_reports_partial_setup() 
             .message
             .contains("cleanup")
     );
+}
+
+#[tokio::test]
+async fn wireless_usb_releases_a_new_transport_when_identity_verification_fails() {
+    for mode in ["usb-wrong-device", "usb-wrong-guid"] {
+        let fixture = Fixture::new(mode);
+        assert!(fixture.usb("DEMO-USB-TARGET").await.is_err(), "{mode}");
+        let commands = fixture.commands();
+        let disconnects: Vec<_> = commands
+            .lines()
+            .filter(|line| line.starts_with("disconnect "))
+            .collect();
+        assert_eq!(disconnects, vec!["disconnect 192.0.2.10:37001"]);
+        assert!(!commands.contains("disconnect\n"));
+    }
+}
+
+#[tokio::test]
+async fn wireless_usb_releases_a_transport_when_inventory_query_fails() {
+    let fixture = Fixture::new("usb-connect-query-fail");
+    assert!(fixture.usb("DEMO-USB-TARGET").await.is_err());
+    let commands = fixture.commands();
+    let disconnects: Vec<_> = commands
+        .lines()
+        .filter(|line| line.starts_with("disconnect "))
+        .collect();
+    assert_eq!(disconnects, vec!["disconnect 192.0.2.10:37001"]);
+    assert!(!commands.contains("disconnect\n"));
 }
 
 #[tokio::test]

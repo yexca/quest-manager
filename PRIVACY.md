@@ -180,3 +180,12 @@ can be reported in the task conversation without storing device observations.
 
 See [Secure development](docs/development/security.md) for review rules and
 [Troubleshooting](docs/operations/troubleshooting.md) for local diagnosis.
+
+## Explicit Wi-Fi Reconnection
+
+Connect/Reconnect reads local ADB discovery and mDNS connection services on
+request. Discovered service names, numeric addresses and manually entered
+connection ports remain in memory and are not added to device-settings.json.
+The app tries existing authorization and verifies the headset identity before
+selection. It does not read pairing keys or treat saved profiles as proof of
+current pairing. Pairing remains a separate explicit operation.

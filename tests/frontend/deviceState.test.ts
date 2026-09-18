@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyDeviceProfiles, createDeviceDiscovery, includeDeviceProfiles, mergeDeviceSnapshots, selectDevice, selectKnownDevice, selectTransport } from '../../src/deviceState.ts';
+import { applyDeviceProfiles, connectionSummary, createDeviceDiscovery, decideDeviceArrival, includeDeviceProfiles, mergeDeviceSnapshots, selectDevice, selectKnownDevice, selectTransport, reconnectHint, unregisteredDevices } from '../../src/deviceState.ts';
 import type { Device, DevicePreferences } from '../../src/types.ts';
 
 const ready: Device = { id: 'DEMO-HEADSET', model: 'Quest 3', transports: [
@@ -77,6 +77,77 @@ test('connection preferences restrict the active transport', () => {
   assert.equal(selectTransport(noWifi), undefined);
 });
 
+test('a saved USB headset is selected on discovery without visiting Devices', () => {
+  const knownIds = new Set([ready.id, 'DEMO-OFFLINE']);
+  const usb: Device = { ...ready, transports: [{ serial: 'DEMO-USB', kind: 'usb', state: 'device' }] };
+  const savedOffline: Device = { id: 'DEMO-OFFLINE', model: 'Quest 2', transports: [] };
+  assert.equal(selectKnownDevice([savedOffline, usb], '', knownIds), usb);
+  assert.equal(selectKnownDevice([savedOffline, usb], 'DEMO-REMOVED', knownIds), usb);
+  assert.equal(selectKnownDevice([savedOffline, usb], savedOffline.id, knownIds), savedOffline);
+  assert.equal(selectKnownDevice([usb], usb.id, new Set()), undefined);
+  assert.equal(selectKnownDevice([usb], '', new Set()), undefined);
+  assert.deepEqual(unregisteredDevices([usb], knownIds), []);
+});
+
+test('unregistered ready and unauthorized headsets prompt for registration, offline history does not', () => {
+  const unauthorized: Device = { id: 'DEMO-NEW', model: 'Quest 3S', transports: [{ serial: 'DEMO-NEW', kind: 'usb', state: 'unauthorized' }] };
+  assert.deepEqual(unregisteredDevices([offline, ready, unauthorized], new Set()), [ready, unauthorized]);
+  assert.deepEqual(unregisteredDevices([offline, ready, unauthorized], new Set([ready.id])), [unauthorized]);
+});
+
+test('device arrivals use the first completed snapshot as a baseline', () => {
+  const other: Device = { id: 'DEMO-OTHER', model: 'Quest 3S', transports: [{ serial: 'DEMO-USB-OTHER', kind: 'usb', state: 'device' }] };
+  const knownIds = new Set([ready.id, other.id]);
+  const initial = decideDeviceArrival([ready, other], null, knownIds, undefined, true, false);
+  assert.equal(initial.kind, 'baseline');
+  assert.deepEqual([...initial.readyIds].sort(), [other.id, ready.id].sort());
+  const next = decideDeviceArrival([ready, other], initial.readyIds, knownIds, ready.id, true, false);
+  assert.equal(next.kind, 'none');
+});
+
+test('saved device arrivals switch, notify, or wait according to preferences and task state', () => {
+  const other: Device = { id: 'DEMO-OTHER', model: 'Quest 3S', transports: [{ serial: 'DEMO-USB-OTHER', kind: 'usb', state: 'device' }] };
+  const knownIds = new Set([ready.id, other.id]);
+  const previous = new Set([ready.id]);
+  assert.equal(decideDeviceArrival([ready, other], previous, knownIds, ready.id, true, false).kind, 'autoSwitch');
+  assert.equal(decideDeviceArrival([ready, other], previous, knownIds, ready.id, true, true).kind, 'defer');
+  assert.equal(decideDeviceArrival([ready, other], previous, knownIds, ready.id, false, false).kind, 'notify');
+  assert.equal(decideDeviceArrival([ready, other], previous, new Set([ready.id]), ready.id, true, false).kind, 'none');
+});
+
+test('a single arrival decision retains every saved device that arrived together', () => {
+  const first: Device = { id: 'DEMO-FIRST', model: 'Quest 3', transports: [{ serial: 'DEMO-FIRST-USB', kind: 'usb', state: 'device' }] };
+  const second: Device = { id: 'DEMO-SECOND', model: 'Quest 3S', transports: [{ serial: 'DEMO-SECOND-USB', kind: 'usb', state: 'device' }] };
+  const decision = decideDeviceArrival([first, second], new Set(), new Set([first.id, second.id]), undefined, false, false);
+  assert.equal(decision.kind, 'notify');
+  assert.deepEqual(decision.devices.map(device => device.id), [first.id, second.id]);
+});
+
+test('a saved device that disappears can trigger an arrival again', () => {
+  const knownIds = new Set([ready.id]);
+  const gone = decideDeviceArrival([], new Set([ready.id]), knownIds, undefined, true, false);
+  assert.equal(gone.kind, 'none');
+  const returned = decideDeviceArrival([ready], gone.readyIds, knownIds, undefined, true, false);
+  assert.equal(returned.kind, 'autoSwitch');
+});
+
+test('duplicate Wi-Fi transports share one ready status without removing command targets', () => {
+  const mixed: Device = { ...ready, transports: [
+    { serial: 'DEMO-USB', kind: 'usb', state: 'device' },
+    { serial: '192.0.2.10:37001', kind: 'wifi', state: 'offline' },
+    ...ready.transports,
+    { serial: '192.0.2.10:37002', kind: 'wifi', state: 'device' },
+  ] };
+  const summary = connectionSummary(mixed);
+  assert.deepEqual(summary.map(item => [item.kind, item.state]), [['usb', 'device'], ['wifi', 'device']]);
+  assert.equal(mixed.transports.length, 4);
+  assert.equal(selectTransport(mixed)?.serial, 'DEMO-USB');
+  const wifiOnly = { ...mixed, connectionPreference: 'wifi' as const };
+  assert.equal(connectionSummary(wifiOnly)[1].serial, selectTransport(wifiOnly)?.serial);
+  const disconnected = mergeDeviceSnapshots([mixed], [])[0];
+  assert.deepEqual(connectionSummary(disconnected).map(item => item.state), ['offline', 'offline']);
+});
+
 test('a disconnected device remains in the session directory as offline', () => {
   const first = { ...ready, transports: [
     { serial: 'DEMO-USB-001', kind: 'usb' as const, state: 'device' },
@@ -146,4 +217,11 @@ test('disposing during refresh prevents late publication and a queued device que
   await stopped;
   assert.equal(reads, 1);
   assert.deepEqual(snapshots, []);
+});
+
+test('reconnection resolves the known service at its current port and does not reuse stale numeric addresses', () => {
+  assert.deepEqual(reconnectHint(ready), { service: 'DEMO-GUID' });
+  assert.deepEqual(reconnectHint(offline), {});
+  assert.deepEqual(reconnectHint({ ...ready, transports: [] }), {});
+  assert.deepEqual(reconnectHint({ ...ready, transports: [...offline.transports, ...ready.transports] }), { service: 'DEMO-GUID' });
 });

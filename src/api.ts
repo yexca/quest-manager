@@ -1,7 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { AppDetails, AppPackage, Device, DeviceInfo, DevicePowerSettings, DevicePreferences, DeviceProfile, FileEntry, LocalApk, LocalObb, Task, TaskRequest } from './types';
 import type { LightningCatalog, LightningRecommendation } from './types';
-import type { WirelessRequest, WirelessResult, WirelessQrSnapshot } from './types';
+import type { DisconnectWirelessRequest, ReconnectWirelessRequest, ReconnectWirelessResult, WirelessRequest, WirelessResult, WirelessQrSnapshot } from './types';
 import { lightningPackage, navigatorPackage, previewLightningCatalog } from './lightningState';
 
 export const isDesktop = isTauri();
@@ -11,7 +11,7 @@ const previewLightningVersion = lightningPreview === 'installed' ? '1.1.0' : lig
 const gib = 1024 ** 3;
 // Preview data is fictional and is never collected from a connected device.
 const previewDevices: Device[] = [
-  { id: 'DEMO-DEVICE-001', model: 'Quest 3', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }] },
+  { id: 'DEMO-DEVICE-001', model: 'Quest 3', transports: [{ serial: 'DEMO-USB-001', kind: 'usb', state: 'device' }, { serial: 'DEMO-WIFI-001', kind: 'wifi', state: 'device' }, { serial: '192.0.2.10:37001', kind: 'wifi', state: 'device' }] },
   { id: 'DEMO-DEVICE-002', model: 'Quest 3S', transports: [{ serial: 'DEMO-USB-002', kind: 'usb', state: 'device' }] },
   { id: 'DEMO-DEVICE-003', model: 'Quest 2', transports: [{ serial: 'DEMO-USB-003', kind: 'usb', state: 'device' }] },
   { id: 'DEMO-DEVICE-004', model: 'Demo headset', transports: [{ serial: 'DEMO-USB-004', kind: 'usb', state: 'device' }] },
@@ -77,6 +77,8 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 
 export const api = {
   wirelessConnection: (request: WirelessRequest): Promise<WirelessResult> => call('wireless_connection', { request }),
+  disconnectWireless: (request: DisconnectWirelessRequest): Promise<void> => call('disconnect_wireless', { request }),
+  reconnectWireless: (request: ReconnectWirelessRequest): Promise<ReconnectWirelessResult> => call('reconnect_wireless', { request }),
   startWirelessQr: (): Promise<WirelessQrSnapshot> => call('start_wireless_qr'),
   wirelessQrStatus: (id: string): Promise<WirelessQrSnapshot> => call('wireless_qr_status', { id }),
   cancelWirelessQr: (id: string): Promise<void> => call('cancel_wireless_qr', { id }),

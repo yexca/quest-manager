@@ -83,6 +83,10 @@ connection, explicit device selection, stale polls during manual refresh,
 refresh coalescing, read failure recovery, and disposal. These host-only tests
 do not establish wireless network stability or headset sleep behavior.
 
+Frontend device regressions also check initial selection of a saved USB headset,
+registration prompts for ready/unauthorized unknown devices, and a single Wi-Fi
+summary when multiple actual transports belong to one headset.
+
 Saved device profile coverage should include the private-file load path, profile
 merge with discovered transports, case-insensitive name collision refusal,
 renaming while retaining the physical device ID, and persistence of `auto`,
@@ -251,3 +255,15 @@ Use `?preview=1&lightning=installed` for fictional older installations, or
 setup, check the installed labels in both selectors, notices when selecting those
 versions, and the service recommendation comparison while its checkbox is off.
 The default `?preview=1` keeps the absent-installation scenario.
+
+Connection-manager mock tests cover numeric and mDNS Wi-Fi disconnection,
+USB/unknown/wrong-identity refusal, retained pairing, automatic reconnection,
+and queue/setup exclusion. Preview the complete transport list, confirmation,
+existing-connection action and minimum-window layout. Preview writes stay
+disabled; actual disconnect/reconnect behavior requires separate device testing.
+
+Reconnect regressions cover no-USB existing authorization, fresh mDNS resolution,
+reuse without another connect command, explicit numeric address validation,
+wrong identity, authentication rejection versus network failure, missing and
+ambiguous service discovery, and busy-task/setup exclusion. The mock verifies
+that reconnect never pairs or invokes the USB helper.

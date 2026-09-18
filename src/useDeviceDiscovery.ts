@@ -32,7 +32,7 @@ export function useDeviceDiscovery(refreshToken: number, fail: (error: unknown) 
     discovery.current = current;
     const report = (error: unknown) => { if (discovery.current === current) fail(error); };
     void loadDevices().catch(report);
-    const timer = setInterval(() => { void loadDevices(true).catch(report); }, 15000);
+    const timer = setInterval(() => { void loadDevices(true).catch(report); }, 3000);
     return () => { current.dispose(); discovery.current = null; clearInterval(timer); };
   }, [loadDevices, fail]);
   useEffect(() => {

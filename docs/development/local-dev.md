@@ -55,6 +55,10 @@ IPC or file dialogs. Keep the preview badge visible in documentation screenshots
 
 The dev server binds to loopback and port 1420 is strict. Use one instance at a
 time; a standalone preview conflicts with the Vite process started by Tauri.
+Source watching uses a 300 ms polling interval so rapid edits on Windows do not
+leave Vite serving stale modules. Project tools, Rust sources and release output
+remain excluded from that watcher. Configuration changes restart Vite and reload
+the frontend; native tasks remain owned by the running Tauri backend.
 
 ## Editing and Handoff
 

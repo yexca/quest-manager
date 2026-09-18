@@ -126,6 +126,24 @@ async fn wireless_connection(
 }
 
 #[tauri::command]
+async fn reconnect_wireless(
+    adb: tauri::State<'_, Adb>,
+    tasks: tauri::State<'_, TaskManager>,
+    request: adb::ReconnectWirelessRequest,
+) -> Result<adb::ReconnectWirelessResult, String> {
+    tasks.reconnect_wireless(&adb, request).await
+}
+
+#[tauri::command]
+async fn disconnect_wireless(
+    adb: tauri::State<'_, Adb>,
+    tasks: tauri::State<'_, TaskManager>,
+    request: adb::DisconnectWirelessRequest,
+) -> Result<(), String> {
+    tasks.disconnect_wireless(&adb, request).await
+}
+
+#[tauri::command]
 async fn device_info(adb: tauri::State<'_, Adb>, device: String) -> Result<DeviceInfo, String> {
     adb.device_info(&device).await
 }
@@ -302,6 +320,8 @@ pub fn run() {
             save_device_profile,
             set_device_auto_switch,
             wireless_connection,
+            disconnect_wireless,
+            reconnect_wireless,
             start_wireless_qr,
             wireless_qr_status,
             cancel_wireless_qr,

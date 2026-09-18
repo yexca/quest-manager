@@ -60,7 +60,19 @@ Disable writes in preview and setup while tasks are active. Completing setup
 makes the verified Wi-Fi transport available for selection.
 
 Devices uses a single-column layout. Each row includes the device name, model,
-connection status, name editing and a device-scoped Add Wi-Fi action. The list
+connection status, name editing and an always-visible Manage connections action.
+USB and Wi-Fi each have one summary status even when ADB reports multiple
+transports. Manage connections lists every actual transport and marks the one
+in use. Use existing Wi-Fi refreshes discovery first, reuses a ready connection
+and sets the saved preference to Wi-Fi only. Offline devices offer Connect or
+Reconnect, which reuses authorization without pairing or requiring USB.
+Known service names resolve their current port; otherwise the user chooses a
+discovered service or enters the current numeric connection address. Pairing
+remains a separate explicit action. Ordinary reconnection preserves the saved
+connection preference.
+Disconnect requires explicit confirmation, retains pairing, and may be followed
+by automatic ADB reconnection. Connection changes are blocked while tasks run
+or wait in the queue. USB is disconnected by unplugging its cable. The list
 shows up to three rows before scrolling and highlights the selected headset.
 Preferred connection appears below the list; with multiple devices, Automatic
 device switching appears alongside it. Switching defaults to enabled for new

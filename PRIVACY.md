@@ -124,6 +124,13 @@ by the version manifests and lockfiles. Optional installer builds also fetch
 Tauri packaging tools. Those downloads are distinct from application runtime
 device operations.
 
+Bootstrap system-prerequisite installation is optional and asks for consent
+before invoking Microsoft's installers. VS 2022 and WebView2 installation/update
+may contact Microsoft services and create system-managed caches, logs and update
+services outside `env`. The bootstrap downloads the installer launchers into
+`env/downloads/system-installers`. Their own privacy/retention behavior is governed
+by Microsoft, separately from project-local Node/Rust/package caches.
+
 Project tool locations in `env` do not isolate ADB authorization keys or all
 system caches. Quest Manager does not override ADB's standard key storage or
 manage revocation of the computer's device authorization.

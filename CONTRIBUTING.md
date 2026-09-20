@@ -44,8 +44,9 @@ Use the root PowerShell entry points:
 .\run-test.ps1
 ```
 
-The setup checks the recorded system Node/npm versions and keeps project tools
-and caches in `env`. Retain both lockfiles, use exact dependency versions, and
+The setup installs the pinned Node/npm and other project tools and caches in
+`env`, and asks before changing missing/incompatible system prerequisites.
+Load `scripts/Environment.ps1` before direct tool commands. Retain both lockfiles, use exact dependency versions, and
 do not use `-RefreshLocks` for a routine install. See
 [Dependencies](docs/development/dependencies.md) for intentional updates.
 

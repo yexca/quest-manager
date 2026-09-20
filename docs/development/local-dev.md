@@ -9,6 +9,8 @@ targets Windows x64; native system prerequisites are described in
 | Command | Purpose |
 | --- | --- |
 | `.\run-install.ps1` | Check system prerequisites, install pinned project tools/packages, and write the local installation record |
+| `.\run-install.ps1 -CheckOnly` | Check only system prerequisite versions/files without downloads or prompts |
+| `.\run-install.ps1 -NonInteractive` | Install project tools without prompts; refuse missing/incompatible system prerequisites |
 | `.\run-dev.ps1` | Check the installed environment and start Tauri with Vite |
 | `.\run-test.ps1` | Frontend build/typecheck, Rust format check, Clippy, and default Cargo tests |
 | `.\run-build.ps1` | Build the release executable, portable tools and license |
@@ -26,8 +28,10 @@ validation or prove that every dependency binary is unmodified.
 After installation, a frontend-only change can use:
 
 ```powershell
-npm run typecheck
-npm run build
+. .\scripts\Environment.ps1
+Assert-QuestInstalled
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 For Cargo work, load the local toolchain first:
@@ -46,7 +50,8 @@ or redirect build output outside `env` when reproducing project behavior.
 ## UI Preview
 
 ```powershell
-npm run dev
+. .\scripts\Environment.ps1
+npm.cmd run dev
 ```
 
 Open [the explicit preview](http://127.0.0.1:1420/?preview=1) for layout and

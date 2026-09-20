@@ -4,7 +4,7 @@ Assert-QuestInstalled
 $questBuildArguments = @('run', 'tauri', '--', 'build')
 if ($Installer) { $questBuildArguments += @('--bundles', 'nsis') } else { $questBuildArguments += '--no-bundle' }
 $questBuildArguments += @('--', '--locked')
-Invoke-QuestCommand -File 'npm.cmd' -Arguments $questBuildArguments
+Invoke-QuestCommand -File $QuestNpm -Arguments $questBuildArguments
 $questRelease = Join-Path $QuestRoot 'release'
 New-Item -ItemType Directory -Path $questRelease -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $QuestRoot 'LICENSE') -Destination $questRelease -Force

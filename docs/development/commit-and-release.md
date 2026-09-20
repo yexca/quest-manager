@@ -142,7 +142,8 @@ workflow must follow [Dependencies](dependencies.md).
 After setup, an explicit npm check can inspect the locked dependency graph:
 
 ```powershell
-npm audit --package-lock-only --ignore-scripts --cache env/npm-cache
+. .\scripts\Environment.ps1
+npm.cmd audit --package-lock-only --ignore-scripts --cache env/npm-cache
 ```
 
 This contacts the configured npm registry with dependency metadata. It does not

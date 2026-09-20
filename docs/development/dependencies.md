@@ -8,7 +8,8 @@ versions, packaging metadata, or code-signing environments.
 
 | Input | Authoritative files |
 | --- | --- |
-| System Node and npm | [toolchain.versions.json](../../toolchain.versions.json), [package.json](../../package.json), [.node-version](../../.node-version) for Node |
+| Project Node and npm | [toolchain.versions.json](../../toolchain.versions.json) includes the official Windows ZIP URL/SHA-256; [package.json](../../package.json), [.node-version](../../.node-version) also declare versions |
+| System compatibility policy | `systemPrerequisites` in `toolchain.versions.json`; detection and consent in [SystemPrerequisites.ps1](../../scripts/SystemPrerequisites.ps1) |
 | Rust toolchain and target | [rust-toolchain.toml](../../rust-toolchain.toml), `toolchain.versions.json` |
 | Rust minimum language version and crate dependencies | [Cargo.toml](../../src-tauri/Cargo.toml) |
 | rustup, Android Platform-Tools, AAPT2 and APK preparation archives | Fixed URLs and SHA-256 values in `toolchain.versions.json` |
@@ -25,6 +26,7 @@ do not force them to share a patch number.
 
 | Location | Contents |
 | --- | --- |
+| `env/node/node-v<version>-win-x64` | Official Node executable and bundled npm; also selected for child processes through the process-local PATH |
 | `env/cargo` | Cargo/rustup launchers and crate downloads/source cache (`CARGO_HOME`) |
 | `env/rustup` | Rust toolchain, standard library, rustfmt, Clippy (`RUSTUP_HOME`) |
 | `env/target` | Rust build/test output (`CARGO_TARGET_DIR`) |
@@ -39,8 +41,11 @@ do not force them to share a patch number.
 | `env/downloads` | Downloaded tool archives verified by checksum |
 | Root `node_modules` | Windows junction pointing to `env/node_modules` |
 
-The scripts reuse system Node and npm. Visual Studio C++ tools, Windows SDK,
-and WebView2 are also system prerequisites, not project-local installations.
+The scripts invoke project-local Node/npm explicitly and prepend their directory
+to the current process PATH. A missing local Node/npm fails with setup guidance;
+system Node is not a fallback and is never replaced. Source
+`scripts/Environment.ps1` before direct Node/npm commands in a new shell.
+Visual Studio C++ tools, Windows SDK and WebView2 remain system installations.
 Environment changes apply only to the current PowerShell process and children.
 ADB's own authorization storage is outside this dependency layout.
 
@@ -51,12 +56,27 @@ direct development commands must select the project toolchain environment.
 
 ## Normal Installation
 
-`run-install.ps1` checks the required Node/npm and system prerequisites, verifies
-downloaded rustup, ADB, AAPT2, Apktool, JRE and Build Tools archives, installs the
+`run-install.ps1` checks system prerequisites, verifies the downloaded Node ZIP
+and its bundled npm version, verifies rustup, ADB, AAPT2, Apktool, JRE and Build Tools archives, installs the
 pinned Rust components, and uses
 `npm ci` under `env` plus `cargo fetch --locked`. It refuses an unexpected root
 `node_modules` directory instead of deleting it. Resolve that conflict locally
 before retrying, preserving any user data and verifying junction targets.
+
+Missing/incompatible system prerequisites are offered for installation or repair
+only after explicit consent, defaulting to No. `-CheckOnly` performs only the
+read-only system check; `-NonInteractive` never prompts or changes system
+components, and fails if they need attention. Both return a failure on missing
+prerequisites. See [Getting started](../getting-started.md) for minimum versions,
+repair scope, elevation and restart behavior.
+
+System repairs use Microsoft's current VS 2022 and WebView2 installer endpoints,
+with valid Microsoft Authenticode signatures required. Unlike pinned project
+archives, these system installers are not immutable or SHA-256 pinned. Their
+payloads and update services live in system-managed locations. This distinction
+is intentional; recorded local versions do not make system updates reproducible.
+Installer launchers downloaded by the bootstrap stay in
+`env/downloads/system-installers`. Node is not included in app release output.
 
 The default path does not regenerate lockfiles. Build and development commands
 also use Cargo's locked mode. Avoid routine root `npm install` or global Cargo

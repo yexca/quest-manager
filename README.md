@@ -68,12 +68,18 @@ The stack is **Tauri 2 + React + TypeScript + Rust**.
 
 ### 1. Prepare the computer
 
-Use Windows x64 with **Node.js 24.19.0 / npm 11.17.0** already installed. The
-bootstrap reuses system Node and checks these prerequisites:
+Use Windows x64 and 64-bit PowerShell. The bootstrap installs pinned
+**Node.js 24.19.0 / npm 11.17.0** under `env/node`; no system Node installation
+is needed. It checks these system prerequisites:
 
-- Visual Studio 2022 or Build Tools with **Desktop development with C++**,
-  including MSVC and a Windows SDK.
-- Microsoft Edge WebView2 Runtime.
+- Visual Studio 2022 / Build Tools (17.x) with x64 MSVC >= 14.30.
+- Windows SDK >= 10.0.19041.0, including x64 libraries, headers and `rc.exe`.
+- Microsoft Edge WebView2 Runtime >= 110.0.1531.0.
+
+Missing, incomplete or older components are reported with the required versions.
+Setup asks before installing/updating system components with Microsoft's signed
+installers; compatible installations are reused. See [Getting Started](docs/getting-started.md)
+for the repair scope and manual installation links.
 
 Allow at least 8 GB for tools and build caches. The first setup downloads the
 pinned toolchain and dependencies; the first Rust build takes longer than
@@ -88,14 +94,19 @@ Open PowerShell in the repository root:
 .\run-dev.ps1
 ```
 
-The bootstrap does not require administrator privileges or change the permanent
-PATH. System prerequisites are installed separately. If PowerShell blocks local
-scripts, use a process-scoped invocation:
+Project-local setup does not require administrator privileges or change the
+permanent PATH. Optional C++/SDK installation requests administrator approval;
+the script never automatically reboots. If PowerShell blocks local scripts,
+use a process-scoped invocation:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-install.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-dev.ps1
 ```
+
+Use `.\run-install.ps1 -CheckOnly` to check system prerequisites without downloads
+or changes. Use `-NonInteractive` to install project tools without prompts; it
+fails if system prerequisites need attention and never installs them silently.
 
 ### 3. Connect the headset
 
@@ -190,7 +201,7 @@ and [Privacy](PRIVACY.md#optional-app-downloads).
 
 | Project path | Purpose |
 | --- | --- |
-| `env/` | Rust, ADB, AAPT2 and APK preparation tools, npm packages, private local data, caches, build output, and installation records |
+| `env/` | Node/npm, Rust, ADB, AAPT2 and APK preparation tools, npm packages, private local data, caches, build output, and installation records |
 | `node_modules/` | Windows junction pointing to `env/node_modules` |
 | `dist/` | Built frontend assets |
 | `release/` | Portable executable, Platform-Tools, AAPT2, APK preparation tools, and local build environment record |
@@ -205,7 +216,7 @@ layout and [Privacy](PRIVACY.md) before sharing local records.
 
 | Component | Pinned version or source |
 | --- | --- |
-| Node.js / npm | 24.19.0 / 11.17.0; `toolchain.versions.json`, `.node-version`, and `package.json` |
+| Node.js / npm | 24.19.0 / 11.17.0; official Windows ZIP and SHA-256 in `toolchain.versions.json`, versions also in `.node-version` and `package.json` |
 | Rust / target | 1.95.0 / `x86_64-pc-windows-msvc`; `rust-toolchain.toml` |
 | rustup | 1.29.0; fixed archive URL and SHA-256 |
 | Android Platform-Tools | 37.0.1; fixed archive URL and SHA-256 |
@@ -250,7 +261,8 @@ locations, packaging details, and artifact handling.
 
 ## Browser Preview
 
-After installing dependencies, run `npm run dev` and open
+After installing dependencies, load `. .\scripts\Environment.ps1`, run
+`npm.cmd run dev` and open
 [the preview](http://127.0.0.1:1420/?preview=1). It shows **Preview · sample data**
 with fictional device and file entries; device writes are disabled. Real
 operations require the desktop app.

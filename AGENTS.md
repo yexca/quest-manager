@@ -71,9 +71,12 @@ Use the root PowerShell entry points:
 .\run-build.ps1
 ```
 
-The dependency policy is part of the project contract. Use system Node/npm at
-the recorded versions, and keep project tools, npm packages, and caches in
-`env`. Do not change permanent environment variables or replace system Node.
+The dependency policy is part of the project contract. Use the pinned Node/npm
+under `env/node`, and keep project tools, npm packages, and caches in `env`.
+Do not change permanent environment variables or replace system Node. Load
+`scripts/Environment.ps1` before direct Node/npm or Cargo commands. System
+C++/SDK/WebView2 installation or updating requires the bootstrap's explicit
+user consent; noninteractive setup must fail instead of changing the system.
 Use exact dependency versions and retain both lockfiles. `-RefreshLocks` is for
 an intentional dependency update, not a routine workaround for setup failures.
 

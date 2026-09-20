@@ -1,6 +1,7 @@
 # ADR-0002: Pinned Tools and Project-Local Dependencies
 
-Status: Accepted; documents the current implementation.
+Status: Accepted; system Node and prerequisite handling superseded by
+[ADR-0009](ADR-0009-local-node-system-setup.md).
 
 ## Context
 

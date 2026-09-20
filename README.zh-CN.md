@@ -38,7 +38,7 @@
 
 ## 快速开始
 
-在项目根目录打开 PowerShell，使用系统已有的 **Node.js 24.19.0 / npm 11.17.0**：
+在 Windows x64 的项目根目录打开 64 位 PowerShell。无需预装 Node；脚本会把固定版本的 **Node.js 24.19.0 / npm 11.17.0** 安装到 `env/node`：
 
 ```powershell
 .\run-install.ps1
@@ -52,14 +52,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-install.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-dev.ps1
 ```
 
-安装脚本不需要管理员权限。首次运行会下载固定版本的工具链和依赖，时间主要取决于网络；首次 Rust 编译需要更多时间。建议预留至少 8 GB 空间。若 Node 版本不一致，脚本会提示所需版本，不会替换系统 Node。
+项目内工具安装不需要管理员权限，也不替换系统 Node 或修改永久 PATH。首次运行会下载并校验固定版本的工具链和依赖；首次 Rust 编译需要更多时间。建议为项目预留至少 8 GB 空间；安装系统构建工具还需要额外空间。
 
 Windows 还需要以下系统组件，安装脚本会先检查：
 
-- Visual Studio 2022 / Build Tools 的 **Desktop development with C++** 工作负载，包含 MSVC 和 Windows SDK。
-- Microsoft Edge WebView2 Runtime。
+- Visual Studio 2022 / Build Tools（17.x），包含 x64 MSVC 14.30 或以上版本。
+- Windows SDK 10.0.19041.0 或以上版本，包含 x64 库、头文件和 `rc.exe`。
+- Microsoft Edge WebView2 Runtime 110.0.1531.0 或以上版本。
 
-这两个系统组件使用本机安装，不能像普通库一样完全放入 `env`。脚本记录实际 Visual Studio、Windows、WebView2 版本。参考 [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows)。
+系统组件已兼容时直接复用；缺失、文件不完整或版本不兼容时，脚本列出要求，并询问是否调用微软官方安装器安装或更新，默认拒绝。C++/SDK 修复会更新选中的 VS 2022 并补齐组件；没有 VS 2022 时安装 Build Tools 2022，保留其他大版本。该操作可能下载数 GB 并请求管理员授权。WebView2 使用 Evergreen 安装器安装或更新。脚本校验微软数字签名、安装后重新检查，不自动重启。也可拒绝后手动安装，见[安装指南](docs/getting-started.md)。
+
+`.\run-install.ps1 -CheckOnly` 只检查系统前置条件，不下载或安装。`-NonInteractive` 安装项目内工具且不询问；系统组件有问题时直接失败，不会静默安装。具体版本边界在 `toolchain.versions.json` 中；版本与文件检查不能代替实际编译验证。
 
 ## 功能
 
@@ -93,7 +96,7 @@ Windows 还需要以下系统组件，安装脚本会先检查：
 
 | 项目 | 固定版本 / 记录位置 |
 | --- | --- |
-| Node.js | 24.19.0，`.node-version` / `toolchain.versions.json` / `package.json` |
+| Node.js | 24.19.0，官方 Windows ZIP 与 SHA-256 在 `toolchain.versions.json`；版本同步到 `.node-version` / `package.json` |
 | npm | 11.17.0，`packageManager` / `engines` |
 | Rust | 1.95.0，`rust-toolchain.toml` |
 | Rust target | `x86_64-pc-windows-msvc` |
@@ -139,6 +142,7 @@ Rust 下载的包源码放在 Cargo 缓存中，实际编译结果放在 `target
 
 ```text
 env/
+  node/                  固定 Node.js 与随附 npm，按版本子目录存放
   cargo/                 Cargo、rustup 启动器及 crates 下载/源码缓存
   rustup/                固定 Rust 编译器、标准库、rustfmt、Clippy
   node_modules/          npm 安装的全部前端依赖
@@ -155,7 +159,7 @@ env/
 node_modules/            指向 env/node_modules 的 Windows junction
 ```
 
-根目录的 `node_modules` 只是目录联接，便于 Vite、TypeScript 和编辑器按 Node 的常规规则找到包；包实际存放在 `env/node_modules`。系统 Node 本身不会被复制或重新安装。脚本仅设置当前 PowerShell 进程及其子进程的环境变量，不修改用户/系统的永久 PATH。
+根目录的 `node_modules` 只是目录联接，便于 Vite、TypeScript 和编辑器按 Node 的常规规则找到包；包实际存放在 `env/node_modules`。项目使用 `env/node` 中的 Node/npm，不依赖系统版本。直接执行 Node/npm 或 Cargo 命令前，先运行 `. .\scripts\Environment.ps1`；环境设置仅影响当前 PowerShell 进程及其子进程，不修改永久 PATH。
 
 保留版本清单、两个锁文件和源代码即可重新安装；`env`、根目录联接、编译输出均已加入 `.gitignore`。不需要提交几 GB 的依赖目录。
 
@@ -173,7 +177,7 @@ node_modules/            指向 env/node_modules 的 Windows junction
 
 `-DeviceWrite` 只在唯一的 `/sdcard/Download/.quest-manager-test-*` 目录操作，并临时安装不含代码、权限或启动入口的 `dev.questmanager.verification` 测试 APK。测试会验证字节一致、特殊文件名、覆盖拒绝、目录重命名/删除、原版与改名换图标后的安装/更新/导出/卸载，以及签名冲突后原安装仍保留，并清理测试内容及临时测试密钥；如果该测试包预先存在则拒绝执行。固定的测试 APK、源 manifest 和校验值位于 `tests/fixtures`。
 
-仅检查前端界面可以运行 `npm run dev`，并在浏览器访问 `http://127.0.0.1:1420/?preview=1`。此模式明确显示 **Preview · sample data**，不操作任何设备。实际使用需要桌面版。
+仅检查前端界面可以先运行 `. .\scripts\Environment.ps1`，再执行 `npm.cmd run dev`，并在浏览器访问 `http://127.0.0.1:1420/?preview=1`。此模式明确显示 **Preview · sample data**，不操作任何设备。实际使用需要桌面版。
 
 ## 项目结构
 

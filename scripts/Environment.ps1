@@ -5,12 +5,15 @@ function Initialize-QuestEnvironment {
     $script:QuestRoot = Split-Path -Parent $PSScriptRoot
     $script:QuestEnv = Join-Path $script:QuestRoot 'env'
     $script:QuestVersions = Get-Content -LiteralPath (Join-Path $script:QuestRoot 'toolchain.versions.json') -Raw | ConvertFrom-Json
+    $script:QuestNodeDirectory = Join-Path $script:QuestEnv "node\node-v$($script:QuestVersions.node)-win-x64"
+    $script:QuestNode = Join-Path $script:QuestNodeDirectory 'node.exe'
+    $script:QuestNpm = Join-Path $script:QuestNodeDirectory 'npm.cmd'
     $env:CARGO_HOME = Join-Path $script:QuestEnv 'cargo'
     $env:RUSTUP_HOME = Join-Path $script:QuestEnv 'rustup'
     $env:CARGO_TARGET_DIR = Join-Path $script:QuestEnv 'target'
     $env:RUSTUP_TOOLCHAIN = $script:QuestVersions.rust
     $env:npm_config_cache = Join-Path $script:QuestEnv 'npm-cache'
-    $env:PATH = (Join-Path $env:CARGO_HOME 'bin') + ';' + (Join-Path $script:QuestEnv 'platform-tools') + ';' + $env:PATH
+    $env:PATH = $script:QuestNodeDirectory + ';' + (Join-Path $env:CARGO_HOME 'bin') + ';' + (Join-Path $script:QuestEnv 'platform-tools') + ';' + $env:PATH
     Set-Location -LiteralPath $script:QuestRoot
 }
 
@@ -20,13 +23,25 @@ function Invoke-QuestCommand {
     if ($LASTEXITCODE -ne 0) { throw "$File failed (exit $LASTEXITCODE)." }
 }
 
+function Assert-QuestNode {
+    if (!(Test-Path -LiteralPath $script:QuestNode) -or !(Test-Path -LiteralPath $script:QuestNpm)) {
+        throw 'Project-local Node/npm are missing. Run .\run-install.ps1 first; system Node is not used.'
+    }
+    $questActualNode = & $script:QuestNode --version
+    if ($LASTEXITCODE -ne 0 -or "$questActualNode".Trim() -ne "v$($script:QuestVersions.node)") {
+        throw 'Project-local Node version mismatch. Run .\run-install.ps1 again.'
+    }
+    $questActualNpm = & $script:QuestNpm --version
+    if ($LASTEXITCODE -ne 0 -or "$questActualNpm".Trim() -ne $script:QuestVersions.npm) {
+        throw 'Project-local npm version mismatch. Run .\run-install.ps1 again.'
+    }
+}
+
 function Assert-QuestInstalled {
     if (!(Test-Path -LiteralPath (Join-Path $script:QuestEnv 'installed-versions.json'))) {
         throw 'Run .\run-install.ps1 first.'
     }
-    if ((& node --version).TrimStart('v') -ne $script:QuestVersions.node -or (& npm.cmd --version).Trim() -ne $script:QuestVersions.npm) {
-        throw "Use system Node $($script:QuestVersions.node) / npm $($script:QuestVersions.npm) as recorded in toolchain.versions.json."
-    }
+    Assert-QuestNode
     $questInstalledRecord = Get-Content -LiteralPath (Join-Path $script:QuestEnv 'installed-versions.json') -Raw | ConvertFrom-Json
     if (!($questInstalledRecord.PSObject.Properties.Name -contains 'toolchainSha256') -or $questInstalledRecord.toolchainSha256 -ne (Get-FileHash -LiteralPath (Join-Path $script:QuestRoot 'toolchain.versions.json')).Hash -or !(Test-Path -LiteralPath (Join-Path $script:QuestEnv 'aapt2\aapt2.exe'))) {
         throw 'Tool versions changed. Run .\run-install.ps1 again before building.'

@@ -10,7 +10,8 @@ only mirror the implementation or prove that documentation text exists.
 .\run-test.ps1
 ```
 
-The script checks the installed environment, builds/typechecks the frontend,
+The script checks the installed environment, runs host-only PowerShell bootstrap
+regressions, builds/typechecks the frontend,
 runs Node's built-in frontend logic tests, `cargo fmt --check`, Clippy for all targets with warnings denied, and
 runs locked Cargo tests. It does not enable ignored device integration tests.
 
@@ -24,13 +25,28 @@ cache invalidation, resource size limits, image-type filtering, and real AAPT2
 label/signing parsing against the existing inert fixture. Test output remains
 synthetic; the fixture is not installed for these routine tests.
 
-Frontend logic regressions use the pinned system Node's built-in test runner,
+Frontend logic regressions use the pinned project Node's built-in test runner,
 without additional dependencies: `node --test tests/frontend/taskState.test.ts tests/frontend/installState.test.ts tests/frontend/applicationState.test.ts tests/frontend/lightningState.test.ts tests/frontend/deviceState.test.ts`.
 They cover stream registration/disposal, overlapping events and snapshots,
 revision ordering, clearing, device changes and batched refresh policy. Rust
 tests cover the authoritative exit guard, terminal-only clearing and revisions.
 There is no browser E2E or documentation-test runner. These logic tests do not
 replace rendered React or native-window inspection; `tsc` alone is not behavior coverage.
+
+Bootstrap tests can also run before dependency installation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/bootstrap/setup.test.ps1
+```
+
+They cover version boundaries, missing/incomplete component classification,
+consent refusal, noninteractive/check-only behavior, repair rechecking, installer
+signature rejection, exit codes/restart handling and argument quoting. System
+installers are mocked: these tests never download, elevate, install or contact
+a headset. Validate real system checks with `run-install.ps1 -CheckOnly` and
+project setup with `run-install.ps1 -NonInteractive` on a compatible computer.
+An actual missing-component installation needs a disposable Windows environment
+and explicit installation consent; mocked tests do not prove installer success.
 
 Install review tests cover lossless numeric version ordering, unknown/error
 states, exact package matching, system apps, obsolete query disposal, retry and
@@ -128,7 +144,7 @@ illustration at both 1280 by 850 and 1000 by 680. Confirm that the model name
 and illustration follow selection, USB remains preferred when both transports
 are ready, offline entries remain visible, and preview writes stay disabled.
 
-After installation, start `npm run dev` and open
+After installation, load `. .\scripts\Environment.ps1`, start `npm.cmd run dev` and open
 [preview](http://127.0.0.1:1420/?preview=1). Check the changed page at supported
 desktop widths, keyboard focus, dialogs, long package/file names, errors, and
 unknown-value states as relevant. The preview includes fixed sample task states

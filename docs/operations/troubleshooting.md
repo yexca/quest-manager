@@ -8,8 +8,12 @@ package names, and personal paths. Use synthetic reproductions in public docs.
 
 | Symptom | Next step |
 | --- | --- |
-| Node/npm version mismatch | Use the system versions declared in the project; the bootstrap does not replace Node |
-| Missing C++ tools, SDK, or WebView2 | Install the prerequisite named by the bootstrap, then retry `run-install.ps1` |
+| Project Node/npm missing or mismatched | Rerun `run-install.ps1` to restore the checked Node ZIP and bundled npm under `env/node`; system Node is not used |
+| Direct `npm`/`node` command unavailable or wrong version | Load `. .\scripts\Environment.ps1` in this shell and use `npm.cmd`; root scripts do this automatically |
+| Missing, incomplete or incompatible C++ tools, SDK, or WebView2 | Run `run-install.ps1 -CheckOnly` for the required/detected versions; run interactively to approve installation/repair, or use the manual links in [Getting started](../getting-started.md) |
+| Noninteractive setup refuses system prerequisites | Install the reported components manually or rerun interactively; `-NonInteractive` never consents to system changes |
+| System installer signature, permission or exit-code failure | Stop and inspect the named failure; do not bypass signature checking. Complete setup through Microsoft's official installer, then rerun the bootstrap |
+| System installer requires restart | Restart Windows yourself and rerun setup; the script does not request an automatic restart |
 | PowerShell blocks a local script | Use the process-scoped invocation in [Getting started](../getting-started.md) |
 | Download checksum mismatch | Recheck the pinned URL/hash and retry the download; do not disable checksum verification |
 | Missing or damaged local Rust components | Rerun the bootstrap; use the project environment for any targeted diagnosis |

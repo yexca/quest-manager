@@ -1,40 +1,21 @@
-param([switch]$RefreshLocks)
+param([switch]$RefreshLocks, [switch]$CheckOnly, [switch]$NonInteractive)
 
 # Project-local tools and caches. No permanent environment or PATH changes.
 . (Join-Path $PSScriptRoot 'scripts\Environment.ps1')
-if ($env:OS -ne 'Windows_NT') { throw 'This bootstrap script currently supports Windows x64.' }
-
-$questNodeVersion = (& node --version).TrimStart('v')
-$questNpmVersion = (& npm.cmd --version).Trim()
-if ($questNodeVersion -ne $QuestVersions.node -or $questNpmVersion -ne $QuestVersions.npm) {
-    throw "Use system Node $($QuestVersions.node) and npm $($QuestVersions.npm). Found Node $questNodeVersion / npm $questNpmVersion. See README.md."
-}
-
-$questVswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-if (!(Test-Path -LiteralPath $questVswhere)) { throw 'Install Visual Studio C++ Build Tools and the Windows SDK. See README.md.' }
-$questVs = (& $questVswhere -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -format json | Out-String) | ConvertFrom-Json
-if (@($questVs).Count -eq 0) { throw 'The Desktop development with C++ workload is required. See README.md.' }
-$questWebviews = @(foreach ($questReg in @('HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients', 'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients', 'HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients')) {
-    if (Test-Path -LiteralPath $questReg) {
-        Get-ChildItem -LiteralPath $questReg | ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath } | Where-Object { $_.PSObject.Properties.Name -contains 'name' -and $_.name -like '*WebView2*' }
-    }
-})
-if ($questWebviews.Count -eq 0) { throw 'Install Microsoft Edge WebView2 Runtime. See README.md.' }
+. (Join-Path $PSScriptRoot 'scripts\Downloads.ps1')
+. (Join-Path $PSScriptRoot 'scripts\SystemPrerequisites.ps1')
+if ($env:OS -ne 'Windows_NT' -or ![Environment]::Is64BitProcess -or $env:PROCESSOR_ARCHITECTURE -ne 'AMD64') { throw 'Run this bootstrap in 64-bit PowerShell on Windows x64.' }
+if ($CheckOnly -and $RefreshLocks) { throw '-CheckOnly cannot be combined with -RefreshLocks.' }
+$questSystem = Ensure-QuestSystemPrerequisites -CheckOnly:$CheckOnly -NonInteractive:$NonInteractive
+if ($CheckOnly) { Write-Host 'System prerequisites are compatible. No tools were installed.'; return }
 
 foreach ($questDirectory in @($QuestEnv, (Join-Path $QuestEnv 'downloads'), $env:CARGO_HOME, $env:RUSTUP_HOME, $env:npm_config_cache)) {
     New-Item -ItemType Directory -Path $questDirectory -Force | Out-Null
 }
 
-function Get-QuestDownload {
-    param([string]$Url, [string]$Name, [string]$Sha256)
-    $questDownload = Join-Path $QuestEnv "downloads\$Name"
-    if (!(Test-Path -LiteralPath $questDownload) -or (Get-FileHash -LiteralPath $questDownload -Algorithm SHA256).Hash -ne $Sha256) {
-        Write-Host "Downloading $Name..."
-        Invoke-WebRequest -Uri $Url -OutFile $questDownload -UseBasicParsing -TimeoutSec 300
-    }
-    if ((Get-FileHash -LiteralPath $questDownload -Algorithm SHA256).Hash -ne $Sha256) { throw "Checksum mismatch: $Name" }
-    return $questDownload
-}
+Install-QuestNode
+$questNodeVersion = (& $QuestNode --version).TrimStart('v')
+$questNpmVersion = (& $QuestNpm --version).Trim()
 
 $questRustupInit = Get-QuestDownload -Url $QuestVersions.rustup.url -Name "rustup-init-$($QuestVersions.rustup.version).exe" -Sha256 $QuestVersions.rustup.sha256
 $questRustup = Join-Path $env:CARGO_HOME 'bin\rustup.exe'
@@ -87,7 +68,7 @@ Invoke-QuestCommand -File (Join-Path $questApkTools 'jre\bin\java.exe') -Argumen
 
 if ($RefreshLocks) {
     Write-Host 'Explicitly refreshing dependency lockfiles...'
-    Invoke-QuestCommand -File 'npm.cmd' -Arguments @('install', '--package-lock-only', '--ignore-scripts')
+    Invoke-QuestCommand -File $QuestNpm -Arguments @('install', '--package-lock-only', '--ignore-scripts')
     Invoke-QuestCommand -File (Join-Path $env:CARGO_HOME 'bin\cargo.exe') -Arguments @('generate-lockfile', '--manifest-path', 'src-tauri/Cargo.toml')
 }
 foreach ($questLock in @('package-lock.json', 'src-tauri\Cargo.lock')) {
@@ -97,7 +78,7 @@ foreach ($questManifest in @('package.json', 'package-lock.json', '.npmrc')) {
     Copy-Item -LiteralPath (Join-Path $QuestRoot $questManifest) -Destination (Join-Path $QuestEnv $questManifest) -Force
 }
 Write-Host 'Installing locked npm dependencies into env/node_modules...'
-Invoke-QuestCommand -File 'npm.cmd' -Arguments @('ci', '--prefix', $QuestEnv, '--no-audit', '--no-fund')
+Invoke-QuestCommand -File $QuestNpm -Arguments @('ci', '--prefix', $QuestEnv, '--no-audit', '--no-fund')
 $questModulesLink = Join-Path $QuestRoot 'node_modules'
 $questModulesTarget = Join-Path $QuestEnv 'node_modules'
 if (Test-Path -LiteralPath $questModulesLink) {
@@ -127,12 +108,10 @@ $questRecord = [ordered]@{
     jre = $QuestVersions.jre.version
     buildTools = $QuestVersions.buildTools.version
     toolchainSha256 = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'toolchain.versions.json')).Hash
-    visualStudio = @($questVs | Select-Object displayName,installationVersion)
-    msvcToolsets = @(foreach ($questVsInstance in $questVs) {
-        Get-ChildItem -LiteralPath (Join-Path $questVsInstance.installationPath 'VC\Tools\MSVC') -Directory | Select-Object -ExpandProperty Name
-    })
-    windowsSdks = @(Get-ChildItem -LiteralPath (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Lib') -Directory | Select-Object -ExpandProperty Name)
-    webview2 = @($questWebviews | Select-Object name,pv)
+    visualStudio = @($questSystem.visualStudio | Select-Object displayName,installationVersion)
+    msvcToolsets = @($questSystem.visualStudio | ForEach-Object { $_.msvcVersion })
+    windowsSdks = @($questSystem.windowsSdks | ForEach-Object { $_.version })
+    webview2 = @($questSystem.webview2 | Select-Object name,pv)
     windows = [Environment]::OSVersion.Version.ToString()
     npmLockSha256 = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'package-lock.json')).Hash
     cargoLockSha256 = (Get-FileHash -LiteralPath (Join-Path $QuestRoot 'src-tauri\Cargo.lock')).Hash

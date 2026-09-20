@@ -50,6 +50,7 @@ calls them through [api.ts](../../src/api.ts).
 | `list_devices` | None | `Device[]` |
 | `device_preferences` | None | `DevicePreferences` |
 | `save_device_profile` | `profile: DeviceProfile` | Updated `DevicePreferences` |
+| `remove_device_profile` | `id` | Updated `DevicePreferences` |
 | `set_device_auto_switch` | `enabled` | Updated `DevicePreferences` |
 | `wireless_connection` | `request: WirelessRequest` | `WirelessResult` |
 | `start_wireless_qr` | None | `WirelessQrSnapshot` |

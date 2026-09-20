@@ -2,9 +2,10 @@
 
 ## Discovery and Read Queries
 
-The UI requests devices initially, on refresh, and every 15 seconds. A frontend
-guard prevents overlapping discovery polls. The backend parses `adb devices -l`,
-queries `ro.serialno` for ready transports, and groups by the resulting identity.
+The UI requests devices initially, retries discovery every 500 ms for the first
+six seconds, and then polls every three seconds. A frontend guard prevents
+overlapping discovery polls. The backend parses `adb devices -l`, retries the
+`ro.serialno` query briefly for ready transports, and groups by the resulting identity.
 Ready connections sort ahead of unavailable ones, with USB preferred.
 
 After explicit wireless connection succeeds, the UI waits for any older

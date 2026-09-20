@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleHelp, Pencil, Plus, RefreshCw, Settings2, Smartphone, Usb, Wifi, Zap } from 'lucide-react';
+import { CheckCircle2, CircleHelp, Pencil, Plus, RefreshCw, Settings2, Smartphone, Trash2, Usb, Wifi, Zap } from 'lucide-react';
 import { isDesktop } from './api';
 import { connectionSummary, selectTransport } from './deviceState';
 import type { ConnectionPreference, Device, DevicePowerSettings, DeviceProfile } from './types';
@@ -9,6 +9,7 @@ export function Devices({
   devices, selectedId, onSelect, onAddConnection, onRefresh, loading, power, powerLoading, powerError,
   onStayAwake, onLightning, autoSwitch, onAutoSwitch, onSaveProfile,
   onRename, onManageConnections,
+  onRemove,
 }: {
   devices: Device[];
   selectedId: string;
@@ -26,6 +27,7 @@ export function Devices({
   onSaveProfile: (profile: DeviceProfile) => Promise<void>;
   onRename: (device: Device) => void;
   onManageConnections: (device: Device) => void;
+  onRemove: (device: Device) => void;
 }) {
   const selected = devices.find(device => device.id === selectedId);
   const current = selectTransport(selected);
@@ -49,7 +51,7 @@ export function Devices({
                   <span className="device-transport-summary">{device.transports.length ? connectionSummary(device).map(transport => <span key={transport.serial} title={transport.serial} className={transport.state === 'device' ? 'ready' : ''}>{transport.kind === 'usb' ? <Usb size={12} /> : <Wifi size={12} />}{transportLabel(transport.kind)} · {transport.state === 'device' ? 'Connected' : transport.state === 'unauthorized' ? 'Authorization needed' : 'Offline'}{active && connection?.serial === transport.serial ? ' · In use' : ''}</span>) : <span>Offline</span>}</span>
                 </span>
               </button>
-              <div className="device-row-actions"><button className="button secondary small" aria-label={`Rename ${device.displayName || device.model}`} onClick={() => onRename(device)}><Pencil size={14} />Edit name</button><button className="button secondary small" aria-label={`Manage connections for ${device.displayName || device.model}`} onClick={() => onManageConnections(device)}><Settings2 size={14} />Manage connections</button></div>
+              <div className="device-row-actions"><button className="button secondary small" aria-label={`Rename ${device.displayName || device.model}`} onClick={() => onRename(device)}><Pencil size={14} />Edit name</button><button className="button secondary small" aria-label={`Manage connections for ${device.displayName || device.model}`} onClick={() => onManageConnections(device)}><Settings2 size={14} />Manage connections</button><button className="button secondary small" aria-label={`Remove saved device ${device.displayName || device.model}`} onClick={() => onRemove(device)}><Trash2 size={14} />Remove saved device</button></div>
             </div>;
           })}
         </div>

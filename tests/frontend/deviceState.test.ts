@@ -158,6 +158,17 @@ test('a disconnected device remains in the session directory as offline', () => 
   assert.ok(merged[0].transports.every(transport => transport.state === 'offline'));
 });
 
+test('identity re-resolution rebinds a transport without retaining a fallback duplicate', () => {
+  const fallback: Device = { id: 'DEMO-USB-001', model: 'Quest 3', transports: [
+    { serial: 'DEMO-USB-001', kind: 'usb', state: 'device' },
+  ] };
+  const resolved: Device = { id: 'DEMO-PHYSICAL-001', model: 'Quest 3', transports: [
+    { serial: 'DEMO-USB-001', kind: 'usb', state: 'device' },
+  ] };
+  const merged = mergeDeviceSnapshots([fallback], [resolved]);
+  assert.deepEqual(merged, [resolved]);
+});
+
 test('manual refresh suppresses an older offline poll and waits for a new snapshot', async () => {
   const old = deferred<Device[]>();
   const fresh = deferred<Device[]>();

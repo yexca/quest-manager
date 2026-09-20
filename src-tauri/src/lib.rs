@@ -109,6 +109,14 @@ fn save_device_profile(
 }
 
 #[tauri::command]
+fn remove_device_profile(
+    store: tauri::State<'_, DeviceProfileStore>,
+    id: String,
+) -> Result<DevicePreferences, String> {
+    store.remove_profile(id)
+}
+
+#[tauri::command]
 fn set_device_auto_switch(
     store: tauri::State<'_, DeviceProfileStore>,
     enabled: bool,
@@ -318,6 +326,7 @@ pub fn run() {
             list_devices,
             device_preferences,
             save_device_profile,
+            remove_device_profile,
             set_device_auto_switch,
             wireless_connection,
             disconnect_wireless,

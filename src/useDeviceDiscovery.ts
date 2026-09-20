@@ -33,7 +33,15 @@ export function useDeviceDiscovery(refreshToken: number, fail: (error: unknown) 
     const report = (error: unknown) => { if (discovery.current === current) fail(error); };
     void loadDevices().catch(report);
     const timer = setInterval(() => { void loadDevices(true).catch(report); }, 3000);
-    return () => { current.dispose(); discovery.current = null; clearInterval(timer); };
+    // ADB can briefly return an empty or stale inventory while its Windows
+    // service and USB transport settle during app startup.
+    let startupAttempts = 0;
+    const startupTimer = setInterval(() => {
+      startupAttempts += 1;
+      void loadDevices(true).catch(report);
+      if (startupAttempts >= 12) clearInterval(startupTimer);
+    }, 500);
+    return () => { current.dispose(); discovery.current = null; clearInterval(timer); clearInterval(startupTimer); };
   }, [loadDevices, fail]);
   useEffect(() => {
     if (refreshToken === 0) return;

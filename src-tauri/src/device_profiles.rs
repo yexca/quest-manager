@@ -106,6 +106,23 @@ impl DeviceProfileStore {
         Ok(next)
     }
 
+    pub fn remove_profile(&self, id: String) -> Result<DevicePreferences, String> {
+        let id = id.trim();
+        if id.is_empty() || id.len() > 240 {
+            return Err("The device identity is invalid.".into());
+        }
+        let mut state = self.state.lock().expect("device profile mutex poisoned");
+        let mut next = state.clone();
+        let before = next.profiles.len();
+        next.profiles.retain(|profile| profile.id != id);
+        if next.profiles.len() == before {
+            return Err("The saved device was not found.".into());
+        }
+        self.persist(&next)?;
+        *state = next.clone();
+        Ok(next)
+    }
+
     fn persist(&self, state: &DevicePreferences) -> Result<(), String> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)
@@ -175,6 +192,24 @@ mod tests {
         assert!(!loaded.auto_switch);
         assert_eq!(loaded.profiles.len(), 1);
         assert_eq!(loaded.profiles[0].display_name, "Office");
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn removing_a_profile_only_changes_saved_preferences() {
+        let path = std::env::temp_dir().join(format!(
+            "quest-manager-device-profile-remove-{}.json",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let store = DeviceProfileStore::new(path.clone());
+        store
+            .save_profile(profile("DEMO-A", "Living room"))
+            .unwrap();
+        store.save_profile(profile("DEMO-B", "Office")).unwrap();
+        let next = store.remove_profile(" DEMO-A ".into()).unwrap();
+        assert_eq!(next.profiles.len(), 1);
+        assert_eq!(next.profiles[0].id, "DEMO-B");
         let _ = fs::remove_file(path);
     }
 }

@@ -102,7 +102,11 @@ any page, including the first launch. Add device opens naming and connection
 preferences for that exact headset, reusing an existing authorized connection.
 Unauthorized USB devices prompt for headset authorization before saving.
 The first available saved device loads automatically without visiting Devices;
-discovery polls every three seconds. New devices are never saved just by discovery.
+discovery retries during the first few seconds after launch and then polls every
+three seconds. New devices are never saved just by discovery. **Remove saved
+device** deletes only the local Quest Manager profile; it does not disconnect
+ADB or revoke pairing trust. A headset that appears after removal is treated as
+new and asks for registration again.
 
 The selected device remains selected when another headset appears or when its
 transports go offline. A newly detected device that is not registered produces

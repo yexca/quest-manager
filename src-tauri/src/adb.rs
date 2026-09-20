@@ -183,10 +183,8 @@ impl Adb {
         let mut devices: BTreeMap<String, Device> = BTreeMap::new();
         for (transport, model) in connections {
             let id = if transport.state == "device" {
-                self.shell(&transport.serial, "getprop ro.serialno")
+                self.read_physical_identity(&transport.serial)
                     .await
-                    .ok()
-                    .filter(|id| !id.is_empty())
                     .unwrap_or_else(|| transport.serial.clone())
             } else {
                 transport.serial.clone()
@@ -204,6 +202,29 @@ impl Adb {
                 .sort_by_key(|t| (t.state != "device", t.kind != "usb"));
         }
         Ok(devices.into_values().collect())
+    }
+
+    /// A newly-started ADB/USB stack can report a ready transport before the
+    /// headset has populated `ro.serialno`. Retry the identity read briefly so
+    /// the same physical device is grouped consistently from the first useful
+    /// snapshot.
+    async fn read_physical_identity(&self, serial: &str) -> Option<String> {
+        for attempt in 0..3 {
+            let query = tokio::time::timeout(
+                Duration::from_millis(750),
+                self.shell(serial, "getprop ro.serialno"),
+            )
+            .await;
+            if let Ok(Ok(identity)) = query
+                && !identity.is_empty()
+            {
+                return Some(identity);
+            }
+            if attempt < 2 {
+                tokio::time::sleep(Duration::from_millis(150)).await;
+            }
+        }
+        None
     }
 
     // Explicit reconnect never enables wireless debugging or pairs a device.

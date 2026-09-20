@@ -109,6 +109,13 @@ export const api = {
     previewDevicePreferences = { ...previewDevicePreferences, profiles };
     return Promise.resolve(structuredClone(previewDevicePreferences));
   },
+  removeDeviceProfile: (id: string): Promise<DevicePreferences> => {
+    if (!isPreview) return call('remove_device_profile', { id });
+    const profiles = previewDevicePreferences.profiles.filter(profile => profile.id !== id);
+    if (profiles.length === previewDevicePreferences.profiles.length) return Promise.reject(new Error('The saved device was not found.'));
+    previewDevicePreferences = { ...previewDevicePreferences, profiles };
+    return Promise.resolve(structuredClone(previewDevicePreferences));
+  },
   setDeviceAutoSwitch: (enabled: boolean): Promise<DevicePreferences> => {
     if (!isPreview) return call('set_device_auto_switch', { enabled });
     previewDevicePreferences = { ...previewDevicePreferences, autoSwitch: enabled };

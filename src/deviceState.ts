@@ -108,9 +108,15 @@ export function selectTransport(device: Device | undefined): Transport | undefin
 /** Keep devices seen during this session so a disconnect does not retarget work. */
 export function mergeDeviceSnapshots(previous: Device[], next: Device[]): Device[] {
   const incoming = new Map(next.map(device => [device.id, device]));
+  const consumed = new Set<Device>();
   const merged = next.map(device => {
-    const prior = previous.find(item => item.id === device.id);
+    // ADB may expose a transport serial before `ro.serialno` is readable, then
+    // group the same transport under its physical identity on the next poll.
+    // Rebind that alias instead of leaving a stale offline duplicate behind.
+    const prior = previous.find(item => !consumed.has(item) && (item.id === device.id
+      || item.transports.some(oldTransport => device.transports.some(transport => transport.serial === oldTransport.serial))));
     if (!prior) return device;
+    consumed.add(prior);
     const transports = new Map(device.transports.map(transport => [transport.serial, transport]));
     for (const transport of prior.transports) {
       if (!transports.has(transport.serial)) transports.set(transport.serial, { ...transport, state: 'offline' });
@@ -118,7 +124,7 @@ export function mergeDeviceSnapshots(previous: Device[], next: Device[]): Device
     return { ...device, transports: [...transports.values()] };
   });
   for (const device of previous) {
-    if (!incoming.has(device.id)) merged.push({ ...device, transports: device.transports.map(transport => ({ ...transport, state: 'offline' })) });
+    if (!consumed.has(device) && !incoming.has(device.id)) merged.push({ ...device, transports: device.transports.map(transport => ({ ...transport, state: 'offline' })) });
   }
   return merged;
 }

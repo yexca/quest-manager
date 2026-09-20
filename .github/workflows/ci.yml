@@ -27,13 +27,17 @@ jobs:
         with:
           persist-credentials: false
       - name: Check application versions
-        run: ./scripts/Assert-ReleaseSource.ps1
+        run: ./scripts/Assert-ReleaseSource.ps1 -CheckClean
       - name: Prepare disposable Windows runner
         run: ./scripts/Initialize-CiRunner.ps1 -InstallWebView2
       - name: Install pinned project tools and dependencies
         run: ./run-install.ps1 -NonInteractive
+      - name: Check source after setup
+        run: ./scripts/Assert-ReleaseSource.ps1 -CheckClean
       - name: Run host tests and checks
         run: ./run-test.ps1
+      - name: Check source after tests
+        run: ./scripts/Assert-ReleaseSource.ps1 -CheckClean
       - name: Build unsigned online portable
         id: package
         run: ./run-build.ps1 -Portable Online
@@ -41,6 +45,7 @@ jobs:
         env:
           PACKAGE_DIRECTORY: ${{ steps.package.outputs.portable-directory }}
         run: |
+          ./scripts/Assert-ReleaseSource.ps1 -CheckClean
           $commit = (git rev-parse HEAD).Trim()
           if ($LASTEXITCODE -ne 0) { throw 'Cannot read source commit.' }
           ./scripts/Test-PortableArchives.ps1 -Directory $env:PACKAGE_DIRECTORY -Variant Online -ExpectedCommit $commit -RequireCleanSource

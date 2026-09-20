@@ -1,4 +1,4 @@
-param([string]$Tag)
+param([string]$Tag, [switch]$CheckClean)
 $ErrorActionPreference = 'Stop'
 
 function Get-QuestReleaseVersion {
@@ -21,6 +21,16 @@ function Get-QuestReleaseVersion {
     return $version
 }
 
+function Assert-QuestCleanSource {
+    param([string]$Root)
+    $changes = & git -C $Root status --porcelain --untracked-files=all
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect source working-tree state.' }
+    if (($changes | Out-String).Trim()) {
+        foreach ($change in $changes) { Write-Host "Source change: $change" }
+        throw 'Release source must have a clean working tree.'
+    }
+}
+
 function Assert-QuestReleaseTag {
     param([string]$Root, [string]$Tag, [string]$Version)
     if ($Tag -cne "v$Version") { throw 'Release tag must exactly match the application version (vMAJOR.MINOR.PATCH).' }
@@ -28,13 +38,13 @@ function Assert-QuestReleaseTag {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read source commit.' }
     $tagCommit = & git -C $Root rev-parse --verify "refs/tags/$Tag^{commit}"
     if ($LASTEXITCODE -ne 0 -or "$tagCommit".Trim() -cne "$head".Trim()) { throw 'Release tag does not resolve to the checked-out source commit.' }
-    $changes = & git -C $Root status --porcelain --untracked-files=all
-    if ($LASTEXITCODE -ne 0 -or ($changes | Out-String).Trim()) { throw 'Release source must have a clean working tree.' }
+    Assert-QuestCleanSource $Root
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
     $root = Split-Path -Parent $PSScriptRoot
     $version = Get-QuestReleaseVersion $root
     if ($Tag) { Assert-QuestReleaseTag -Root $root -Tag $Tag -Version $version }
+    elseif ($CheckClean) { Assert-QuestCleanSource $root }
     Write-Host "Application version verified: $version"
 }

@@ -44,8 +44,12 @@ jobs:
         run: ./scripts/Initialize-CiRunner.ps1 -InstallWebView2
       - name: Install pinned project tools and dependencies
         run: ./run-install.ps1 -NonInteractive
+      - name: Check source after setup
+        run: ./scripts/Assert-ReleaseSource.ps1 -CheckClean
       - name: Run host tests and checks
         run: ./run-test.ps1
+      - name: Check source after tests
+        run: ./scripts/Assert-ReleaseSource.ps1 -CheckClean
       - name: Build unsigned online and offline portables
         id: package
         run: ./run-build.ps1 -Portable Both

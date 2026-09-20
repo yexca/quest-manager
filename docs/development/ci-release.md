@@ -18,6 +18,8 @@ The artifact wrapper contains the portable ZIP and its checksum; extract the
 portable ZIP completely before running `Start-QuestManager.cmd`.
 
 CI does not launch the desktop app, install USB drivers or contact a headset.
+Source checks run after setup and tests, and again after packaging. Unexpected
+changes stop the workflow and report repository-relative paths for diagnosis.
 An online package build does not exercise missing-WebView2 consent on an end-user
 machine. No browser E2E or clean Windows 10/11 verification is implied.
 

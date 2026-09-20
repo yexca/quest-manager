@@ -169,6 +169,14 @@ the default browser.
 
 ## Diagnostics and Sharing
 
+Optional portable ZIPs omit local environment records. The online launcher asks
+before downloading Microsoft's signed WebView2 installer into a unique temporary
+directory; it removes that launcher afterwards. Microsoft's shared runtime,
+updater and logs can remain outside the app directory. Offline packages use a
+bundled fixed WebView2; on Windows 10 the launcher grants AppContainer read/execute
+access only to that runtime folder. Neither variant relocates application data
+or removes the WebView2 runtime's own storage behavior.
+
 Errors and task messages can include actual device paths, computer paths,
 package names, and command output. They are not automatically redacted.
 Screenshots, terminal transcripts, crash dumps, and copied support messages

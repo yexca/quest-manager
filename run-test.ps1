@@ -2,6 +2,8 @@ param([switch]$Device, [switch]$DeviceWrite)
 . (Join-Path $PSScriptRoot 'scripts\Environment.ps1')
 Assert-QuestInstalled
 & (Join-Path $QuestRoot 'tests\bootstrap\setup.test.ps1')
+& (Join-Path $QuestRoot 'tests\bootstrap\portable.test.ps1')
+& (Join-Path $QuestRoot 'tests\bootstrap\release.test.ps1')
 Invoke-QuestCommand -File $QuestNpm -Arguments @('run', 'build')
 Invoke-QuestCommand -File $QuestNode -Arguments @('--test', 'tests/frontend/taskState.test.ts', 'tests/frontend/installState.test.ts', 'tests/frontend/applicationState.test.ts', 'tests/frontend/lightningState.test.ts', 'tests/frontend/deviceState.test.ts')
 Invoke-QuestCommand -File 'cargo.exe' -Arguments @('fmt', '--manifest-path', 'src-tauri/Cargo.toml', '--', '--check')

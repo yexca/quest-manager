@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Test and build both portable variants
+    runs-on: windows-2022
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate version tag and clean source
+        id: source
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          if (!$env:RELEASE_REF.StartsWith('refs/tags/')) { throw 'Run Release on an existing version tag, for example v0.1.0.' }
+          $tag = $env:RELEASE_REF.Substring(10)
+          ./scripts/Assert-ReleaseSource.ps1 -Tag $tag
+          $commit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read source commit.' }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+      - name: Prepare disposable Windows runner
+        run: ./scripts/Initialize-CiRunner.ps1 -InstallWebView2
+      - name: Install pinned project tools and dependencies
+        run: ./run-install.ps1 -NonInteractive
+      - name: Run host tests and checks
+        run: ./run-test.ps1
+      - name: Build unsigned online and offline portables
+        id: package
+        run: ./run-build.ps1 -Portable Both
+      - name: Verify archives and source identity
+        env:
+          PACKAGE_DIRECTORY: ${{ steps.package.outputs.portable-directory }}
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          ./scripts/Assert-ReleaseSource.ps1 -Tag $env:RELEASE_TAG
+          ./scripts/Test-PortableArchives.ps1 -Directory $env:PACKAGE_DIRECTORY -Variant Both -ExpectedCommit $env:RELEASE_COMMIT -RequireCleanSource
+      - name: Upload only distributable files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-portables
+          path: |
+            ${{ steps.package.outputs.portable-directory }}/*.zip
+            ${{ steps.package.outputs.portable-directory }}/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  draft:
+    name: Attach verified packages to draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-portables
+          path: artifacts
+      - name: Create or update draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          cd artifacts
+          files=()
+          for mode in online offline; do
+            name="quest-manager-${RELEASE_TAG}-windows-x64-portable-${mode}.zip"
+            [[ -f "$name" && -f "$name.sha256" ]]
+            [[ "$(cat "$name.sha256")" == "$(sha256sum "$name")" ]]
+            files+=("$name" "$name.sha256")
+          done
+          [[ "$(find . -maxdepth 1 -type f | wc -l)" -eq 4 ]]
+          # Refuse moved tags, including annotated tags that resolve elsewhere.
+          object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG")
+          while [[ "$(jq -r '.object.type' <<< "$object")" == tag ]]; do
+            object=$(gh api "repos/$GH_REPO/git/tags/$(jq -r '.object.sha' <<< "$object")")
+          done
+          [[ "$(jq -r '.object.type' <<< "$object")" == commit ]]
+          [[ "$(jq -r '.object.sha' <<< "$object")" == "$RELEASE_COMMIT" ]]
+          releases=$(gh release list --limit 1000 --json tagName,isDraft)
+          state=$(jq -r --arg tag "$RELEASE_TAG" '.[] | select(.tagName == $tag) | .isDraft' <<< "$releases")
+          if [[ "$state" == false ]]; then
+            echo 'Refusing to replace assets on a published release.' >&2
+            exit 1
+          fi
+          if [[ -z "$state" ]]; then
+            cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          Unsigned Windows x64 portable builds from commit $RELEASE_COMMIT.
+
+          - Online: uses system WebView2 and asks to install it if necessary.
+          - Offline: includes a fixed WebView2 runtime.
+          - Extract the complete ZIP and open Start-QuestManager.cmd.
+          - Verify the ZIP using its accompanying SHA-256 file.
+
+          Maintainer review before publishing: complete third-party notices and
+          corresponding-source obligations, clean Windows startup and Quest device
+          validation, and final release notes. CI does not perform these manual checks.
+          EOF
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Quest Manager $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber

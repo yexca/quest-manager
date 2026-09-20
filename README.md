@@ -249,11 +249,19 @@ changing versions.
 ```powershell
 .\run-build.ps1
 .\run-build.ps1 -Installer
+.\run-build.ps1 -Portable Both
 ```
 
 The portable executable is `release/quest-manager.exe`. Keep its
 `platform-tools`, `aapt2` and `apk-tools` directories, DLLs, and license files with
 it. The optional NSIS installer is written under `env/target/release/bundle/nsis`.
+
+`-Portable Both` creates online/offline comparison ZIPs and SHA-256 files under
+`release/portable-*`. Launch either with `Start-QuestManager.cmd`. The online
+package asks before installing a missing/outdated system WebView2; the offline
+package includes fixed WebView2 and uses it without a system installation.
+Use `-Portable Online` or `-Portable Offline` for one variant. These unsigned
+packages still require binary-release review and clean-Windows validation.
 
 Review local environment records before distributing build output. See
 [Commit and Release](docs/development/commit-and-release.md) for version
@@ -296,6 +304,12 @@ Development setup, validation, and maintenance procedures live under
 Use `run-test.ps1` for the routine frontend and Rust checks. Device integration
 tests are opt-in; read the testing guide before using a connected headset.
 The product UI remains English; the linked Chinese README is documentation.
+
+GitHub Actions runs Windows checks and builds an unsigned online portable on
+pull requests and pushes to `main`. Pushing a version tag such as `v0.1.0`
+builds both portable variants and attaches their ZIPs and SHA-256 files to a
+draft release. See [CI and release automation](docs/development/ci-release.md)
+for triggers, permissions and review before publication.
 
 Bug and feature templates and a pull request checklist are included in `.github`.
 Security reports follow the private reporting procedure in [Security](SECURITY.md).

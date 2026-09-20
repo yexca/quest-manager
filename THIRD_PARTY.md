@@ -27,6 +27,11 @@ Read the license files shipped with the exact packages as well as their metadata
 A single table entry does not describe licenses of embedded or transitive code.
 Node.js/npm, the Rust toolchain, Windows C++ tools/SDK and WebView2 are separate
 build or system prerequisites; the app does not ship a Node.js runtime.
+The optional offline portable package ships Microsoft WebView2 Fixed Version,
+pinned in `packaging/webview2.json`. Preserve the entire runtime and its notices,
+including `show_third_party_software_licenses.bat`; review Microsoft's WebView2
+distribution terms before public release. The online variant uses the shared
+Evergreen runtime instead and downloads its Microsoft installer only on consent.
 
 ## Bundled External Tools
 

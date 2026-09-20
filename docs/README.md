@@ -19,6 +19,7 @@ source files and version manifests remain authoritative when details change.
 | [Architecture](architecture/index.md) | Source map, runtime layers, boundaries, IPC data, task execution |
 | [Product](product/index.md) | User-visible device, application, file, and queue behavior |
 | [Local development](development/local-dev.md) | Root scripts, direct commands, and edit workflow |
+| [CI and release automation](development/ci-release.md) | Hosted Windows checks, portable artifacts and draft releases |
 | [Dependencies](development/dependencies.md) | Pinned versions, project-local tools, and intentional updates |
 | [Testing](development/testing.md) | Routine checks, preview, synthetic fixtures, and opt-in device tests |
 | [Secure development](development/security.md) | Filesystem and subprocess rules, privacy review |

@@ -93,11 +93,15 @@ and environment records remain ignored by Git.
 
 The source repository is [yexca/quest-manager](https://github.com/yexca/quest-manager).
 Setting a repository URL in About or package metadata does not configure a Git
-remote or authorize pushing. There is no automated CI or release workflow.
+remote or authorize pushing. [CI and release automation](ci-release.md) runs
+host checks and builds portable archives; version tags create draft releases.
 Public release notes should describe shipped behavior, not device inventories,
 machine paths, or raw validation transcripts.
 
 ## Before the First Public Push
+
+See [Portable comparison packages](portable.md) for the online/offline ZIP
+builder, runtime selection, source-path remapping and validation boundaries.
 
 - Review the actual commit history as well as the working tree for personal
   paths, device details, logs and keys. Ignore rules do not remove old blobs.
@@ -129,9 +133,9 @@ These are owner-managed settings, not features activated by checking in files:
   promise a support deadline without the maintainer's agreement.
 - Review available dependency alerts and secret-scanning/push-protection settings
   for the repository. A scan is useful evidence, not a guarantee that data is safe.
-- Consider branch rules and Windows CI when the actual runner can satisfy the
-  pinned toolchain. There is currently no workflow or required status check to
-  select; do not document unconfigured checks as enforced.
+- After the first successful CI run, consider requiring the **Windows checks
+  and portable build** check in branch rules. Checking in a workflow does not
+  automatically enforce a required status check.
 
 Do not enable automatic dependency upgrades casually: the project requires exact
 versions, coordinated manifests and review of both lockfiles. A future update

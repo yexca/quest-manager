@@ -16,6 +16,7 @@ versions, packaging metadata, or code-signing environments.
 | JavaScript dependencies | Exact versions in `package.json`, resolved tree in [package-lock.json](../../package-lock.json) |
 | Rust dependencies | Exact direct versions in `Cargo.toml`, resolved tree in [Cargo.lock](../../src-tauri/Cargo.lock) |
 | Tauri packaging tools | Resolution and checksums supplied by the pinned Tauri CLI |
+| Offline portable WebView2 | [packaging/webview2.json](../../packaging/webview2.json), official fixed CAB URL/SHA-256 plus Microsoft signature validation |
 
 The exact current version list is also summarized in the root
 [README](../../README.md). Update all corresponding declarations together.
@@ -39,6 +40,7 @@ do not force them to share a patch number.
 | `env/aapt2` | AAPT2 9.4.0-15978811 executable (2.20-15978811) and notices, extracted from the official Maven Windows JAR; no Java runtime needed |
 | `env/cache/app-metadata` | Private development artwork/metadata cache, not dependency input |
 | `env/downloads` | Downloaded tool archives verified by checksum |
+| `env/webview2` | Extracted fixed WebView2 for the optional offline portable package |
 | Root `node_modules` | Windows junction pointing to `env/node_modules` |
 
 The scripts invoke project-local Node/npm explicitly and prepend their directory
@@ -114,6 +116,12 @@ DEX bytes in the Rust executable. Build output stays under Cargo's `OUT_DIR`
 inside `env/target`. No extra compiler, Android Studio, SDK or global Java is required.
 
 ## Local Records
+
+GitHub Actions uses the same local toolchain and lockfiles on `windows-2022`.
+It checks the runner's VS 2022 and SDK rather than installing different compiler
+versions. Its explicit disposable-runner setup may install a compatible signed
+WebView2 Evergreen runtime; local noninteractive setup still refuses system
+changes. Actions are pinned to full commit SHAs. See [CI and release](ci-release.md).
 
 `env/installed-versions.json` records actual tool/platform versions and lockfile
 hashes. Builds copy it to `release/build-environment.json`. These records may

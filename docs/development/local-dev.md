@@ -15,6 +15,7 @@ targets Windows x64; native system prerequisites are described in
 | `.\run-test.ps1` | Frontend build/typecheck, Rust format check, Clippy, and default Cargo tests |
 | `.\run-build.ps1` | Build the release executable, portable tools and license |
 | `.\run-build.ps1 -Installer` | Also build the NSIS installer |
+| `.\run-build.ps1 -Portable Both` | Build online/offline comparison ZIPs with launchers/checksums; `Online` / `Offline` selects one |
 | `.\run-install.ps1 -RefreshLocks` | Intentionally regenerate dependency locks before installation |
 
 The scripts source [Environment.ps1](../../scripts/Environment.ps1), which sets

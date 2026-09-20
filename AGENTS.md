@@ -77,6 +77,9 @@ Do not change permanent environment variables or replace system Node. Load
 `scripts/Environment.ps1` before direct Node/npm or Cargo commands. System
 C++/SDK/WebView2 installation or updating requires the bootstrap's explicit
 user consent; noninteractive setup must fail instead of changing the system.
+The CI workflow explicitly authorizes WebView2 setup on disposable GitHub-hosted
+Windows runners through `scripts/Initialize-CiRunner.ps1 -InstallWebView2`.
+This exception does not apply to local or self-hosted machines.
 Use exact dependency versions and retain both lockfiles. `-RefreshLocks` is for
 an intentional dependency update, not a routine workaround for setup failures.
 
@@ -91,7 +94,8 @@ Keep validation proportional to the change. Documentation changes need link,
 command, factual, and whitespace checks. UI changes need the frontend build and
 relevant preview inspection. Rust or IPC changes normally use `run-test.ps1`.
 Frontend logic tests use Node's built-in runner through `run-test.ps1`;
-there is no browser E2E runner or CI workflow. Do not claim rendered UI coverage
+GitHub Actions runs these host checks and builds portable archives. There is no
+browser E2E runner. Do not claim rendered UI coverage
 from the logic tests or typecheck alone.
 
 Device tests are opt-in. `-Device` reads the connected headset; `-DeviceWrite`

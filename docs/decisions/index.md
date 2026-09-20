@@ -13,6 +13,8 @@ are not device validation records or a claim about a published release.
 - [ADR-0007: Optional public APK downloads](ADR-0007-optional-app-downloads.md)
 - [ADR-0008: Explicit wireless connection setup](ADR-0008-explicit-wireless-setup.md)
 - [ADR-0009: Project-local Node and consented system setup](ADR-0009-local-node-system-setup.md)
+- [ADR-0010: Online and offline portable runtime packages](ADR-0010-portable-runtime-variants.md)
+- [ADR-0011: Hosted Windows CI and draft releases](ADR-0011-hosted-ci-draft-releases.md)
 
 Add an ADR when a change alters a long-lived boundary such as process topology,
 device identity, storage scope, task persistence, dependency management, or

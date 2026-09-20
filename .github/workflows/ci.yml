@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  windows:
+    name: Windows checks and portable build
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check application versions
+        run: ./scripts/Assert-ReleaseSource.ps1
+      - name: Prepare disposable Windows runner
+        run: ./scripts/Initialize-CiRunner.ps1 -InstallWebView2
+      - name: Install pinned project tools and dependencies
+        run: ./run-install.ps1 -NonInteractive
+      - name: Run host tests and checks
+        run: ./run-test.ps1
+      - name: Build unsigned online portable
+        id: package
+        run: ./run-build.ps1 -Portable Online
+      - name: Verify archive and source identity
+        env:
+          PACKAGE_DIRECTORY: ${{ steps.package.outputs.portable-directory }}
+        run: |
+          $commit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read source commit.' }
+          ./scripts/Test-PortableArchives.ps1 -Directory $env:PACKAGE_DIRECTORY -Variant Online -ExpectedCommit $commit -RequireCleanSource
+      - name: Upload portable for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-x64-portable-online
+          path: |
+            ${{ steps.package.outputs.portable-directory }}/*.zip
+            ${{ steps.package.outputs.portable-directory }}/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

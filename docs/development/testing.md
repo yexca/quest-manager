@@ -37,6 +37,8 @@ Bootstrap tests can also run before dependency installation:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/bootstrap/setup.test.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/bootstrap/portable.test.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/bootstrap/release.test.ps1
 ```
 
 They cover version boundaries, missing/incomplete component classification,
@@ -47,6 +49,14 @@ a headset. Validate real system checks with `run-install.ps1 -CheckOnly` and
 project setup with `run-install.ps1 -NonInteractive` on a compatible computer.
 An actual missing-component installation needs a disposable Windows environment
 and explicit installation consent; mocked tests do not prove installer success.
+
+Release regressions reject inconsistent versions, mismatched tags, dirty source,
+wrong archive identities, changed ZIP checksums, missing runtime resources,
+private build records and unsafe ZIP paths. Synthetic archives are kept under
+ignored `env/test-artifacts`; they contain no executable payloads or device data.
+[CI](ci-release.md) runs the same host suite, builds a real online portable and
+checks its archive. The tag workflow additionally packages the fixed runtime.
+Neither workflow enables device tests or proves rendered/native-window behavior.
 
 Install review tests cover lossless numeric version ordering, unknown/error
 states, exact package matching, system apps, obsolete query disposal, retry and

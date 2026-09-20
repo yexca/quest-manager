@@ -168,6 +168,7 @@ node_modules/            指向 env/node_modules 的 Windows junction
 ```powershell
 .\run-build.ps1              # 构建 release/quest-manager.exe 和随附 platform-tools、aapt2、apk-tools
 .\run-build.ps1 -Installer   # 另生成 NSIS 安装包；首次可能下载打包工具
+.\run-build.ps1 -Portable Both # 生成联网引导和内置 WebView2 的离线 portable ZIP
 .\run-test.ps1               # 前端构建、Rust 格式、Clippy、单元测试
 .\run-test.ps1 -Device       # 加上已授权 Quest 的只读集成测试
 .\run-test.ps1 -DeviceWrite  # 加上专用目录 + 专用测试 APK 的完整读写集成测试
@@ -180,6 +181,8 @@ node_modules/            指向 env/node_modules 的 Windows junction
 仅检查前端界面可以先运行 `. .\scripts\Environment.ps1`，再执行 `npm.cmd run dev`，并在浏览器访问 `http://127.0.0.1:1420/?preview=1`。此模式明确显示 **Preview · sample data**，不操作任何设备。实际使用需要桌面版。
 
 ## 项目结构
+
+`-Portable Both` 在 `release/portable-*` 生成两种对比用 ZIP 和 SHA-256 文件，也可用 `Online` 或 `Offline` 单独选择。完整解压后运行 `Start-QuestManager.cmd`：联网版在系统 WebView2 缺失或过旧时询问安装；离线版直接使用包内固定 WebView2。离线指运行环境无需下载，联网功能仍需要网络。两个版本都尚未签名，公开发布前仍需许可证审查和干净 Windows 验证。
 
 关于项目：侧栏 **About** 页面无需连接头显即可查看项目介绍、开发声明、核心依赖版本、源码仓库及许可证全文。连接帮助仍位于 **Help**。
 
@@ -205,6 +208,11 @@ run-test.ps1             验证入口
 界面通过明确的业务命令调用 Rust，不接受任意 shell 命令。Rust 使用独立参数启动官方 ADB；远端路径经过共享存储范围校验与 shell 转义。任务以事件向界面同步，并保留查询接口以补足初始状态。应用会复用 ADB 默认服务，不主动执行 `kill-server`。
 
 ## 参与贡献与安全报告
+
+GitHub Actions 在拉取请求和推送到 `main` 时执行 Windows 检查，并构建未签名的联网便携版。
+推送 `v0.1.0` 这样的版本标签后，会构建联网、离线两个版本，将 ZIP 和 SHA-256 文件附到
+Release 草稿，供审查后手动公开发布。触发方式、权限和发布前检查见
+[CI 与自动发布构建](docs/development/ci-release.md)。
 
 欢迎提交问题报告、文档改进和代码贡献。请先阅读[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[测试说明](docs/development/testing.md)。Issue 可以使用中文或英文；产品界面仍使用英文。仓库包含 Bug、功能建议和 PR 模板。
 

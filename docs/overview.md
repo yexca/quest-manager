@@ -50,8 +50,9 @@ The desktop app performs real ADB operations. See
 - App names and raster icons are extracted from base APK resources with a
   bounded private cache. Adaptive/vector and split-only icons can use a generic
   fallback. APK sizes exclude private data, cache and OBB content.
-- The repository has local build/test scripts, with no configured CI or
-  automated publication pipeline.
+- GitHub Actions runs Windows host checks and portable builds. Version tags
+  create draft releases for review; publication and device verification remain
+  maintainer steps. See [CI and release automation](development/ci-release.md).
 
 Exact versions live in the [dependency sources](development/dependencies.md).
 See [Getting started](getting-started.md), [Architecture](architecture/index.md),

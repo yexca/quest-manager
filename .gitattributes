@@ -1,0 +1,2 @@
+# Tauri serializes this manifest with LF; keep checkout and build output identical.
+/src-tauri/Cargo.toml text eol=lf

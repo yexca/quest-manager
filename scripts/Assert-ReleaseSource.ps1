@@ -27,6 +27,9 @@ function Assert-QuestCleanSource {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect source working-tree state.' }
     if (($changes | Out-String).Trim()) {
         foreach ($change in $changes) { Write-Host "Source change: $change" }
+        if ($env:GITHUB_ACTIONS -eq 'true') {
+            & git -C $Root diff -- src-tauri/Cargo.toml
+        }
         throw 'Release source must have a clean working tree.'
     }
 }

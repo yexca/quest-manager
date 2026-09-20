@@ -56,6 +56,10 @@ compiler/toolchain. Cargo's source cache and compiled artifacts are separate.
 There is no Python-style runtime activation needed for the compiled app, but
 direct development commands must select the project toolchain environment.
 
+`.gitattributes` keeps `src-tauri/Cargo.toml` checked out with LF because Tauri
+serializes the manifest with LF. This avoids line-ending rewrites during Windows
+builds; source-cleanliness checks still reject actual dependency/feature changes.
+
 ## Normal Installation
 
 The rustup version probe temporarily disables automatic toolchain installation,

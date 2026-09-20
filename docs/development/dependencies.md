@@ -58,6 +58,12 @@ direct development commands must select the project toolchain environment.
 
 ## Normal Installation
 
+The rustup version probe temporarily disables automatic toolchain installation,
+waits for the native process to finish and checks its exit code before reading
+the version. It then restores the previous process environment. Toolchain
+installation runs explicitly afterward, preventing concurrent installers from
+sharing rustup's download files on a fresh checkout.
+
 `run-install.ps1` checks system prerequisites, verifies the downloaded Node ZIP
 and its bundled npm version, verifies rustup, ADB, AAPT2, Apktool, JRE and Build Tools archives, installs the
 pinned Rust components, and uses

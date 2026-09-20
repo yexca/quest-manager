@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\..\scripts\Environment.ps1')
 . (Join-Path $PSScriptRoot '..\..\scripts\SystemPrerequisites.ps1')
+. (Join-Path $PSScriptRoot '..\..\scripts\Downloads.ps1')
 $questTestCount = 0
 
 function Assert-SetupTest {
@@ -184,6 +185,61 @@ Test-Setup 'missing project Node is rejected even when a system Node is availabl
         $script:QuestNode = Join-Path $QuestEnv 'EXAMPLE-missing-node.exe'
         Assert-SetupThrows { Assert-QuestNode } 'Project-local Node/npm are missing'
     } finally { $script:QuestNode = $questSavedNode }
+}
+
+$questRustupFixture = Join-Path $QuestEnv ('test-artifacts/Rustup Version ' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $questRustupFixture -Force | Out-Null
+@'
+if ($env:RUSTUP_AUTO_INSTALL -ne '0') { exit 11 }
+if ($env:QUEST_RUSTUP_TEST_MODE -ne 'empty') {
+    [Console]::Out.WriteLine('rustup 1.29.0 (EXAMPLE-build)')
+}
+Start-Sleep -Milliseconds 200
+[Console]::Error.WriteLine('Synthetic native stderr after the version line.')
+[IO.File]::WriteAllText($env:QUEST_RUSTUP_TEST_MARKER, 'finished')
+if ($env:QUEST_RUSTUP_TEST_MODE -eq 'failure') { exit 7 }
+exit 0
+'@ | Set-Content -LiteralPath (Join-Path $questRustupFixture 'fake-rustup.ps1') -Encoding UTF8
+@'
+@echo off
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0fake-rustup.ps1"
+exit /b %errorlevel%
+'@ | Set-Content -LiteralPath (Join-Path $questRustupFixture 'fake-rustup.cmd') -Encoding ASCII
+$questRustupCommand = Join-Path $questRustupFixture 'fake-rustup.cmd'
+$questSavedRustupEnvironment = @{}
+foreach ($questKey in @('RUSTUP_AUTO_INSTALL', 'QUEST_RUSTUP_TEST_MODE', 'QUEST_RUSTUP_TEST_MARKER')) {
+    $questSavedRustupEnvironment[$questKey] = [Environment]::GetEnvironmentVariable($questKey, 'Process')
+}
+try {
+    Test-Setup 'rustup version query disables auto-install and waits for native completion' {
+        foreach ($questOriginal in @($null, '0', '1')) {
+            [Environment]::SetEnvironmentVariable('RUSTUP_AUTO_INSTALL', $questOriginal, 'Process')
+            $questBefore = [Environment]::GetEnvironmentVariable('RUSTUP_AUTO_INSTALL', 'Process')
+            $env:QUEST_RUSTUP_TEST_MODE = 'success'
+            $env:QUEST_RUSTUP_TEST_MARKER = Join-Path $questRustupFixture ([guid]::NewGuid().ToString('N') + '.txt')
+            $questVersion = Get-QuestRustupVersion $questRustupCommand '1.29.0'
+            Assert-SetupTest ($questVersion -eq 'rustup 1.29.0 (EXAMPLE-build)') 'Unexpected version result.'
+            Assert-SetupTest (Test-Path -LiteralPath $env:QUEST_RUSTUP_TEST_MARKER) 'Returned before native version query finished.'
+            Assert-SetupTest ([Environment]::GetEnvironmentVariable('RUSTUP_AUTO_INSTALL', 'Process') -ceq $questBefore) 'Original auto-install setting was not restored.'
+        }
+    }
+    Test-Setup 'rustup version query rejects native failure even after valid version output' {
+        $env:RUSTUP_AUTO_INSTALL = '1'
+        $env:QUEST_RUSTUP_TEST_MODE = 'failure'
+        Assert-SetupThrows { Get-QuestRustupVersion $questRustupCommand '1.29.0' } 'exit 7'
+        Assert-SetupTest ($env:RUSTUP_AUTO_INSTALL -eq '1') 'Failure did not restore auto-install setting.'
+    }
+    Test-Setup 'rustup version query rejects missing or mismatched versions' {
+        $env:QUEST_RUSTUP_TEST_MODE = 'empty'
+        Assert-SetupThrows { Get-QuestRustupVersion $questRustupCommand '1.29.0' } 'version does not match'
+        $env:QUEST_RUSTUP_TEST_MODE = 'success'
+        Assert-SetupThrows { Get-QuestRustupVersion $questRustupCommand '99.0.0' } 'version does not match'
+        Assert-SetupTest ($env:RUSTUP_AUTO_INSTALL -eq '1') 'Version mismatch did not restore auto-install setting.'
+    }
+} finally {
+    foreach ($questKey in $questSavedRustupEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable($questKey, $questSavedRustupEnvironment[$questKey], 'Process')
+    }
 }
 
 Write-Host "$questTestCount bootstrap tests passed."

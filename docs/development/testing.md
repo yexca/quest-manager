@@ -43,7 +43,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/bootstrap/release.
 
 They cover version boundaries, missing/incomplete component classification,
 consent refusal, noninteractive/check-only behavior, repair rechecking, installer
-signature rejection, exit codes/restart handling and argument quoting. System
+signature rejection, exit codes/restart handling and argument quoting. A native
+rustup fixture checks that version detection suppresses automatic installation,
+waits past the first output line, rejects failure/mismatched output, and restores
+the original environment. System
 installers are mocked: these tests never download, elevate, install or contact
 a headset. Validate real system checks with `run-install.ps1 -CheckOnly` and
 project setup with `run-install.ps1 -NonInteractive` on a compatible computer.

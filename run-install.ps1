@@ -22,8 +22,7 @@ $questRustup = Join-Path $env:CARGO_HOME 'bin\rustup.exe'
 if (!(Test-Path -LiteralPath $questRustup)) {
     Invoke-QuestCommand -File $questRustupInit -Arguments @('-y', '--no-modify-path', '--default-toolchain', 'none', '--profile', 'minimal')
 }
-$questInstalledRustup = (& $questRustup --version 2>$null | Select-Object -First 1)
-if ($questInstalledRustup -notlike "rustup $($QuestVersions.rustup.version) *") { throw 'Local rustup version does not match toolchain.versions.json.' }
+$questInstalledRustup = Get-QuestRustupVersion -Path $questRustup -ExpectedVersion $QuestVersions.rustup.version
 Write-Host "Installing local Rust $($QuestVersions.rust)..."
 Invoke-QuestCommand -File $questRustup -Arguments @('toolchain', 'install', $QuestVersions.rust, '--profile', 'minimal', '--component', 'rustfmt', '--component', 'clippy', '--target', $QuestVersions.rustTarget, '--no-self-update')
 $questCargo = Join-Path $env:CARGO_HOME 'bin\cargo.exe'
